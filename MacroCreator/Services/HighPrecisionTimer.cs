@@ -6,13 +6,15 @@ namespace MacroCreator.Services;
 /// <summary>
 /// 高精度计时器服务，提供精确的延迟功能
 /// </summary>
-public class HighPrecisionTimer
+public partial class HighPrecisionTimer
 {
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool QueryPerformanceCounter(out long lpPerformanceCount);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool QueryPerformanceCounter(out long lpPerformanceCount);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool QueryPerformanceFrequency(out long lpFrequency);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool QueryPerformanceFrequency(out long lpFrequency);
 
     [DllImport("winmm.dll", SetLastError = true)]
     private static extern int timeBeginPeriod(int uPeriod);

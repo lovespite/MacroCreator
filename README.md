@@ -11,6 +11,7 @@
 - 🔄 **条件跳转**：根据像素颜色检测结果执行不同的宏文件
 - ⌨️ **快捷键操作**：F9 录制、F10 播放、F11 停止
 - 🎨 **用户友好界面**：直观的 Windows Forms 界面，支持事件列表查看和编辑
+- 🆕 **现代化API**：使用 SendInput API 替代过时的 Win32 函数，提供更好的兼容性和稳定性
 
 ## 🚀 快速开始
 
@@ -124,8 +125,8 @@ MacroCreator/
 
 ### Windows API 使用
 ```csharp
-// 键盘鼠标模拟
-SetCursorPos(), mouse_event(), keybd_event()
+// 现代化输入模拟 (已更新)
+SendInput(), SetCursorPos()
 
 // 全局钩子
 SetWindowsHookEx(), UnhookWindowsHookEx()
@@ -133,6 +134,13 @@ SetWindowsHookEx(), UnhookWindowsHookEx()
 // 屏幕颜色检测  
 GetDC(), GetPixel(), ReleaseDC()
 ```
+
+### API 现代化升级
+本项目已从过时的 Win32 API 升级到现代化的输入模拟方案：
+- ✅ **SendInput API**：替代了已弃用的 `mouse_event` 和 `keybd_event`
+- ✅ **更好的兼容性**：在现代 Windows 版本上表现更稳定
+- ✅ **原子化操作**：支持批量输入事件的原子化执行
+- ✅ **向后兼容**：保持所有原有功能，用户体验无变化
 
 ## 🤝 贡献指南
 
@@ -158,7 +166,15 @@ GetDC(), GetPixel(), ReleaseDC()
 - 提交 [GitHub Issue](https://github.com/lovespite/MacroCreator/issues)
 - 发起 Pull Request
 
-## 🔮 发展计划
+## � 更新日志
+
+### v1.1.0 (2025-10-17)
+- 🔄 **API 现代化升级**：将输入模拟从过时的 `mouse_event`/`keybd_event` 升级到现代的 `SendInput` API
+- ✅ **兼容性提升**：提高在 Windows 10/11 系统上的稳定性和兼容性
+- 🏗️ **代码重构**：优化 MouseEventPlayer 和 KeyboardEventPlayer 实现
+- 📚 **文档更新**：更新技术说明和 API 使用文档
+
+## �🔮 发展计划
 
 - [ ] 支持更多条件判断类型（文本识别、图像匹配等）
 - [ ] 添加宏编辑器，支持手动修改事件参数

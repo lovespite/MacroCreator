@@ -6,7 +6,7 @@ namespace MacroCreator.Native;
 /// <summary>
 /// 存放所有 P/Invoke 的 Windows API 函数和结构体
 /// </summary>
-internal static class NativeMethods
+internal static partial class NativeMethods
 {
     public const int WH_KEYBOARD_LL = 13;
     public const int WH_MOUSE_LL = 14;
@@ -25,50 +25,62 @@ internal static class NativeMethods
     public const uint WM_MBUTTONUP = 0x0208;
     public const uint WM_MOUSEWHEEL = 0x020A;
 
+    // SendInput constants
+    public const uint INPUT_MOUSE = 0;
+    public const uint INPUT_KEYBOARD = 1;
+    public const uint INPUT_HARDWARE = 2;
+
+    // Keyboard flags
+    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
     public const uint KEYEVENTF_KEYUP = 0x0002;
+    public const uint KEYEVENTF_SCANCODE = 0x0008;
+    public const uint KEYEVENTF_UNICODE = 0x0004;
 
-    public const uint MOUSEEVENTF_LEFTDOWN = 0x02;
-    public const uint MOUSEEVENTF_LEFTUP = 0x04;
-    public const uint MOUSEEVENTF_RIGHTDOWN = 0x08;
-    public const uint MOUSEEVENTF_RIGHTUP = 0x10;
-    public const uint MOUSEEVENTF_MIDDLEDOWN = 0x20;
-    public const uint MOUSEEVENTF_MIDDLEUP = 0x40;
+    // Mouse flags
+    public const uint MOUSEEVENTF_MOVE = 0x0001;
+    public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+    public const uint MOUSEEVENTF_LEFTUP = 0x0004;
+    public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
+    public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+    public const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+    public const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
+    public const uint MOUSEEVENTF_XDOWN = 0x0080;
+    public const uint MOUSEEVENTF_XUP = 0x0100;
     public const uint MOUSEEVENTF_WHEEL = 0x0800;
+    public const uint MOUSEEVENTF_HWHEEL = 0x1000;
+    public const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    public static extern IntPtr SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    public static partial IntPtr SetWindowsHookExA(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool UnhookWindowsHookEx(IntPtr hhk);
+    public static partial bool UnhookWindowsHookEx(IntPtr hhk);
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    public static partial IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    public static extern IntPtr GetModuleHandle(string lpModuleName);
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    public static partial IntPtr GetModuleHandleA(string lpModuleName);
 
-    [DllImport("user32.dll")]
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool SetCursorPos(int x, int y);
+    public static partial bool SetCursorPos(int x, int y);
 
-    [DllImport("user32.dll")]
-    public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+    [LibraryImport("user32.dll")]
+    public static partial uint MapVirtualKeyA(uint uCode, uint uMapType);
 
-    [DllImport("user32.dll")]
-    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    public static partial uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
-    [DllImport("user32.dll")]
-    public static extern uint MapVirtualKey(uint uCode, uint uMapType);
+    [LibraryImport("gdi32.dll")]
+    public static partial uint GetPixel(IntPtr hdc, int nXPos, int nYPos);
 
-    [DllImport("gdi32.dll")]
-    public static extern uint GetPixel(IntPtr hdc, int nXPos, int nYPos);
+    [LibraryImport("user32.dll")]
+    public static partial IntPtr GetDC(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    public static extern IntPtr GetDC(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    [LibraryImport("user32.dll")]
+    public static partial int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
 
     public delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
@@ -88,6 +100,53 @@ internal static class NativeMethods
         public uint flags;
         public uint time;
         public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct INPUT
+    {
+        public uint type;
+        public InputUnion u;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct InputUnion
+    {
+        [FieldOffset(0)]
+        public MOUSEINPUT mi;
+        [FieldOffset(0)]
+        public KEYBDINPUT ki;
+        [FieldOffset(0)]
+        public HARDWAREINPUT hi;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct HARDWAREINPUT
+    {
+        public uint uMsg;
+        public ushort wParamL;
+        public ushort wParamH;
     }
 }
 

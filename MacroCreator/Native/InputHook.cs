@@ -42,7 +42,7 @@ public static class InputHook
         using Process curProcess = Process.GetCurrentProcess();
         using ProcessModule? curModule = curProcess.MainModule ?? throw new InvalidOperationException("无法获取当前模块信息");
 
-        return NativeMethods.SetWindowsHookEx(hookID, proc, NativeMethods.GetModuleHandle(curModule.ModuleName), 0);
+        return NativeMethods.SetWindowsHookExA(hookID, proc, NativeMethods.GetModuleHandleA(curModule.ModuleName), 0);
     }
 
     private static IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
