@@ -31,6 +31,34 @@ public abstract class RecordedEvent
     /// </summary>
     public EventPriority Priority { get; set; } = EventPriority.Normal;
 
+    /// <summary>
+    /// 事件名称（可选），用于标识和跳转。默认为 null（匿名事件）。
+    /// 名称只能包含英文字母和数字。
+    /// </summary>
+    public string? EventName { get; set; }
+
+    /// <summary>
+    /// 指示事件是否有有效名称
+    /// </summary>
+    public bool HasName => !string.IsNullOrWhiteSpace(EventName);
+
+    /// <summary>
+    /// 验证事件名称是否有效
+    /// </summary>
+    public static bool IsValidEventName(string? name)
+    {
+        //if (string.IsNullOrWhiteSpace(name))
+        //    return false;
+
+        //foreach (char c in name)
+        //{
+        //    if (!char.IsLetterOrDigit(c) || c > 127) // 只允许ASCII字母和数字
+        //        return false;
+        //} 
+
+        return !string.IsNullOrWhiteSpace(name);
+    }
+
     public abstract string GetDescription();
 }
 

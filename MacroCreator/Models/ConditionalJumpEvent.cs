@@ -32,23 +32,25 @@ public class ConditionalJumpEvent : RecordedEvent
     public string? CustomCondition { get; set; }
 
     /// <summary>
-    /// 条件为真时跳转的目标索引
+    /// 条件为真时跳转的目标事件名称 - 优先使用名称跳转
     /// </summary>
-    public int TrueTargetIndex { get; set; }
+    public string TrueTargetEventName { get; set; } = string.Empty;
 
     /// <summary>
-    /// 条件为假时跳转的目标索引（-1表示继续执行下一个事件）
+    /// 条件为假时跳转的目标事件名称 - 优先使用名称跳转
     /// </summary>
-    public int FalseTargetIndex { get; set; } = -1;
+    public string? FalseTargetEventName { get; set; }
 
     /// <summary>
-    /// 条件为真时的标签
+    /// 条件为真时的标签（已弃用，使用 TrueTargetEventName）
     /// </summary>
+    [Obsolete("使用 TrueTargetEventName 代替")]
     public string? TrueLabel { get; set; }
 
     /// <summary>
-    /// 条件为假时的标签
+    /// 条件为假时的标签（已弃用，使用 FalseTargetEventName）
     /// </summary>
+    [Obsolete("使用 FalseTargetEventName 代替")]
     public string? FalseLabel { get; set; }
 
     /// <summary>
@@ -72,16 +74,12 @@ public class ConditionalJumpEvent : RecordedEvent
 
         var trueBranch = !string.IsNullOrEmpty(FilePathIfMatch)
             ? $"执行文件: {Path.GetFileName(FilePathIfMatch)}"
-            : (!string.IsNullOrEmpty(TrueLabel) 
-                ? $"#{TrueTargetIndex + 1} ({TrueLabel})" 
-                : $"#{TrueTargetIndex + 1}");
+            : $"跳转事件: {TrueTargetEventName}";
 
         var falseBranch = !string.IsNullOrEmpty(FilePathIfNotMatch)
             ? $"执行文件: {Path.GetFileName(FilePathIfNotMatch)}"
-            : (FalseTargetIndex >= 0 
-                ? (!string.IsNullOrEmpty(FalseLabel) 
-                    ? $"#{FalseTargetIndex + 1} ({FalseLabel})" 
-                    : $"#{FalseTargetIndex + 1}")
+            : (!string.IsNullOrEmpty(FalseTargetEventName)
+                ? $"跳转事件: {FalseTargetEventName}"
                 : "继续执行");
 
         return $"条件跳转: {conditionDesc} → 真:{trueBranch}, 假:{falseBranch}";
@@ -97,7 +95,7 @@ public enum ConditionType
     /// 像素颜色检查
     /// </summary>
     PixelColor,
-    
+
     /// <summary>
     /// 自定义条件表达式
     /// </summary>

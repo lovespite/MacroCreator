@@ -49,6 +49,8 @@ namespace MacroCreator.Forms
             statusLabel = new ToolStripStatusLabel();
             toolStripContainer = new ToolStripContainer();
             lvEvents = new ListView();
+            contextMenuStripEvents = new ContextMenuStrip();
+            renameEventToolStripMenuItem = new ToolStripMenuItem();
             columnHeader1 = new ColumnHeader();
             columnHeader2 = new ColumnHeader();
             columnHeader3 = new ColumnHeader();
@@ -63,6 +65,7 @@ namespace MacroCreator.Forms
             toolStripContainer.ContentPanel.SuspendLayout();
             toolStripContainer.TopToolStripPanel.SuspendLayout();
             toolStripContainer.SuspendLayout();
+            contextMenuStripEvents.SuspendLayout();
             buttonPanel.SuspendLayout();
             SuspendLayout();
             // 
@@ -230,6 +233,7 @@ namespace MacroCreator.Forms
             // lvEvents
             // 
             lvEvents.Columns.AddRange(new ColumnHeader[] { columnHeader1, columnHeader2, columnHeader3, columnHeader4 });
+            lvEvents.ContextMenuStrip = contextMenuStripEvents;
             lvEvents.Dock = DockStyle.Fill;
             lvEvents.FullRowSelect = true;
             lvEvents.Location = new Point(0, 54);
@@ -242,6 +246,19 @@ namespace MacroCreator.Forms
             lvEvents.ItemActivate += LvEvents_ItemActivate;
             lvEvents.Click += EventListView_Click;
             lvEvents.KeyDown += EventListView_KeyDown;
+            // 
+            // contextMenuStripEvents
+            // 
+            contextMenuStripEvents.Items.AddRange(new ToolStripItem[] { renameEventToolStripMenuItem });
+            contextMenuStripEvents.Name = "contextMenuStripEvents";
+            contextMenuStripEvents.Size = new Size(181, 26);
+            // 
+            // renameEventToolStripMenuItem
+            // 
+            renameEventToolStripMenuItem.Name = "renameEventToolStripMenuItem";
+            renameEventToolStripMenuItem.Size = new Size(180, 22);
+            renameEventToolStripMenuItem.Text = "重命名事件(&R)...";
+            renameEventToolStripMenuItem.Click += RenameEventToolStripMenuItem_Click;
             // 
             // columnHeader1
             // 
@@ -337,6 +354,7 @@ namespace MacroCreator.Forms
             toolStripContainer.TopToolStripPanel.PerformLayout();
             toolStripContainer.ResumeLayout(false);
             toolStripContainer.PerformLayout();
+            contextMenuStripEvents.ResumeLayout(false);
             buttonPanel.ResumeLayout(false);
             ResumeLayout(false);
 
@@ -358,6 +376,8 @@ namespace MacroCreator.Forms
         private ToolStripStatusLabel statusLabel;
         private ToolStripContainer toolStripContainer;
         private ListView lvEvents;
+        private ContextMenuStrip contextMenuStripEvents;
+        private ToolStripMenuItem renameEventToolStripMenuItem;
         private ColumnHeader columnHeader1;
         private ColumnHeader columnHeader2;
         private ColumnHeader columnHeader3;

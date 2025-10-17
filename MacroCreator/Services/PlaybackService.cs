@@ -21,7 +21,7 @@ public class PlaybackService(Dictionary<Type, IEventPlayer> players) : IDisposab
     public async Task Play(List<RecordedEvent> events, Func<string, Task>? loadAndPlayNewFileCallback)
     {
         _cancellationTokenSource = new CancellationTokenSource();
-        var context = new PlaybackContext(_cancellationTokenSource.Token, loadAndPlayNewFileCallback);
+        var context = new PlaybackContext(_cancellationTokenSource.Token, events, loadAndPlayNewFileCallback);
 
         var startTime = _timer.GetPreciseMilliseconds();
         var scheduledTime = startTime;

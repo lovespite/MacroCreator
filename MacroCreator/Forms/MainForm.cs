@@ -88,8 +88,8 @@ public partial class MainForm : Form
         // 如果 InsertJumpForm 处于选择模式，处理选择
         if (_insertJumpForm != null && lvEvents.SelectedItems.Count > 0)
         {
-            int selectedIndex = lvEvents.SelectedItems[0].Index;
-            _insertJumpForm.SetSelectedTarget(selectedIndex);
+            if (lvEvents.SelectedItems[0].Tag is RecordedEvent ev && ev.HasName)
+                _insertJumpForm.SetSelectedTarget(ev);
         }
     }
 
@@ -169,6 +169,95 @@ public partial class MainForm : Form
 
     }
 
+    private void RenameEventToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        if (lvEvents.SelectedItems.Count != 1)
+            return;
+
+        int selectedIndex = lvEvents.SelectedItems[0].Index;
+        var ev = _controller.EventSequence[selectedIndex];
+
+        // 创建输入对话框
+        using var inputDialog = new Form
+        {
+            Text = "重命名事件",
+            Width = 400,
+            Height = 150,
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false
+        };
+
+        var label = new Label
+        {
+            Text = "事件名称（仅英文字母和数字，留空表示匿名）:",
+            Left = 10,
+            Top = 20,
+            Width = 360
+        };
+
+        var textBox = new TextBox
+        {
+            Left = 10,
+            Top = 45,
+            Width = 360,
+            Text = ev.EventName ?? ""
+        };
+
+        var okButton = new Button
+        {
+            Text = "确定",
+            Left = 210,
+            Top = 75,
+            DialogResult = DialogResult.OK
+        };
+
+        var cancelButton = new Button
+        {
+            Text = "取消",
+            Left = 290,
+            Top = 75,
+            DialogResult = DialogResult.Cancel
+        };
+
+        inputDialog.Controls.AddRange([label, textBox, okButton, cancelButton]);
+        inputDialog.AcceptButton = okButton;
+        inputDialog.CancelButton = cancelButton;
+
+        if (inputDialog.ShowDialog() == DialogResult.OK)
+        {
+            string newName = textBox.Text.Trim();
+
+            // 验证名称
+            if (!string.IsNullOrWhiteSpace(newName))
+            {
+                if (!RecordedEvent.IsValidEventName(newName))
+                {
+                    MessageBox.Show("事件名称只能包含英文字母和数字。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // 检查名称是否已存在
+                for (int i = 0; i < _controller.EventSequence.Count; i++)
+                {
+                    if (i != selectedIndex && _controller.EventSequence[i].EventName == newName)
+                    {
+                        MessageBox.Show($"事件名称 '{newName}' 已被其他事件使用。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+            }
+
+            // 更新事件名称
+            ev.EventName = string.IsNullOrWhiteSpace(newName) ? null : newName;
+            RefreshEventList();
+            statusLabel!.Text = string.IsNullOrWhiteSpace(newName)
+                ? "事件已设为匿名。"
+                : $"事件已重命名为 '{newName}'。";
+        }
+    }
+
     #endregion
 
     #region Private Methods
@@ -182,12 +271,22 @@ public partial class MainForm : Form
         for (int i = 0; i < eventSequence.Count; i++)
         {
             var ev = eventSequence[i];
+
+            // 如果事件有名称，在序号后显示名称
+            string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
+                ? (i + 1).ToString()
+                : $"{ev.EventName} ({i + 1})";
+
             var item = new ListViewItem([
-                (i + 1).ToString(),
+                indexDisplay,
                 ev.GetType().Name,
                 ev.GetDescription(),
                 $"{ev.TimeSinceLastEvent:0.00}"
-            ]);
+            ])
+            {
+                Tag = ev,
+            };
+
             lvEvents.Items.Add(item);
         }
         lvEvents.EndUpdate();

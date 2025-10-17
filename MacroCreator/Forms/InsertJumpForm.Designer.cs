@@ -62,13 +62,11 @@ namespace MacroCreator.Forms
             lblHint = new Label();
             pnlJumpTargets = new Panel();
             lblTrueTarget = new Label();
-            nudTrueTarget = new NumericUpDown();
             btnSelectTrueTarget = new Button();
             txtTrueLabel = new TextBox();
             txtTrueFilePath = new TextBox();
             btnBrowseTrueFile = new Button();
             chkFalseTargetEnabled = new CheckBox();
-            nudFalseTarget = new NumericUpDown();
             btnSelectFalseTarget = new Button();
             txtFalseLabel = new TextBox();
             txtFalseFilePath = new TextBox();
@@ -84,8 +82,6 @@ namespace MacroCreator.Forms
             pnlPixelCondition.SuspendLayout();
             pnlCustomCondition.SuspendLayout();
             pnlJumpTargets.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)nudTrueTarget).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)nudFalseTarget).BeginInit();
             SuspendLayout();
             // 
             // pnlJumpType
@@ -180,14 +176,15 @@ namespace MacroCreator.Forms
             lblTargetLabel.AutoSize = true;
             lblTargetLabel.Location = new Point(10, 57);
             lblTargetLabel.Name = "lblTargetLabel";
-            lblTargetLabel.Size = new Size(71, 17);
+            lblTargetLabel.Size = new Size(83, 17);
             lblTargetLabel.TabIndex = 2;
-            lblTargetLabel.Text = "标签 (可选):";
+            lblTargetLabel.Text = "目标事件名称:";
             // 
             // txtTargetLabel
             // 
             txtTargetLabel.Location = new Point(120, 54);
             txtTargetLabel.Name = "txtTargetLabel";
+            txtTargetLabel.PlaceholderText = "留空表示匿名事件（使用索引）";
             txtTargetLabel.Size = new Size(200, 23);
             txtTargetLabel.TabIndex = 3;
             // 
@@ -278,7 +275,7 @@ namespace MacroCreator.Forms
             colorPanel.Location = new Point(120, 48);
             colorPanel.Name = "colorPanel";
             colorPanel.Size = new Size(50, 22);
-            colorPanel.TabIndex = 4; 
+            colorPanel.TabIndex = 4;
             // 
             // lblColorHex
             // 
@@ -340,13 +337,11 @@ namespace MacroCreator.Forms
             // pnlJumpTargets
             // 
             pnlJumpTargets.Controls.Add(lblTrueTarget);
-            pnlJumpTargets.Controls.Add(nudTrueTarget);
             pnlJumpTargets.Controls.Add(btnSelectTrueTarget);
             pnlJumpTargets.Controls.Add(txtTrueLabel);
             pnlJumpTargets.Controls.Add(txtTrueFilePath);
             pnlJumpTargets.Controls.Add(btnBrowseTrueFile);
             pnlJumpTargets.Controls.Add(chkFalseTargetEnabled);
-            pnlJumpTargets.Controls.Add(nudFalseTarget);
             pnlJumpTargets.Controls.Add(btnSelectFalseTarget);
             pnlJumpTargets.Controls.Add(txtFalseLabel);
             pnlJumpTargets.Controls.Add(txtFalseFilePath);
@@ -366,16 +361,6 @@ namespace MacroCreator.Forms
             lblTrueTarget.TabIndex = 0;
             lblTrueTarget.Text = "条件真时跳转:";
             // 
-            // nudTrueTarget
-            // 
-            nudTrueTarget.Location = new Point(154, 10);
-            nudTrueTarget.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            nudTrueTarget.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
-            nudTrueTarget.Name = "nudTrueTarget";
-            nudTrueTarget.Size = new Size(80, 23);
-            nudTrueTarget.TabIndex = 1;
-            nudTrueTarget.Value = new decimal(new int[] { 1, 0, 0, 0 });
-            // 
             // btnSelectTrueTarget
             // 
             btnSelectTrueTarget.Location = new Point(400, 9);
@@ -388,10 +373,10 @@ namespace MacroCreator.Forms
             // 
             // txtTrueLabel
             // 
-            txtTrueLabel.Location = new Point(244, 10);
+            txtTrueLabel.Location = new Point(154, 10);
             txtTrueLabel.Name = "txtTrueLabel";
-            txtTrueLabel.PlaceholderText = "标签 (可选)";
-            txtTrueLabel.Size = new Size(150, 23);
+            txtTrueLabel.PlaceholderText = "事件名称";
+            txtTrueLabel.Size = new Size(240, 23);
             txtTrueLabel.TabIndex = 2;
             // 
             // txtTrueFilePath
@@ -423,17 +408,6 @@ namespace MacroCreator.Forms
             chkFalseTargetEnabled.UseVisualStyleBackColor = true;
             chkFalseTargetEnabled.CheckedChanged += ChkFalseTargetEnabled_CheckedChanged;
             // 
-            // nudFalseTarget
-            // 
-            nudFalseTarget.Enabled = false;
-            nudFalseTarget.Location = new Point(154, 73);
-            nudFalseTarget.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            nudFalseTarget.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
-            nudFalseTarget.Name = "nudFalseTarget";
-            nudFalseTarget.Size = new Size(80, 23);
-            nudFalseTarget.TabIndex = 6;
-            nudFalseTarget.Value = new decimal(new int[] { 1, 0, 0, 0 });
-            // 
             // btnSelectFalseTarget
             // 
             btnSelectFalseTarget.Enabled = false;
@@ -448,10 +422,10 @@ namespace MacroCreator.Forms
             // txtFalseLabel
             // 
             txtFalseLabel.Enabled = false;
-            txtFalseLabel.Location = new Point(244, 73);
+            txtFalseLabel.Location = new Point(154, 73);
             txtFalseLabel.Name = "txtFalseLabel";
-            txtFalseLabel.PlaceholderText = "标签 (可选)";
-            txtFalseLabel.Size = new Size(150, 23);
+            txtFalseLabel.PlaceholderText = "事件名称";
+            txtFalseLabel.Size = new Size(240, 23);
             txtFalseLabel.TabIndex = 7;
             // 
             // txtFalseFilePath
@@ -540,8 +514,6 @@ namespace MacroCreator.Forms
             pnlCustomCondition.PerformLayout();
             pnlJumpTargets.ResumeLayout(false);
             pnlJumpTargets.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)nudTrueTarget).EndInit();
-            ((System.ComponentModel.ISupportInitialize)nudFalseTarget).EndInit();
             ResumeLayout(false);
         }
 
@@ -573,12 +545,10 @@ namespace MacroCreator.Forms
         private Label lblHint;
         private Panel pnlJumpTargets;
         private Label lblTrueTarget;
-        private NumericUpDown nudTrueTarget;
         private TextBox txtTrueLabel;
         private TextBox txtTrueFilePath;
         private Button btnBrowseTrueFile;
         private CheckBox chkFalseTargetEnabled;
-        private NumericUpDown nudFalseTarget;
         private TextBox txtFalseLabel;
         private TextBox txtFalseFilePath;
         private Button btnBrowseFalseFile;

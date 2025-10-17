@@ -26,9 +26,12 @@ public class ConditionalJumpEventPlayer : IEventPlayer
             
             // 如果没有外部文件，则执行序列内跳转
             int targetIndex;
+            string? targetEventName;
+
             if (conditionMet)
             {
                 targetIndex = conditionalJump.TrueTargetIndex;
+                targetEventName = conditionalJump.TrueTargetEventName;
             }
             else
             {
@@ -38,6 +41,22 @@ public class ConditionalJumpEventPlayer : IEventPlayer
                     return PlaybackResult.Continue(); // 不跳转，继续执行
                 }
                 targetIndex = conditionalJump.FalseTargetIndex;
+                targetEventName = conditionalJump.FalseTargetEventName;
+            }
+
+            // 如果指定了目标事件名称，优先使用名称查找
+            if (!string.IsNullOrWhiteSpace(targetEventName))
+            {
+                int foundIndex = context.FindEventIndexByName(targetEventName);
+                if (foundIndex >= 0)
+                {
+                    targetIndex = foundIndex;
+                }
+                else
+                {
+                    // 无法跳转到匿名事件或未找到的事件，继续执行下一个事件
+                    return PlaybackResult.Continue();
+                }
             }
             
             // 返回跳转结果

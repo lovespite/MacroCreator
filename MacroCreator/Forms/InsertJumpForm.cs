@@ -12,7 +12,7 @@ public partial class InsertJumpForm : Form
 
     private readonly int totalEventCount;
     private bool isSelectingTarget = false;
-    private Action<int>? onTargetSelected;
+    private Action<RecordedEvent>? onTargetSelected;
 
     public event Action<RecordedEvent>? JumpEventCreated;
 
@@ -28,8 +28,6 @@ public partial class InsertJumpForm : Form
         // 设置数值控件的最大值
         var maxValue = Math.Max(1, totalEventCount);
         nudTargetIndex.Maximum = maxValue;
-        nudTrueTarget.Maximum = maxValue;
-        nudFalseTarget.Maximum = maxValue;
     }
 
     private void RbJumpType_CheckedChanged(object sender, EventArgs e)
@@ -46,7 +44,6 @@ public partial class InsertJumpForm : Form
 
     private void ChkFalseTargetEnabled_CheckedChanged(object sender, EventArgs e)
     {
-        nudFalseTarget.Enabled = chkFalseTargetEnabled.Checked;
         txtFalseLabel.Enabled = chkFalseTargetEnabled.Checked;
         txtFalseFilePath.Enabled = chkFalseTargetEnabled.Checked;
         btnBrowseFalseFile.Enabled = chkFalseTargetEnabled.Checked;
@@ -118,21 +115,45 @@ public partial class InsertJumpForm : Form
         }
         else if (rbUnconditionalJump.Checked)
         {
+            // 验证目标事件名称（如果提供）
+            string targetName = txtTargetLabel.Text.Trim();
+            if (!RecordedEvent.IsValidEventName(targetName))
+            {
+                MessageBox.Show("事件名称只能包含英文字母和数字。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             JumpEvent = new JumpEvent
             {
-                TargetIndex = (int)nudTargetIndex.Value - 1, // 转换为0基索引
-                Label = string.IsNullOrWhiteSpace(txtTargetLabel.Text) ? null : txtTargetLabel.Text.Trim()
+                TargetEventName = targetName
             };
         }
         else if (rbConditionalJump.Checked)
         {
+            // 验证目标事件名称（如果提供）
+            string trueTargetName = txtTrueLabel.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(trueTargetName) || !RecordedEvent.IsValidEventName(trueTargetName))
+            {
+                MessageBox.Show("分支事件名称只能包含英文字母和数字。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string? falseTargetName = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseLabel.Text)
+                ? txtFalseLabel.Text.Trim()
+                : null;
+
+            if (falseTargetName != null && !RecordedEvent.IsValidEventName(falseTargetName))
+            {
+                MessageBox.Show("分支事件名称只能包含英文字母和数字。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             var conditionalJump = new ConditionalJumpEvent
             {
-                TrueTargetIndex = (int)nudTrueTarget.Value - 1, // 转换为0基索引
-                TrueLabel = string.IsNullOrWhiteSpace(txtTrueLabel.Text) ? null : txtTrueLabel.Text.Trim(),
+                TrueTargetEventName = trueTargetName,
+                FalseTargetEventName = falseTargetName,
                 FilePathIfMatch = string.IsNullOrWhiteSpace(txtTrueFilePath.Text) ? null : txtTrueFilePath.Text.Trim(),
-                FalseTargetIndex = chkFalseTargetEnabled.Checked ? (int)nudFalseTarget.Value - 1 : -1,
-                FalseLabel = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseLabel.Text) ? txtFalseLabel.Text.Trim() : null,
                 FilePathIfNotMatch = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseFilePath.Text) ? txtFalseFilePath.Text.Trim() : null
             };
 
@@ -176,7 +197,7 @@ public partial class InsertJumpForm : Form
     /// <summary>
     /// 开始从主窗口选择目标索引
     /// </summary>
-    public void StartSelectingTarget(Action<int> callback)
+    public void StartSelectingTarget(Action<RecordedEvent> callback)
     {
         isSelectingTarget = true;
         onTargetSelected = callback;
@@ -186,11 +207,11 @@ public partial class InsertJumpForm : Form
     /// <summary>
     /// 从主窗口接收选中的目标索引
     /// </summary>
-    public void SetSelectedTarget(int index)
+    public void SetSelectedTarget(RecordedEvent @event)
     {
         if (isSelectingTarget && onTargetSelected != null)
         {
-            onTargetSelected(index);
+            onTargetSelected(@event);
             isSelectingTarget = false;
             onTargetSelected = null;
             UpdateSelectionModeUI(false);
@@ -223,25 +244,25 @@ public partial class InsertJumpForm : Form
 
     private void BtnSelectTarget_Click(object sender, EventArgs e)
     {
-        StartSelectingTarget((index) =>
+        StartSelectingTarget((ev) =>
         {
-            nudTargetIndex.Value = index + 1; // 转换为1基索引显示
+            txtTargetLabel.Text = ev.EventName;
         });
     }
 
     private void BtnSelectTrueTarget_Click(object sender, EventArgs e)
     {
-        StartSelectingTarget((index) =>
+        StartSelectingTarget((ev) =>
         {
-            nudTrueTarget.Value = index + 1; // 转换为1基索引显示
+            txtTrueLabel.Text = ev.EventName;
         });
     }
 
     private void BtnSelectFalseTarget_Click(object sender, EventArgs e)
     {
-        StartSelectingTarget((index) =>
+        StartSelectingTarget((ev) =>
         {
-            nudFalseTarget.Value = index + 1; // 转换为1基索引显示
+            txtFalseLabel.Text = ev.EventName;
         });
     }
 
@@ -250,3 +271,5 @@ public partial class InsertJumpForm : Form
 
     }
 }
+
+public delegate void TargetSelectedHandler(RecordedEvent recordEvent);
