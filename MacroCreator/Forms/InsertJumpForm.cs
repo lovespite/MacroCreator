@@ -1,0 +1,147 @@
+// 命名空间定义了应用程序的入口点
+using MacroCreator.Models;
+
+namespace MacroCreator.Forms;
+
+/// <summary>
+/// 用于插入跳转事件的对话框
+/// </summary>
+public partial class InsertJumpForm : Form
+{
+    public RecordedEvent? JumpEvent { get; private set; }
+
+    private int totalEventCount;
+
+    public InsertJumpForm(int eventCount)
+    {
+        totalEventCount = eventCount;
+        InitializeComponent();
+
+        // 设置初始值
+        cmbConditionType.SelectedIndex = 0;
+        lblColorHex.Text = ColorTranslator.ToHtml(Color.Red);
+
+        // 设置数值控件的最大值
+        var maxValue = Math.Max(1, totalEventCount);
+        nudTargetIndex.Maximum = maxValue;
+        nudTrueTarget.Maximum = maxValue;
+        nudFalseTarget.Maximum = maxValue;
+    }
+
+    private void RbJumpType_CheckedChanged(object sender, EventArgs e)
+    {
+        pnlUnconditional.Visible = rbUnconditionalJump.Checked;
+        pnlConditional.Visible = rbConditionalJump.Checked;
+    }
+
+    private void CmbConditionType_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        pnlPixelCondition.Visible = cmbConditionType.SelectedIndex == 0;
+        pnlCustomCondition.Visible = cmbConditionType.SelectedIndex == 1;
+    }
+
+    private void ChkFalseTargetEnabled_CheckedChanged(object sender, EventArgs e)
+    {
+        nudFalseTarget.Enabled = chkFalseTargetEnabled.Checked;
+        txtFalseLabel.Enabled = chkFalseTargetEnabled.Checked;
+    }
+
+    private void InsertJumpForm_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.F8 && rbConditionalJump.Checked && cmbConditionType.SelectedIndex == 0)
+        {
+            BtnPickColor_Click(sender, e);
+        }
+    }
+
+    private void BtnPickColor_Click(object sender, EventArgs e)
+    {
+        Text = "移动鼠标到目标位置, 按下 Ctrl 键拾取颜色和坐标...";
+        Cursor = Cursors.Cross;
+        colorPickerTimer.Start();
+    }
+
+    private void ColorPickerTimer_Tick(object sender, EventArgs e)
+    {
+        Point pos = Cursor.Position;
+        txtX.Text = pos.X.ToString();
+        txtY.Text = pos.Y.ToString();
+
+        try
+        {
+            Color color = Native.NativeMethods.GetPixelColor(pos);
+
+            colorPanel.BackColor = color;
+            lblColorHex.Text = ColorTranslator.ToHtml(color);
+        }
+        catch { }
+
+        // 检测 Ctrl 键是否按下
+        if ((ModifierKeys & Keys.Control) == Keys.Control)
+        {
+            colorPickerTimer.Stop();
+            Cursor = Cursors.Default;
+            Text = "插入跳转事件";
+        }
+    }
+
+    private void BtnOK_Click(object sender, EventArgs e)
+    {
+        if (rbUnconditionalJump.Checked)
+        {
+            JumpEvent = new JumpEvent
+            {
+                TargetIndex = (int)nudTargetIndex.Value - 1, // 转换为0基索引
+                Label = string.IsNullOrWhiteSpace(txtTargetLabel.Text) ? null : txtTargetLabel.Text.Trim()
+            };
+        }
+        else if (rbConditionalJump.Checked)
+        {
+            var conditionalJump = new ConditionalJumpEvent
+            {
+                TrueTargetIndex = (int)nudTrueTarget.Value - 1, // 转换为0基索引
+                TrueLabel = string.IsNullOrWhiteSpace(txtTrueLabel.Text) ? null : txtTrueLabel.Text.Trim(),
+                FalseTargetIndex = chkFalseTargetEnabled.Checked ? (int)nudFalseTarget.Value - 1 : -1,
+                FalseLabel = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseLabel.Text) ? txtFalseLabel.Text.Trim() : null
+            };
+
+            if (cmbConditionType.SelectedIndex == 0) // 像素颜色检查
+            {
+                if (!int.TryParse(txtX.Text, out int x) || !int.TryParse(txtY.Text, out int y))
+                {
+                    MessageBox.Show("请输入有效的 X 和 Y 坐标。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                conditionalJump.ConditionType = ConditionType.PixelColor;
+                conditionalJump.X = x;
+                conditionalJump.Y = y;
+                conditionalJump.ExpectedColorHex = lblColorHex.Text;
+            }
+            else // 自定义条件
+            {
+                if (string.IsNullOrWhiteSpace(txtCustomCondition.Text))
+                {
+                    MessageBox.Show("请输入自定义条件表达式。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                conditionalJump.ConditionType = ConditionType.Custom;
+                conditionalJump.CustomCondition = txtCustomCondition.Text.Trim();
+            }
+
+            JumpEvent = conditionalJump;
+        }
+
+        DialogResult = DialogResult.OK;
+    }
+
+    private void BtnCancel_Click(object sender, EventArgs e)
+    {
+        DialogResult = DialogResult.Cancel;
+    }
+
+    private void colorPanel_Paint(object sender, PaintEventArgs e)
+    { 
+    }
+}

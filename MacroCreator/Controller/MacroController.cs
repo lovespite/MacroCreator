@@ -38,7 +38,9 @@ public class MacroController
             { typeof(MouseEvent), new MouseEventPlayer() },
             { typeof(KeyboardEvent), new KeyboardEventPlayer() },
             { typeof(DelayEvent), new DelayEventPlayer() },
-            { typeof(PixelConditionEvent), new PixelConditionEventPlayer() }
+            { typeof(PixelConditionEvent), new PixelConditionEventPlayer() },
+            { typeof(JumpEvent), new JumpEventPlayer() },
+            { typeof(ConditionalJumpEvent), new ConditionalJumpEventPlayer() }
         };
         _playbackService = new PlaybackService(playerStrategies);
     }

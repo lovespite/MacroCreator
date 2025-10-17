@@ -33,9 +33,10 @@ public class PlaybackService : IDisposable
         var startTime = _timer.GetPreciseMilliseconds();
         var scheduledTime = startTime;
 
-        foreach (var ev in events)
+        int currentIndex = 0;
+        while (currentIndex < events.Count && !context.CancellationToken.IsCancellationRequested)
         {
-            if (context.CancellationToken.IsCancellationRequested) break;
+            var ev = events[currentIndex];
 
             // 计算下一个事件应该执行的时间点
             scheduledTime += ev.TimeSinceLastEvent;
@@ -55,6 +56,27 @@ public class PlaybackService : IDisposable
                     
                     await player.ExecuteAsync(ev, context);
                     
+                    // 检查是否有跳转请求
+                    if (context.HasJumpTarget)
+                    {
+                        var targetIndex = context.JumpTargetIndex;
+                        context.ClearJumpTarget();
+                        
+                        // 验证跳转目标是否有效
+                        if (targetIndex >= 0 && targetIndex < events.Count)
+                        {
+                            currentIndex = targetIndex;
+                            // 重置时间基准，从跳转目标开始计算时间
+                            scheduledTime = _timer.GetPreciseMilliseconds();
+                            continue;
+                        }
+                        else
+                        {
+                            // 无效的跳转目标，终止播放
+                            return;
+                        }
+                    }
+                    
                     // 如果是DelayEvent，需要额外处理其内部延迟
                     if (ev is DelayEvent delayEvent)
                     {
@@ -63,10 +85,34 @@ public class PlaybackService : IDisposable
                 }
                 catch (SequenceJumpException)
                 {
-                    // 这是一个控制流异常，表示已跳转到新序列，应终止当前循环
-                    return;
+                    // 检查是否是跳转到新文件
+                    if (context.LoadAndPlayNewFileCallback != null && !context.HasJumpTarget)
+                    {
+                        // 这是文件跳转，终止当前循环
+                        return;
+                    }
+                    
+                    // 这是序列内跳转，已在上面处理
+                    if (context.HasJumpTarget)
+                    {
+                        var targetIndex = context.JumpTargetIndex;
+                        context.ClearJumpTarget();
+                        
+                        if (targetIndex >= 0 && targetIndex < events.Count)
+                        {
+                            currentIndex = targetIndex;
+                            scheduledTime = _timer.GetPreciseMilliseconds();
+                            continue;
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
                 }
             }
+            
+            currentIndex++;
         }
     }
 

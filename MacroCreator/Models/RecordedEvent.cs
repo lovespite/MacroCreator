@@ -11,6 +11,8 @@ namespace MacroCreator.Models;
 [XmlInclude(typeof(KeyboardEvent))]
 [XmlInclude(typeof(DelayEvent))]
 [XmlInclude(typeof(PixelConditionEvent))]
+[XmlInclude(typeof(JumpEvent))]
+[XmlInclude(typeof(ConditionalJumpEvent))]
 [Serializable]
 public abstract class RecordedEvent
 {

@@ -1,6 +1,4 @@
-﻿// 命名空间定义了应用程序的入口点
-using MacroCreator.Controller;
-using MacroCreator;
+﻿using MacroCreator.Controller;
 using MacroCreator.Models;
 
 namespace MacroCreator.Forms;
@@ -9,25 +7,10 @@ public partial class MainForm : Form
 {
     private readonly MacroController _controller;
 
-    // UI 控件
-    private MenuStrip menuStrip;
-    private ToolStripMenuItem fileToolStripMenuItem, newToolStripMenuItem, openToolStripMenuItem, saveToolStripMenuItem, saveAsToolStripMenuItem, exitToolStripMenuItem;
-    private ToolStripMenuItem editToolStripMenuItem, insertConditionToolStripMenuItem;
-    private StatusStrip statusStrip;
-    private ToolStripStatusLabel statusLabel;
-    private ToolStripContainer toolStripContainer;
-
-    private FlowLayoutPanel buttonPanel;
-    private Button btnRecord, btnPlay, btnStop;
-    
-    private ListView lvEvents;
-
     public MainForm()
     {
         _controller = new MacroController();
         InitializeComponent();
-        Text = "自动化宏工具";
-        Size = new Size(800, 600);
 
         // 订阅 Controller 事件
         _controller.StateChanged += OnAppStateChanged;
@@ -38,70 +21,31 @@ public partial class MainForm : Form
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态
     }
 
-    private void InitializeComponent()
+    #region Event Handlers
+
+    private void NewToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        // 初始化控件
-        menuStrip = new MenuStrip();
-        fileToolStripMenuItem = new ToolStripMenuItem("文件(&F)");
-        newToolStripMenuItem = new ToolStripMenuItem("新建(&N)");
-        openToolStripMenuItem = new ToolStripMenuItem("打开(&O)...");
-        saveToolStripMenuItem = new ToolStripMenuItem("保存(&S)");
-        saveAsToolStripMenuItem = new ToolStripMenuItem("另存为(&A)...");
-        exitToolStripMenuItem = new ToolStripMenuItem("退出(&X)");
+        _controller.NewSequence();
+    }
 
-        editToolStripMenuItem = new ToolStripMenuItem("编辑(&E)");
-        insertConditionToolStripMenuItem = new ToolStripMenuItem("插入条件判断(&I)...");
+    private void BtnRecord_Click(object sender, EventArgs e)
+    {
+        _controller.StartRecording();
+    }
 
-        statusStrip = new StatusStrip();
-        statusLabel = new ToolStripStatusLabel("准备就绪");
-        toolStripContainer = new ToolStripContainer();
-        buttonPanel = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(5) };
-        btnRecord = new Button { Text = "录制 (F9)", Width = 120, Height = 40, Margin = new Padding(5) };
-        btnPlay = new Button { Text = "播放 (F10)", Width = 120, Height = 40, Margin = new Padding(5) };
-        btnStop = new Button { Text = "停止 (F11)", Width = 120, Height = 40, Margin = new Padding(5), Enabled = false };
-        lvEvents = new ListView { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true };
+    private async void BtnPlay_Click(object sender, EventArgs e)
+    {
+        await _controller.StartPlayback();
+    }
 
-        // 配置 ListView
-        lvEvents.Columns.Add("ID", 50, HorizontalAlignment.Left);
-        lvEvents.Columns.Add("事件类型", 150, HorizontalAlignment.Left);
-        lvEvents.Columns.Add("描述", 450, HorizontalAlignment.Left);
-        lvEvents.Columns.Add("延迟(ms)", 100, HorizontalAlignment.Left);
+    private void BtnStop_Click(object sender, EventArgs e)
+    {
+        _controller.Stop();
+    }
 
-        // 组装菜单
-        fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { newToolStripMenuItem, openToolStripMenuItem, saveToolStripMenuItem, saveAsToolStripMenuItem, new ToolStripSeparator(), exitToolStripMenuItem });
-        editToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { insertConditionToolStripMenuItem });
-        menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, editToolStripMenuItem });
-
-        // 组装状态栏
-        statusStrip.Items.Add(statusLabel);
-
-        // 组装按钮
-        buttonPanel.Controls.AddRange(new Control[] { btnRecord, btnPlay, btnStop });
-
-        // 组装主容器
-        toolStripContainer.ContentPanel.Controls.Add(lvEvents);
-        toolStripContainer.ContentPanel.Controls.Add(buttonPanel);
-        toolStripContainer.TopToolStripPanel.Controls.Add(menuStrip);
-        toolStripContainer.BottomToolStripPanel.Controls.Add(statusStrip);
-        toolStripContainer.Dock = DockStyle.Fill;
-        Controls.Add(toolStripContainer);
-
-        // 注册事件
-        newToolStripMenuItem.Click += (s, e) => _controller.NewSequence();
-        openToolStripMenuItem.Click += OpenToolStripMenuItem_Click;
-        saveToolStripMenuItem.Click += SaveToolStripMenuItem_Click;
-        saveAsToolStripMenuItem.Click += SaveAsToolStripMenuItem_Click;
-        exitToolStripMenuItem.Click += (s, e) => Close();
-        insertConditionToolStripMenuItem.Click += InsertConditionToolStripMenuItem_Click;
-
-        btnRecord.Click += (s, e) => _controller.StartRecording();
-        btnPlay.Click += async (s, e) => await _controller.StartPlayback();
-        btnStop.Click += (s, e) => _controller.Stop();
-        lvEvents.KeyDown += EventListView_KeyDown;
-
-        // 快捷键
-        KeyPreview = true;
-        KeyDown += MainForm_KeyDown;
+    private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        Close();
     }
 
     private async void MainForm_KeyDown(object sender, KeyEventArgs e)
@@ -179,6 +123,21 @@ public partial class MainForm : Form
         }
     }
 
+    private void InsertJumpToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        using (var dialog = new InsertJumpForm(_controller.EventSequence.Count))
+        {
+            if (dialog.ShowDialog() == DialogResult.OK && dialog.JumpEvent != null)
+            {
+                _controller.AddEvent(dialog.JumpEvent);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Private Methods
+
     private void RefreshEventList()
     {
         // BeginUpdate/EndUpdate 防止闪烁
@@ -221,4 +180,6 @@ public partial class MainForm : Form
         string fileName = string.IsNullOrEmpty(_controller.CurrentFilePath) ? "未命名" : Path.GetFileName(_controller.CurrentFilePath);
         Text = $"自动化宏工具 - {fileName}";
     }
+
+    #endregion
 }

@@ -83,6 +83,38 @@ internal static partial class NativeMethods
     public static partial int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
 
+    public static Color GetPixelColor(int x, int y)
+    {
+        IntPtr hdc = GetDC(IntPtr.Zero);
+        uint pixel = GetPixel(hdc, x, y);
+        ReleaseDC(IntPtr.Zero, hdc);
+        int r = (int)(pixel & 0x000000FF);
+        int g = (int)((pixel & 0x0000FF00) >> 8);
+        int b = (int)((pixel & 0x00FF0000) >> 16);
+        return Color.FromArgb(r, g, b);
+    }
+
+    public static void GetPixelColor(int x, int y, out byte r, out byte g, out byte b)
+    {
+        IntPtr hdc = GetDC(IntPtr.Zero);
+        uint pixel = GetPixel(hdc, x, y);
+        ReleaseDC(IntPtr.Zero, hdc);
+        r = (byte)(pixel & 0x000000FF);
+        g = (byte)((pixel & 0x0000FF00) >> 8);
+        b = (byte)((pixel & 0x00FF0000) >> 16);
+    }
+
+    public static Color GetPixelColor(Point p)
+    {
+        IntPtr hdc = GetDC(IntPtr.Zero);
+        uint pixel = GetPixel(hdc, p.X, p.Y);
+        ReleaseDC(IntPtr.Zero, hdc);
+        int r = (int)(pixel & 0x000000FF);
+        int g = (int)((pixel & 0x0000FF00) >> 8);
+        int b = (int)((pixel & 0x00FF0000) >> 16);
+        return Color.FromArgb(r, g, b);
+    }
+
     public delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
