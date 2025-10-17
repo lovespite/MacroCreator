@@ -6,22 +6,26 @@ using System.Diagnostics;
 namespace MacroCreator.Services;
 
 /// <summary>
-/// 负责录制键盘和鼠标事件
+/// 负责录制键盘和鼠标事件，使用高精度计时器
 /// </summary>
-public class RecordingService
+public class RecordingService : IDisposable
 {
-    private static readonly Stopwatch _stopwatch = new Stopwatch();
-    private long _lastEventTime = 0;
+    private readonly HighPrecisionTimer _timer;
+    private double _lastEventTime = 0;
 
     public event Action<RecordedEvent>? OnEventRecorded;
+
+    public RecordingService()
+    {
+        _timer = new HighPrecisionTimer();
+    }
 
     public void Start()
     {
         InputHook.OnMouseEvent += OnMouseEvent;
         InputHook.OnKeyboardEvent += OnKeyboardEvent;
         InputHook.Install();
-        _stopwatch.Restart();
-        _lastEventTime = 0;
+        _lastEventTime = _timer.GetPreciseMilliseconds();
     }
 
     public void Stop()
@@ -29,15 +33,21 @@ public class RecordingService
         InputHook.OnMouseEvent -= OnMouseEvent;
         InputHook.OnKeyboardEvent -= OnKeyboardEvent;
         InputHook.Uninstall();
-        _stopwatch.Stop();
     }
 
     private void RecordEvent(RecordedEvent ev)
     {
-        var currentTime = _stopwatch.ElapsedMilliseconds;
+        var currentTime = _timer.GetPreciseMilliseconds();
         ev.TimeSinceLastEvent = currentTime - _lastEventTime;
+        ev.AbsoluteTimestamp = _timer.GetMicroseconds();
         _lastEventTime = currentTime;
         OnEventRecorded?.Invoke(ev);
+    }
+
+    public void Dispose()
+    {
+        Stop();
+        _timer?.Dispose();
     }
 
     private void OnKeyboardEvent(KeyboardAction action, Keys key)

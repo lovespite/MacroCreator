@@ -1,9 +1,8 @@
 ﻿// 命名空间定义了应用程序的入口点
 using MacroCreator.Models;
 using MacroCreator.Native;
-using MacroCreator.Services;
 
-namespace MacroCreator;
+namespace MacroCreator.Services;
 
 public class PixelConditionEventPlayer : IEventPlayer
 {
@@ -27,9 +26,9 @@ public class PixelConditionEventPlayer : IEventPlayer
 
     private Color GetPixelColor(int x, int y)
     {
-        IntPtr hdc = NativeMethods.GetDC(IntPtr.Zero);
+        nint hdc = NativeMethods.GetDC(nint.Zero);
         uint pixel = NativeMethods.GetPixel(hdc, x, y);
-        NativeMethods.ReleaseDC(IntPtr.Zero, hdc);
+        NativeMethods.ReleaseDC(nint.Zero, hdc);
         return Color.FromArgb((int)(pixel & 0x000000FF), (int)(pixel & 0x0000FF00) >> 8, (int)(pixel & 0x00FF0000) >> 16);
     }
 }

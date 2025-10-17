@@ -1,9 +1,8 @@
 ﻿// 命名空间定义了应用程序的入口点
 using MacroCreator.Models;
 using MacroCreator.Native;
-using MacroCreator.Services;
 
-namespace MacroCreator;
+namespace MacroCreator.Services;
 
 public class KeyboardEventPlayer : IEventPlayer
 {
@@ -12,8 +11,8 @@ public class KeyboardEventPlayer : IEventPlayer
         var ke = (KeyboardEvent)ev;
         byte vk = (byte)ke.Key;
         uint scanCode = NativeMethods.MapVirtualKey(vk, 0);
-        uint flags = (ke.Action == KeyboardAction.KeyDown) ? 0 : NativeMethods.KEYEVENTF_KEYUP;
-        NativeMethods.keybd_event(vk, (byte)scanCode, flags, UIntPtr.Zero);
+        uint flags = ke.Action == KeyboardAction.KeyDown ? 0 : NativeMethods.KEYEVENTF_KEYUP;
+        NativeMethods.keybd_event(vk, (byte)scanCode, flags, nuint.Zero);
         return Task.CompletedTask;
     }
 } 

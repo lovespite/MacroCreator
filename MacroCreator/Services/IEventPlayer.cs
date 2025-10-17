@@ -1,6 +1,6 @@
-﻿using MacroCreator.Services;
+﻿using MacroCreator.Models;
 
-namespace MacroCreator.Models;
+namespace MacroCreator.Services;
 
 public interface IEventPlayer
 {
