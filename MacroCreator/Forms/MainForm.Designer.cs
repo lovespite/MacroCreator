@@ -239,7 +239,7 @@ namespace MacroCreator.Forms
             lvEvents.TabIndex = 1;
             lvEvents.UseCompatibleStateImageBehavior = false;
             lvEvents.View = View.Details;
-            lvEvents.ItemActivate += lvEvents_ItemActivate;
+            lvEvents.ItemActivate += LvEvents_ItemActivate;
             lvEvents.Click += EventListView_Click;
             lvEvents.KeyDown += EventListView_KeyDown;
             // 

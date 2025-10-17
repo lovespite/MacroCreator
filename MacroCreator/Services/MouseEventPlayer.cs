@@ -8,7 +8,7 @@ namespace MacroCreator;
 
 public class MouseEventPlayer : IEventPlayer
 {
-    public Task ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
     {
         var me = (MouseEvent)ev;
         
@@ -67,6 +67,6 @@ public class MouseEventPlayer : IEventPlayer
             NativeMethods.SendInput(1, inputs, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
         }
         
-        return Task.CompletedTask;
+        return Task.FromResult(PlaybackResult.Continue());
     }
 }

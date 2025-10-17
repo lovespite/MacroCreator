@@ -10,7 +10,7 @@ public partial class InsertJumpForm : Form
 {
     public RecordedEvent? JumpEvent { get; private set; }
 
-    private int totalEventCount;
+    private readonly int totalEventCount;
     private bool isSelectingTarget = false;
     private Action<int>? onTargetSelected;
 
@@ -55,23 +55,19 @@ public partial class InsertJumpForm : Form
 
     private void BtnBrowseTrueFile_Click(object sender, EventArgs e)
     {
-        using (var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml" })
+        using var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml" };
+        if (ofd.ShowDialog() == DialogResult.OK)
         {
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                txtTrueFilePath.Text = ofd.FileName;
-            }
+            txtTrueFilePath.Text = ofd.FileName;
         }
     }
 
     private void BtnBrowseFalseFile_Click(object sender, EventArgs e)
     {
-        using (var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml" })
+        using var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml" };
+        if (ofd.ShowDialog() == DialogResult.OK)
         {
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                txtFalseFilePath.Text = ofd.FileName;
-            }
+            txtFalseFilePath.Text = ofd.FileName;
         }
     }
 
@@ -168,7 +164,7 @@ public partial class InsertJumpForm : Form
             JumpEvent = conditionalJump;
         }
 
-        JumpEventCreated?.Invoke(JumpEvent);
+        if (JumpEvent is not null) JumpEventCreated?.Invoke(JumpEvent);
         Close();
     }
 
@@ -227,26 +223,30 @@ public partial class InsertJumpForm : Form
 
     private void BtnSelectTarget_Click(object sender, EventArgs e)
     {
-        StartSelectingTarget((index) => {
+        StartSelectingTarget((index) =>
+        {
             nudTargetIndex.Value = index + 1; // 转换为1基索引显示
         });
     }
 
     private void BtnSelectTrueTarget_Click(object sender, EventArgs e)
     {
-        StartSelectingTarget((index) => {
+        StartSelectingTarget((index) =>
+        {
             nudTrueTarget.Value = index + 1; // 转换为1基索引显示
         });
     }
 
     private void BtnSelectFalseTarget_Click(object sender, EventArgs e)
     {
-        StartSelectingTarget((index) => {
+        StartSelectingTarget((index) =>
+        {
             nudFalseTarget.Value = index + 1; // 转换为1基索引显示
         });
     }
 
-    private void colorPanel_Paint(object sender, PaintEventArgs e)
-    { 
+    private void InsertJumpForm_Load(object sender, EventArgs e)
+    {
+
     }
 }

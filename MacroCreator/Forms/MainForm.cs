@@ -164,7 +164,7 @@ public partial class MainForm : Form
         _controller.ClearSequence();
     }
 
-    private void lvEvents_ItemActivate(object sender, EventArgs e)
+    private void LvEvents_ItemActivate(object sender, EventArgs e)
     {
 
     }

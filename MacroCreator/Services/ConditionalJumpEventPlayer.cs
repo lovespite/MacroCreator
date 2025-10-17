@@ -9,7 +9,7 @@ namespace MacroCreator.Services;
 /// </summary>
 public class ConditionalJumpEventPlayer : IEventPlayer
 {
-    public async Task ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public async Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
     {
         if (ev is ConditionalJumpEvent conditionalJump)
         {
@@ -20,10 +20,8 @@ public class ConditionalJumpEventPlayer : IEventPlayer
             
             if (!string.IsNullOrEmpty(filePath) && context.LoadAndPlayNewFileCallback != null)
             {
-                // 执行外部文件
-                await context.LoadAndPlayNewFileCallback(filePath);
-                // 抛出异常以终止当前序列
-                throw new SequenceJumpException(-1);
+                // 返回跳转到外部文件的结果
+                return PlaybackResult.JumpToFile(filePath);
             }
             
             // 如果没有外部文件，则执行序列内跳转
@@ -37,18 +35,20 @@ public class ConditionalJumpEventPlayer : IEventPlayer
                 // 如果 FalseTargetIndex 为 -1，表示继续执行下一个事件
                 if (conditionalJump.FalseTargetIndex < 0)
                 {
-                    return; // 不跳转，继续执行
+                    return PlaybackResult.Continue(); // 不跳转，继续执行
                 }
                 targetIndex = conditionalJump.FalseTargetIndex;
             }
             
-            // 设置跳转目标并抛出跳转异常
-            context.SetJumpTarget(targetIndex);
-            throw new SequenceJumpException(targetIndex);
+            // 返回跳转结果
+            return PlaybackResult.Jump(targetIndex);
         }
+
+        await Task.Yield();
+        return PlaybackResult.Continue();
     }
 
-    private bool EvaluateCondition(ConditionalJumpEvent conditionalJump)
+    private static bool EvaluateCondition(ConditionalJumpEvent conditionalJump)
     {
         return conditionalJump.ConditionType switch
         {
@@ -58,7 +58,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
         };
     }
 
-    private bool CheckPixelColor(int x, int y, string? expectedColorHex)
+    private static bool CheckPixelColor(int x, int y, string? expectedColorHex)
     {
         if (string.IsNullOrEmpty(expectedColorHex))
             return false;
@@ -80,7 +80,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
         }
     }
 
-    private bool EvaluateCustomCondition(string? condition)
+    private static bool EvaluateCustomCondition(string? condition)
     {
         // 简单的自定义条件评估
         // 这里可以扩展为更复杂的表达式评估器
@@ -121,7 +121,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
         }
     }
 
-    private bool EvaluateSimpleExpression(string expression)
+    private static bool EvaluateSimpleExpression(string expression)
     {
         // 非常简单的表达式评估器，仅支持基本的比较运算
         // 在实际应用中，可以使用更强大的表达式评估库

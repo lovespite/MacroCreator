@@ -1,41 +1,24 @@
 ﻿// 命名空间定义了应用程序的入口点
 namespace MacroCreator.Services;
 
+/// <summary>
+/// 播放上下文，包含播放过程中需要的共享状态
+/// </summary>
 public class PlaybackContext
 {
+    /// <summary>
+    /// 取消令牌，用于停止播放
+    /// </summary>
     public CancellationToken CancellationToken { get; }
+    
+    /// <summary>
+    /// 加载并播放新文件的回调函数
+    /// </summary>
     public Func<string, Task>? LoadAndPlayNewFileCallback { get; }
-    
-    /// <summary>
-    /// 跳转目标索引，-1表示无跳转
-    /// </summary>
-    public int JumpTargetIndex { get; private set; } = -1;
-    
-    /// <summary>
-    /// 是否有待处理的跳转
-    /// </summary>
-    public bool HasJumpTarget => JumpTargetIndex >= 0;
     
     public PlaybackContext(CancellationToken token, Func<string, Task>? callback)
     {
         CancellationToken = token;
         LoadAndPlayNewFileCallback = callback;
-    }
-    
-    /// <summary>
-    /// 设置跳转目标
-    /// </summary>
-    /// <param name="targetIndex">目标事件索引</param>
-    public void SetJumpTarget(int targetIndex)
-    {
-        JumpTargetIndex = targetIndex;
-    }
-    
-    /// <summary>
-    /// 清除跳转目标
-    /// </summary>
-    public void ClearJumpTarget()
-    {
-        JumpTargetIndex = -1;
     }
 }

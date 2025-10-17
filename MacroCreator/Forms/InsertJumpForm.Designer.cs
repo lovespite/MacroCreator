@@ -42,9 +42,9 @@ namespace MacroCreator.Forms
             pnlUnconditional = new Panel();
             lblTargetIndex = new Label();
             nudTargetIndex = new NumericUpDown();
+            btnSelectTarget = new Button();
             lblTargetLabel = new Label();
             txtTargetLabel = new TextBox();
-            btnSelectTarget = new Button();
             pnlConditional = new Panel();
             lblConditionType = new Label();
             cmbConditionType = new ComboBox();
@@ -63,16 +63,16 @@ namespace MacroCreator.Forms
             pnlJumpTargets = new Panel();
             lblTrueTarget = new Label();
             nudTrueTarget = new NumericUpDown();
+            btnSelectTrueTarget = new Button();
             txtTrueLabel = new TextBox();
             txtTrueFilePath = new TextBox();
             btnBrowseTrueFile = new Button();
-            btnSelectTrueTarget = new Button();
             chkFalseTargetEnabled = new CheckBox();
             nudFalseTarget = new NumericUpDown();
+            btnSelectFalseTarget = new Button();
             txtFalseLabel = new TextBox();
             txtFalseFilePath = new TextBox();
             btnBrowseFalseFile = new Button();
-            btnSelectFalseTarget = new Button();
             lblFalseHint = new Label();
             btnOK = new Button();
             btnCancel = new Button();
@@ -165,6 +165,16 @@ namespace MacroCreator.Forms
             nudTargetIndex.TabIndex = 1;
             nudTargetIndex.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
+            // btnSelectTarget
+            // 
+            btnSelectTarget.Location = new Point(210, 19);
+            btnSelectTarget.Name = "btnSelectTarget";
+            btnSelectTarget.Size = new Size(110, 25);
+            btnSelectTarget.TabIndex = 4;
+            btnSelectTarget.Text = "从列表选择...";
+            btnSelectTarget.UseVisualStyleBackColor = true;
+            btnSelectTarget.Click += BtnSelectTarget_Click;
+            // 
             // lblTargetLabel
             // 
             lblTargetLabel.AutoSize = true;
@@ -180,16 +190,6 @@ namespace MacroCreator.Forms
             txtTargetLabel.Name = "txtTargetLabel";
             txtTargetLabel.Size = new Size(200, 23);
             txtTargetLabel.TabIndex = 3;
-            // 
-            // btnSelectTarget
-            // 
-            btnSelectTarget.Location = new Point(210, 19);
-            btnSelectTarget.Name = "btnSelectTarget";
-            btnSelectTarget.Size = new Size(110, 25);
-            btnSelectTarget.TabIndex = 4;
-            btnSelectTarget.Text = "从列表选择...";
-            btnSelectTarget.UseVisualStyleBackColor = true;
-            btnSelectTarget.Click += BtnSelectTarget_Click;
             // 
             // pnlConditional
             // 
@@ -278,8 +278,7 @@ namespace MacroCreator.Forms
             colorPanel.Location = new Point(120, 48);
             colorPanel.Name = "colorPanel";
             colorPanel.Size = new Size(50, 22);
-            colorPanel.TabIndex = 4;
-            colorPanel.Paint += colorPanel_Paint;
+            colorPanel.TabIndex = 4; 
             // 
             // lblColorHex
             // 
@@ -377,14 +376,6 @@ namespace MacroCreator.Forms
             nudTrueTarget.TabIndex = 1;
             nudTrueTarget.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
-            // txtTrueLabel
-            // 
-            txtTrueLabel.Location = new Point(244, 10);
-            txtTrueLabel.Name = "txtTrueLabel";
-            txtTrueLabel.PlaceholderText = "标签 (可选)";
-            txtTrueLabel.Size = new Size(150, 23);
-            txtTrueLabel.TabIndex = 2;
-            // 
             // btnSelectTrueTarget
             // 
             btnSelectTrueTarget.Location = new Point(400, 9);
@@ -394,6 +385,14 @@ namespace MacroCreator.Forms
             btnSelectTrueTarget.Text = "选择...";
             btnSelectTrueTarget.UseVisualStyleBackColor = true;
             btnSelectTrueTarget.Click += BtnSelectTrueTarget_Click;
+            // 
+            // txtTrueLabel
+            // 
+            txtTrueLabel.Location = new Point(244, 10);
+            txtTrueLabel.Name = "txtTrueLabel";
+            txtTrueLabel.PlaceholderText = "标签 (可选)";
+            txtTrueLabel.Size = new Size(150, 23);
+            txtTrueLabel.TabIndex = 2;
             // 
             // txtTrueFilePath
             // 
@@ -435,15 +434,6 @@ namespace MacroCreator.Forms
             nudFalseTarget.TabIndex = 6;
             nudFalseTarget.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
-            // txtFalseLabel
-            // 
-            txtFalseLabel.Enabled = false;
-            txtFalseLabel.Location = new Point(244, 73);
-            txtFalseLabel.Name = "txtFalseLabel";
-            txtFalseLabel.PlaceholderText = "标签 (可选)";
-            txtFalseLabel.Size = new Size(150, 23);
-            txtFalseLabel.TabIndex = 7;
-            // 
             // btnSelectFalseTarget
             // 
             btnSelectFalseTarget.Enabled = false;
@@ -454,6 +444,15 @@ namespace MacroCreator.Forms
             btnSelectFalseTarget.Text = "选择...";
             btnSelectFalseTarget.UseVisualStyleBackColor = true;
             btnSelectFalseTarget.Click += BtnSelectFalseTarget_Click;
+            // 
+            // txtFalseLabel
+            // 
+            txtFalseLabel.Enabled = false;
+            txtFalseLabel.Location = new Point(244, 73);
+            txtFalseLabel.Name = "txtFalseLabel";
+            txtFalseLabel.PlaceholderText = "标签 (可选)";
+            txtFalseLabel.Size = new Size(150, 23);
+            txtFalseLabel.TabIndex = 7;
             // 
             // txtFalseFilePath
             // 
@@ -521,13 +520,12 @@ namespace MacroCreator.Forms
             Controls.Add(btnOK);
             Controls.Add(btnCancel);
             Controls.Add(pnlConditional);
-            FormBorderStyle = FormBorderStyle.Sizable;
             KeyPreview = true;
             MaximizeBox = false;
-            MinimizeBox = true;
             Name = "InsertJumpForm";
             StartPosition = FormStartPosition.Manual;
             Text = "插入跳转事件";
+            Load += InsertJumpForm_Load;
             KeyDown += InsertJumpForm_KeyDown;
             pnlJumpType.ResumeLayout(false);
             pnlJumpType.PerformLayout();

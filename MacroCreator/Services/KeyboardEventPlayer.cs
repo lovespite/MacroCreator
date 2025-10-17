@@ -7,7 +7,7 @@ namespace MacroCreator.Services;
 
 public class KeyboardEventPlayer : IEventPlayer
 {
-    public Task ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
     {
         var ke = (KeyboardEvent)ev;
         ushort vk = (ushort)ke.Key;
@@ -32,7 +32,7 @@ public class KeyboardEventPlayer : IEventPlayer
 
         var inputs = new[] { input };
         NativeMethods.SendInput(1, inputs, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
-        return Task.CompletedTask;
+        return Task.FromResult(PlaybackResult.Continue());
     }
 } 
 

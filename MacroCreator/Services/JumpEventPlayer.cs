@@ -8,15 +8,14 @@ namespace MacroCreator.Services;
 /// </summary>
 public class JumpEventPlayer : IEventPlayer
 {
-    public Task ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
     {
         if (ev is JumpEvent jumpEvent)
         {
-            // 设置跳转目标并抛出跳转异常来中断当前播放循环
-            context.SetJumpTarget(jumpEvent.TargetIndex);
-            throw new SequenceJumpException(jumpEvent.TargetIndex);
+            // 返回跳转结果
+            return Task.FromResult(PlaybackResult.Jump(jumpEvent.TargetIndex));
         }
         
-        return Task.CompletedTask;
+        return Task.FromResult(PlaybackResult.Continue());
     }
 }

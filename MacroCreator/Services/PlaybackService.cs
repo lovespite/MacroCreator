@@ -6,19 +6,12 @@ namespace MacroCreator.Services;
 /// <summary>
 /// 负责回放事件序列，使用高精度计时器确保准确的延迟
 /// </summary>
-public class PlaybackService : IDisposable
+public class PlaybackService(Dictionary<Type, IEventPlayer> players) : IDisposable
 {
     private CancellationTokenSource? _cancellationTokenSource;
-    private readonly Dictionary<Type, IEventPlayer> _players;
-    private readonly HighPrecisionTimer _timer;
-    private readonly PlaybackPerformanceMonitor _performanceMonitor;
-
-    public PlaybackService(Dictionary<Type, IEventPlayer> players)
-    {
-        _players = players;
-        _timer = new HighPrecisionTimer();
-        _performanceMonitor = new PlaybackPerformanceMonitor();
-    }
+    private readonly Dictionary<Type, IEventPlayer> _players = players;
+    private readonly HighPrecisionTimer _timer = new();
+    private readonly PlaybackPerformanceMonitor _performanceMonitor = new();
 
     /// <summary>
     /// 性能监控器，用于分析延迟精度
@@ -40,7 +33,7 @@ public class PlaybackService : IDisposable
 
             // 计算下一个事件应该执行的时间点
             scheduledTime += ev.TimeSinceLastEvent;
-            
+
             // 等待到预定的执行时间
             await _timer.WaitUntilAsync(scheduledTime, context.CancellationToken);
 
@@ -48,78 +41,62 @@ public class PlaybackService : IDisposable
 
             if (_players.TryGetValue(ev.GetType(), out var player))
             {
-                try
+                // 记录实际执行时间，用于性能监控
+                var actualExecutionTime = _timer.GetPreciseMilliseconds();
+                _performanceMonitor.RecordMeasurement(scheduledTime, actualExecutionTime, ev.GetType().Name);
+
+                // 执行事件并获取结果
+                var result = await player.ExecuteAsync(ev, context);
+
+                // 根据结果处理控制流
+                switch (result.Control)
                 {
-                    // 记录实际执行时间，用于性能监控
-                    var actualExecutionTime = _timer.GetPreciseMilliseconds();
-                    _performanceMonitor.RecordMeasurement(scheduledTime, actualExecutionTime, ev.GetType().Name);
-                    
-                    await player.ExecuteAsync(ev, context);
-                    
-                    // 检查是否有跳转请求
-                    if (context.HasJumpTarget)
-                    {
-                        var targetIndex = context.JumpTargetIndex;
-                        context.ClearJumpTarget();
-                        
-                        // 验证跳转目标是否有效
-                        if (targetIndex >= 0 && targetIndex < events.Count)
+                    case PlaybackControl.Continue:
+                        // 如果是DelayEvent，需要额外处理其内部延迟
+                        if (ev is DelayEvent delayEvent)
                         {
-                            currentIndex = targetIndex;
+                            scheduledTime += delayEvent.DelayMilliseconds;
+                        }
+                        currentIndex++;
+                        break;
+
+                    case PlaybackControl.Jump:
+                        // 验证跳转目标是否有效
+                        if (result.TargetIndex >= 0 && result.TargetIndex < events.Count)
+                        {
+                            currentIndex = result.TargetIndex;
                             // 重置时间基准，从跳转目标开始计算时间
                             scheduledTime = _timer.GetPreciseMilliseconds();
-                            continue;
                         }
                         else
                         {
                             // 无效的跳转目标，终止播放
                             return;
                         }
-                    }
-                    
-                    // 如果是DelayEvent，需要额外处理其内部延迟
-                    if (ev is DelayEvent delayEvent)
-                    {
-                        scheduledTime += delayEvent.DelayMilliseconds;
-                    }
-                }
-                catch (SequenceJumpException ex)
-                {
-                    // 检查是否是Break中断
-                    if (ex.IsBreak)
-                    {
+                        break;
+
+                    case PlaybackControl.Break:
                         // 终止播放
                         return;
-                    }
-                    
-                    // 检查是否是跳转到新文件
-                    if (context.LoadAndPlayNewFileCallback != null && !context.HasJumpTarget)
-                    {
-                        // 这是文件跳转，终止当前循环
+
+                    case PlaybackControl.JumpToFile:
+                        // 跳转到外部文件
+                        if (!string.IsNullOrEmpty(result.FilePath) && loadAndPlayNewFileCallback != null)
+                        {
+                            await loadAndPlayNewFileCallback(result.FilePath);
+                        }
+                        // 终止当前序列播放
                         return;
-                    }
-                    
-                    // 这是序列内跳转
-                    if (context.HasJumpTarget)
-                    {
-                        var targetIndex = context.JumpTargetIndex;
-                        context.ClearJumpTarget();
-                        
-                        if (targetIndex >= 0 && targetIndex < events.Count)
-                        {
-                            currentIndex = targetIndex;
-                            scheduledTime = _timer.GetPreciseMilliseconds();
-                            continue;
-                        }
-                        else
-                        {
-                            return;
-                        }
-                    }
+
+                    default:
+                        currentIndex++;
+                        break;
                 }
             }
-            
-            currentIndex++;
+            else
+            {
+                currentIndex++;
+            }
         }
     }
 
@@ -133,5 +110,7 @@ public class PlaybackService : IDisposable
         Stop();
         _timer?.Dispose();
         _cancellationTokenSource?.Dispose();
+
+        GC.SuppressFinalize(this);
     }
 }
