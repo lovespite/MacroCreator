@@ -9,12 +9,24 @@ namespace MacroCreator.Services;
 /// </summary>
 public class ConditionalJumpEventPlayer : IEventPlayer
 {
-    public Task ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public async Task ExecuteAsync(RecordedEvent ev, PlaybackContext context)
     {
         if (ev is ConditionalJumpEvent conditionalJump)
         {
             bool conditionMet = EvaluateCondition(conditionalJump);
             
+            // 检查是否需要执行外部文件
+            string? filePath = conditionMet ? conditionalJump.FilePathIfMatch : conditionalJump.FilePathIfNotMatch;
+            
+            if (!string.IsNullOrEmpty(filePath) && context.LoadAndPlayNewFileCallback != null)
+            {
+                // 执行外部文件
+                await context.LoadAndPlayNewFileCallback(filePath);
+                // 抛出异常以终止当前序列
+                throw new SequenceJumpException(-1);
+            }
+            
+            // 如果没有外部文件，则执行序列内跳转
             int targetIndex;
             if (conditionMet)
             {
@@ -25,17 +37,15 @@ public class ConditionalJumpEventPlayer : IEventPlayer
                 // 如果 FalseTargetIndex 为 -1，表示继续执行下一个事件
                 if (conditionalJump.FalseTargetIndex < 0)
                 {
-                    return Task.CompletedTask; // 不跳转，继续执行
+                    return; // 不跳转，继续执行
                 }
                 targetIndex = conditionalJump.FalseTargetIndex;
             }
             
             // 设置跳转目标并抛出跳转异常
             context.SetJumpTarget(targetIndex);
-            throw new SequenceJumpException();
+            throw new SequenceJumpException(targetIndex);
         }
-        
-        return Task.CompletedTask;
     }
 
     private bool EvaluateCondition(ConditionalJumpEvent conditionalJump)

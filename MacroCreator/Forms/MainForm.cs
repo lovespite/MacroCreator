@@ -6,6 +6,7 @@ namespace MacroCreator.Forms;
 public partial class MainForm : Form
 {
     private readonly MacroController _controller;
+    private InsertJumpForm? _insertJumpForm;
 
     public MainForm()
     {
@@ -21,11 +22,16 @@ public partial class MainForm : Form
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态
     }
 
-    #region Event Handlers
+    #region Event Handlers 
+
+    private void MainForm_Load(object sender, EventArgs e)
+    {
+    }
 
     private void NewToolStripMenuItem_Click(object sender, EventArgs e)
     {
         _controller.NewSequence();
+        UpdateTitle();
     }
 
     private void BtnRecord_Click(object sender, EventArgs e)
@@ -77,6 +83,16 @@ public partial class MainForm : Form
         }
     }
 
+    private void EventListView_Click(object sender, EventArgs e)
+    {
+        // 如果 InsertJumpForm 处于选择模式，处理选择
+        if (_insertJumpForm != null && lvEvents.SelectedItems.Count > 0)
+        {
+            int selectedIndex = lvEvents.SelectedItems[0].Index;
+            _insertJumpForm.SetSelectedTarget(selectedIndex);
+        }
+    }
+
     private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
     {
         using var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml|所有文件 (*.*)|*.*" };
@@ -102,36 +118,55 @@ public partial class MainForm : Form
 
     private void SaveAsToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        using (var sfd = new SaveFileDialog { Filter = "XML 文件 (*.xml)|*.xml|所有文件 (*.*)|*.*" })
-        {
-            if (sfd.ShowDialog() == DialogResult.OK)
-            {
-                try { _controller.SaveSequence(sfd.FileName); UpdateTitle(); }
-                catch (Exception ex) { MessageBox.Show(ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-            }
-        }
-    }
+        using var sfd = new SaveFileDialog { Filter = "XML 文件 (*.xml)|*.xml|所有文件 (*.*)|*.*" };
 
-    private void InsertConditionToolStripMenuItem_Click(object sender, EventArgs e)
-    {
-        using (var dialog = new InsertConditionForm())
+        if (sfd.ShowDialog() == DialogResult.OK)
         {
-            if (dialog.ShowDialog() == DialogResult.OK)
-            {
-                _controller.AddEvent(dialog.ConditionEvent);
-            }
+            try { _controller.SaveSequence(sfd.FileName); UpdateTitle(); }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
     }
 
     private void InsertJumpToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        using (var dialog = new InsertJumpForm(_controller.EventSequence.Count))
+        // 如果窗体已经存在且未关闭，则激活它
+        if (_insertJumpForm != null && !_insertJumpForm.IsDisposed)
         {
-            if (dialog.ShowDialog() == DialogResult.OK && dialog.JumpEvent != null)
-            {
-                _controller.AddEvent(dialog.JumpEvent);
-            }
+            _insertJumpForm.Activate();
+            return;
         }
+
+        _insertJumpForm = new InsertJumpForm(_controller.EventSequence.Count);
+
+        // 订阅事件
+        _insertJumpForm.JumpEventCreated += (jumpEvent) =>
+        {
+            _controller.AddEvent(jumpEvent);
+        };
+
+        _insertJumpForm.FormClosed += (s, args) =>
+        {
+            _insertJumpForm = null;
+        };
+
+        // 设置位置在主窗体右侧
+        _insertJumpForm.StartPosition = FormStartPosition.Manual;
+        _insertJumpForm.Location = new Point(
+            this.Location.X + this.Width + 10,
+            this.Location.Y
+        );
+
+        _insertJumpForm.Show(this);
+    }
+
+    private void ClearStripMenuItem_Click(object sender, EventArgs e)
+    {
+        _controller.ClearSequence();
+    }
+
+    private void lvEvents_ItemActivate(object sender, EventArgs e)
+    {
+
     }
 
     #endregion
@@ -147,12 +182,12 @@ public partial class MainForm : Form
         for (int i = 0; i < eventSequence.Count; i++)
         {
             var ev = eventSequence[i];
-            var item = new ListViewItem(new[] {
+            var item = new ListViewItem([
                 (i + 1).ToString(),
                 ev.GetType().Name,
                 ev.GetDescription(),
-                ev.TimeSinceLastEvent.ToString()
-            });
+                $"{ev.TimeSinceLastEvent:0.00}"
+            ]);
             lvEvents.Items.Add(item);
         }
         lvEvents.EndUpdate();
@@ -181,5 +216,5 @@ public partial class MainForm : Form
         Text = $"自动化宏工具 - {fileName}";
     }
 
-    #endregion
+    #endregion 
 }

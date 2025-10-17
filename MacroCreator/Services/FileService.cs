@@ -25,7 +25,10 @@ public static class FileService
         XmlSerializer serializer = new(typeof(List<RecordedEvent>));
         using var reader = new StreamReader(filePath);
 
-        return (List<RecordedEvent>)serializer.Deserialize(reader);
+        var seq = serializer.Deserialize(reader) as List<RecordedEvent>
+            ?? throw new Exception("解析失败，文件可能已损坏");
+
+        return seq;
     }
 }
 

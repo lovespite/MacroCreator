@@ -51,6 +51,16 @@ public class ConditionalJumpEvent : RecordedEvent
     /// </summary>
     public string? FalseLabel { get; set; }
 
+    /// <summary>
+    /// 条件为真时要执行的外部文件路径（可选）
+    /// </summary>
+    public string? FilePathIfMatch { get; set; }
+
+    /// <summary>
+    /// 条件为假时要执行的外部文件路径（可选）
+    /// </summary>
+    public string? FilePathIfNotMatch { get; set; }
+
     public override string GetDescription()
     {
         var conditionDesc = ConditionType switch
@@ -60,15 +70,19 @@ public class ConditionalJumpEvent : RecordedEvent
             _ => "未知条件"
         };
 
-        var trueBranch = !string.IsNullOrEmpty(TrueLabel) 
-            ? $"#{TrueTargetIndex + 1} ({TrueLabel})" 
-            : $"#{TrueTargetIndex + 1}";
+        var trueBranch = !string.IsNullOrEmpty(FilePathIfMatch)
+            ? $"执行文件: {Path.GetFileName(FilePathIfMatch)}"
+            : (!string.IsNullOrEmpty(TrueLabel) 
+                ? $"#{TrueTargetIndex + 1} ({TrueLabel})" 
+                : $"#{TrueTargetIndex + 1}");
 
-        var falseBranch = FalseTargetIndex >= 0 
-            ? (!string.IsNullOrEmpty(FalseLabel) 
-                ? $"#{FalseTargetIndex + 1} ({FalseLabel})" 
-                : $"#{FalseTargetIndex + 1}")
-            : "继续执行";
+        var falseBranch = !string.IsNullOrEmpty(FilePathIfNotMatch)
+            ? $"执行文件: {Path.GetFileName(FilePathIfNotMatch)}"
+            : (FalseTargetIndex >= 0 
+                ? (!string.IsNullOrEmpty(FalseLabel) 
+                    ? $"#{FalseTargetIndex + 1} ({FalseLabel})" 
+                    : $"#{FalseTargetIndex + 1}")
+                : "继续执行");
 
         return $"条件跳转: {conditionDesc} → 真:{trueBranch}, 假:{falseBranch}";
     }

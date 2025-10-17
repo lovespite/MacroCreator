@@ -20,8 +20,8 @@ public class MacroController
     public string? CurrentFilePath => _currentFilePath;
 
     public event Action<AppState>? StateChanged;
-    public event Action EventSequenceChanged;
-    public event Action<string> StatusMessageChanged;
+    public event Action? EventSequenceChanged;
+    public event Action<string>? StatusMessageChanged;
 
     public MacroController()
     {
@@ -37,10 +37,10 @@ public class MacroController
         {
             { typeof(MouseEvent), new MouseEventPlayer() },
             { typeof(KeyboardEvent), new KeyboardEventPlayer() },
-            { typeof(DelayEvent), new DelayEventPlayer() },
-            { typeof(PixelConditionEvent), new PixelConditionEventPlayer() },
+            { typeof(DelayEvent), new DelayEventPlayer() }, 
             { typeof(JumpEvent), new JumpEventPlayer() },
-            { typeof(ConditionalJumpEvent), new ConditionalJumpEventPlayer() }
+            { typeof(ConditionalJumpEvent), new ConditionalJumpEventPlayer() },
+            { typeof(BreakEvent), new BreakEventPlayer() }
         };
         _playbackService = new PlaybackService(playerStrategies);
     }
@@ -51,6 +51,13 @@ public class MacroController
         _currentFilePath = null;
         EventSequenceChanged?.Invoke();
         StatusMessageChanged?.Invoke("已创建新序列。");
+    }
+
+    public void ClearSequence()
+    {
+        _eventSequence.Clear();
+        EventSequenceChanged?.Invoke();
+        StatusMessageChanged?.Invoke("序列已清空。");
     }
 
     public void LoadSequence(string filePath)
@@ -108,7 +115,7 @@ public class MacroController
     public void StartRecording()
     {
         if (CurrentState != AppState.Idle) return;
-        _eventSequence.Clear();
+        // _eventSequence.Clear();
         EventSequenceChanged?.Invoke();
         _recordingService.Start();
         SetState(AppState.Recording);

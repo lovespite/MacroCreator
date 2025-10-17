@@ -4,13 +4,17 @@ using MacroCreator.Models;
 namespace MacroCreator.Forms;
 
 /// <summary>
-/// 用于插入跳转事件的对话框
+/// 用于插入跳转事件的窗体
 /// </summary>
 public partial class InsertJumpForm : Form
 {
     public RecordedEvent? JumpEvent { get; private set; }
 
     private int totalEventCount;
+    private bool isSelectingTarget = false;
+    private Action<int>? onTargetSelected;
+
+    public event Action<RecordedEvent>? JumpEventCreated;
 
     public InsertJumpForm(int eventCount)
     {
@@ -44,6 +48,31 @@ public partial class InsertJumpForm : Form
     {
         nudFalseTarget.Enabled = chkFalseTargetEnabled.Checked;
         txtFalseLabel.Enabled = chkFalseTargetEnabled.Checked;
+        txtFalseFilePath.Enabled = chkFalseTargetEnabled.Checked;
+        btnBrowseFalseFile.Enabled = chkFalseTargetEnabled.Checked;
+        btnSelectFalseTarget.Enabled = chkFalseTargetEnabled.Checked;
+    }
+
+    private void BtnBrowseTrueFile_Click(object sender, EventArgs e)
+    {
+        using (var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml" })
+        {
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                txtTrueFilePath.Text = ofd.FileName;
+            }
+        }
+    }
+
+    private void BtnBrowseFalseFile_Click(object sender, EventArgs e)
+    {
+        using (var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml" })
+        {
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                txtFalseFilePath.Text = ofd.FileName;
+            }
+        }
     }
 
     private void InsertJumpForm_KeyDown(object sender, KeyEventArgs e)
@@ -87,7 +116,11 @@ public partial class InsertJumpForm : Form
 
     private void BtnOK_Click(object sender, EventArgs e)
     {
-        if (rbUnconditionalJump.Checked)
+        if (rbBreak.Checked)
+        {
+            JumpEvent = new BreakEvent();
+        }
+        else if (rbUnconditionalJump.Checked)
         {
             JumpEvent = new JumpEvent
             {
@@ -101,8 +134,10 @@ public partial class InsertJumpForm : Form
             {
                 TrueTargetIndex = (int)nudTrueTarget.Value - 1, // 转换为0基索引
                 TrueLabel = string.IsNullOrWhiteSpace(txtTrueLabel.Text) ? null : txtTrueLabel.Text.Trim(),
+                FilePathIfMatch = string.IsNullOrWhiteSpace(txtTrueFilePath.Text) ? null : txtTrueFilePath.Text.Trim(),
                 FalseTargetIndex = chkFalseTargetEnabled.Checked ? (int)nudFalseTarget.Value - 1 : -1,
-                FalseLabel = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseLabel.Text) ? txtFalseLabel.Text.Trim() : null
+                FalseLabel = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseLabel.Text) ? txtFalseLabel.Text.Trim() : null,
+                FilePathIfNotMatch = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseFilePath.Text) ? txtFalseFilePath.Text.Trim() : null
             };
 
             if (cmbConditionType.SelectedIndex == 0) // 像素颜色检查
@@ -133,12 +168,82 @@ public partial class InsertJumpForm : Form
             JumpEvent = conditionalJump;
         }
 
-        DialogResult = DialogResult.OK;
+        JumpEventCreated?.Invoke(JumpEvent);
+        Close();
     }
 
     private void BtnCancel_Click(object sender, EventArgs e)
     {
-        DialogResult = DialogResult.Cancel;
+        Close();
+    }
+
+    /// <summary>
+    /// 开始从主窗口选择目标索引
+    /// </summary>
+    public void StartSelectingTarget(Action<int> callback)
+    {
+        isSelectingTarget = true;
+        onTargetSelected = callback;
+        UpdateSelectionModeUI(true);
+    }
+
+    /// <summary>
+    /// 从主窗口接收选中的目标索引
+    /// </summary>
+    public void SetSelectedTarget(int index)
+    {
+        if (isSelectingTarget && onTargetSelected != null)
+        {
+            onTargetSelected(index);
+            isSelectingTarget = false;
+            onTargetSelected = null;
+            UpdateSelectionModeUI(false);
+        }
+    }
+
+    /// <summary>
+    /// 取消选择模式
+    /// </summary>
+    public void CancelSelectingTarget()
+    {
+        isSelectingTarget = false;
+        onTargetSelected = null;
+        UpdateSelectionModeUI(false);
+    }
+
+    private void UpdateSelectionModeUI(bool selecting)
+    {
+        if (selecting)
+        {
+            Text = "插入跳转事件 - 请在主窗口选择目标事件...";
+            Opacity = 0.8;
+        }
+        else
+        {
+            Text = "插入跳转事件";
+            Opacity = 1.0;
+        }
+    }
+
+    private void BtnSelectTarget_Click(object sender, EventArgs e)
+    {
+        StartSelectingTarget((index) => {
+            nudTargetIndex.Value = index + 1; // 转换为1基索引显示
+        });
+    }
+
+    private void BtnSelectTrueTarget_Click(object sender, EventArgs e)
+    {
+        StartSelectingTarget((index) => {
+            nudTrueTarget.Value = index + 1; // 转换为1基索引显示
+        });
+    }
+
+    private void BtnSelectFalseTarget_Click(object sender, EventArgs e)
+    {
+        StartSelectingTarget((index) => {
+            nudFalseTarget.Value = index + 1; // 转换为1基索引显示
+        });
     }
 
     private void colorPanel_Paint(object sender, PaintEventArgs e)

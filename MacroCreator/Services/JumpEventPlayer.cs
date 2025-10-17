@@ -14,7 +14,7 @@ public class JumpEventPlayer : IEventPlayer
         {
             // 设置跳转目标并抛出跳转异常来中断当前播放循环
             context.SetJumpTarget(jumpEvent.TargetIndex);
-            throw new SequenceJumpException();
+            throw new SequenceJumpException(jumpEvent.TargetIndex);
         }
         
         return Task.CompletedTask;

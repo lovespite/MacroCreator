@@ -25,7 +25,7 @@ public class PlaybackService : IDisposable
     /// </summary>
     public PlaybackPerformanceMonitor PerformanceMonitor => _performanceMonitor;
 
-    public async Task Play(List<RecordedEvent> events, Func<string, Task> loadAndPlayNewFileCallback)
+    public async Task Play(List<RecordedEvent> events, Func<string, Task>? loadAndPlayNewFileCallback)
     {
         _cancellationTokenSource = new CancellationTokenSource();
         var context = new PlaybackContext(_cancellationTokenSource.Token, loadAndPlayNewFileCallback);
@@ -83,8 +83,15 @@ public class PlaybackService : IDisposable
                         scheduledTime += delayEvent.DelayMilliseconds;
                     }
                 }
-                catch (SequenceJumpException)
+                catch (SequenceJumpException ex)
                 {
+                    // 检查是否是Break中断
+                    if (ex.IsBreak)
+                    {
+                        // 终止播放
+                        return;
+                    }
+                    
                     // 检查是否是跳转到新文件
                     if (context.LoadAndPlayNewFileCallback != null && !context.HasJumpTarget)
                     {
@@ -92,7 +99,7 @@ public class PlaybackService : IDisposable
                         return;
                     }
                     
-                    // 这是序列内跳转，已在上面处理
+                    // 这是序列内跳转
                     if (context.HasJumpTarget)
                     {
                         var targetIndex = context.JumpTargetIndex;
