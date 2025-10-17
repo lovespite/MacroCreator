@@ -16,9 +16,11 @@ public partial class MainForm : Form
     private StatusStrip statusStrip;
     private ToolStripStatusLabel statusLabel;
     private ToolStripContainer toolStripContainer;
+
     private FlowLayoutPanel buttonPanel;
-    private Button recordButton, playButton, stopButton;
-    private ListView eventListView;
+    private Button btnRecord, btnPlay, btnStop;
+    
+    private ListView lvEvents;
 
     public MainForm()
     {
@@ -30,7 +32,7 @@ public partial class MainForm : Form
         // 订阅 Controller 事件
         _controller.StateChanged += OnAppStateChanged;
         _controller.EventSequenceChanged += RefreshEventList;
-        _controller.StatusMessageChanged += (msg) => statusLabel.Text = msg;
+        _controller.StatusMessageChanged += (msg) => statusLabel!.Text = msg;
 
         UpdateTitle();
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态
@@ -54,16 +56,16 @@ public partial class MainForm : Form
         statusLabel = new ToolStripStatusLabel("准备就绪");
         toolStripContainer = new ToolStripContainer();
         buttonPanel = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(5) };
-        recordButton = new Button { Text = "录制 (F9)", Width = 120, Height = 40, Margin = new Padding(5) };
-        playButton = new Button { Text = "播放 (F10)", Width = 120, Height = 40, Margin = new Padding(5) };
-        stopButton = new Button { Text = "停止 (F11)", Width = 120, Height = 40, Margin = new Padding(5), Enabled = false };
-        eventListView = new ListView { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true };
+        btnRecord = new Button { Text = "录制 (F9)", Width = 120, Height = 40, Margin = new Padding(5) };
+        btnPlay = new Button { Text = "播放 (F10)", Width = 120, Height = 40, Margin = new Padding(5) };
+        btnStop = new Button { Text = "停止 (F11)", Width = 120, Height = 40, Margin = new Padding(5), Enabled = false };
+        lvEvents = new ListView { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true };
 
         // 配置 ListView
-        eventListView.Columns.Add("ID", 50, HorizontalAlignment.Left);
-        eventListView.Columns.Add("事件类型", 150, HorizontalAlignment.Left);
-        eventListView.Columns.Add("描述", 450, HorizontalAlignment.Left);
-        eventListView.Columns.Add("延迟(ms)", 100, HorizontalAlignment.Left);
+        lvEvents.Columns.Add("ID", 50, HorizontalAlignment.Left);
+        lvEvents.Columns.Add("事件类型", 150, HorizontalAlignment.Left);
+        lvEvents.Columns.Add("描述", 450, HorizontalAlignment.Left);
+        lvEvents.Columns.Add("延迟(ms)", 100, HorizontalAlignment.Left);
 
         // 组装菜单
         fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { newToolStripMenuItem, openToolStripMenuItem, saveToolStripMenuItem, saveAsToolStripMenuItem, new ToolStripSeparator(), exitToolStripMenuItem });
@@ -74,10 +76,10 @@ public partial class MainForm : Form
         statusStrip.Items.Add(statusLabel);
 
         // 组装按钮
-        buttonPanel.Controls.AddRange(new Control[] { recordButton, playButton, stopButton });
+        buttonPanel.Controls.AddRange(new Control[] { btnRecord, btnPlay, btnStop });
 
         // 组装主容器
-        toolStripContainer.ContentPanel.Controls.Add(eventListView);
+        toolStripContainer.ContentPanel.Controls.Add(lvEvents);
         toolStripContainer.ContentPanel.Controls.Add(buttonPanel);
         toolStripContainer.TopToolStripPanel.Controls.Add(menuStrip);
         toolStripContainer.BottomToolStripPanel.Controls.Add(statusStrip);
@@ -92,10 +94,10 @@ public partial class MainForm : Form
         exitToolStripMenuItem.Click += (s, e) => Close();
         insertConditionToolStripMenuItem.Click += InsertConditionToolStripMenuItem_Click;
 
-        recordButton.Click += (s, e) => _controller.StartRecording();
-        playButton.Click += async (s, e) => await _controller.StartPlayback();
-        stopButton.Click += (s, e) => _controller.Stop();
-        eventListView.KeyDown += EventListView_KeyDown;
+        btnRecord.Click += (s, e) => _controller.StartRecording();
+        btnPlay.Click += async (s, e) => await _controller.StartPlayback();
+        btnStop.Click += (s, e) => _controller.Stop();
+        lvEvents.KeyDown += EventListView_KeyDown;
 
         // 快捷键
         KeyPreview = true;
@@ -107,23 +109,23 @@ public partial class MainForm : Form
         switch (e.KeyCode)
         {
             case Keys.F9:
-                if (recordButton.Enabled) _controller.StartRecording();
+                if (btnRecord.Enabled) _controller.StartRecording();
                 break;
             case Keys.F10:
-                if (playButton.Enabled) await _controller.StartPlayback();
+                if (btnPlay.Enabled) await _controller.StartPlayback();
                 break;
             case Keys.F11:
-                if (stopButton.Enabled) _controller.Stop();
+                if (btnStop.Enabled) _controller.Stop();
                 break;
         }
     }
 
     private void EventListView_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Delete && eventListView.SelectedItems.Count > 0)
+        if (e.KeyCode == Keys.Delete && lvEvents.SelectedItems.Count > 0)
         {
             var indices = new List<int>();
-            foreach (ListViewItem item in eventListView.SelectedItems)
+            foreach (ListViewItem item in lvEvents.SelectedItems)
             {
                 indices.Add(item.Index);
             }
@@ -133,13 +135,11 @@ public partial class MainForm : Form
 
     private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        using (var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml|所有文件 (*.*)|*.*" })
+        using var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml|所有文件 (*.*)|*.*" };
+        if (ofd.ShowDialog() == DialogResult.OK)
         {
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                try { _controller.LoadSequence(ofd.FileName); UpdateTitle(); }
-                catch (Exception ex) { MessageBox.Show(ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-            }
+            try { _controller.LoadSequence(ofd.FileName); UpdateTitle(); }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
     }
 
@@ -182,8 +182,8 @@ public partial class MainForm : Form
     private void RefreshEventList()
     {
         // BeginUpdate/EndUpdate 防止闪烁
-        eventListView.BeginUpdate();
-        eventListView.Items.Clear();
+        lvEvents.BeginUpdate();
+        lvEvents.Items.Clear();
         var eventSequence = _controller.EventSequence;
         for (int i = 0; i < eventSequence.Count; i++)
         {
@@ -194,21 +194,25 @@ public partial class MainForm : Form
                 ev.GetDescription(),
                 ev.TimeSinceLastEvent.ToString()
             });
-            eventListView.Items.Add(item);
+            lvEvents.Items.Add(item);
         }
-        eventListView.EndUpdate();
-        if (eventListView.Items.Count > 0)
+        lvEvents.EndUpdate();
+        if (lvEvents.Items.Count > 0)
         {
-            eventListView.EnsureVisible(eventListView.Items.Count - 1);
+            lvEvents.EnsureVisible(lvEvents.Items.Count - 1);
         }
     }
 
     private void OnAppStateChanged(AppState state)
     {
         bool isIdle = state == AppState.Idle;
-        recordButton.Enabled = isIdle;
-        playButton.Enabled = isIdle;
-        stopButton.Enabled = !isIdle;
+
+        lvEvents.Visible = state != AppState.Recording;
+
+        btnPlay.Enabled = isIdle;
+        btnStop.Enabled = !isIdle;
+        btnRecord.Enabled = isIdle;
+
         menuStrip.Enabled = isIdle;
     }
 

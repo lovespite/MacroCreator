@@ -13,7 +13,7 @@ public class RecordingService
     private static readonly Stopwatch _stopwatch = new Stopwatch();
     private long _lastEventTime = 0;
 
-    public event Action<RecordedEvent> OnEventRecorded;
+    public event Action<RecordedEvent>? OnEventRecorded;
 
     public void Start()
     {

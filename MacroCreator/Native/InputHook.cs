@@ -39,23 +39,22 @@ public static class InputHook
 
     private static IntPtr SetHook(int hookID, NativeMethods.HookProc proc)
     {
-        using (Process curProcess = Process.GetCurrentProcess())
-        using (ProcessModule? curModule = curProcess.MainModule)
-        {
-            return NativeMethods.SetWindowsHookEx(hookID, proc, NativeMethods.GetModuleHandle(curModule.ModuleName), 0);
-        }
+        using Process curProcess = Process.GetCurrentProcess();
+        using ProcessModule? curModule = curProcess.MainModule ?? throw new InvalidOperationException("无法获取当前模块信息");
+
+        return NativeMethods.SetWindowsHookEx(hookID, proc, NativeMethods.GetModuleHandle(curModule.ModuleName), 0);
     }
 
     private static IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         if (nCode >= 0)
         {
-            NativeMethods.MSLLHOOKSTRUCT hookStruct = (NativeMethods.MSLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(NativeMethods.MSLLHOOKSTRUCT));
+            var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
             int x = hookStruct.pt.x;
             int y = hookStruct.pt.y;
             int delta = 0;
 
-            MouseAction action = MouseAction.MouseMove;
+            MouseAction action;
             switch ((uint)wParam)
             {
                 case NativeMethods.WM_LBUTTONDOWN: action = MouseAction.LeftDown; break;

@@ -4,8 +4,8 @@ namespace MacroCreator.Services;
 public class PlaybackContext
 {
     public CancellationToken CancellationToken { get; }
-    public Func<string, Task> LoadAndPlayNewFileCallback { get; }
-    public PlaybackContext(CancellationToken token, Func<string, Task> callback)
+    public Func<string, Task>? LoadAndPlayNewFileCallback { get; }
+    public PlaybackContext(CancellationToken token, Func<string, Task>? callback)
     {
         CancellationToken = token;
         LoadAndPlayNewFileCallback = callback;

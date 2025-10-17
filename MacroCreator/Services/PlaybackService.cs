@@ -8,7 +8,7 @@ namespace MacroCreator.Services;
 /// </summary>
 public class PlaybackService
 {
-    private CancellationTokenSource _cancellationTokenSource;
+    private CancellationTokenSource? _cancellationTokenSource;
     private readonly Dictionary<Type, IEventPlayer> _players;
 
     public PlaybackService(Dictionary<Type, IEventPlayer> players)

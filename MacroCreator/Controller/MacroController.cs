@@ -13,13 +13,13 @@ public class MacroController
     private List<RecordedEvent> _eventSequence = [];
     private readonly RecordingService _recordingService;
     private readonly PlaybackService _playbackService;
-    private string _currentFilePath = null;
+    private string? _currentFilePath = null;
 
     public IReadOnlyList<RecordedEvent> EventSequence => _eventSequence.AsReadOnly();
     public AppState CurrentState { get; private set; } = AppState.Idle;
-    public string CurrentFilePath => _currentFilePath;
+    public string? CurrentFilePath => _currentFilePath;
 
-    public event Action<AppState> StateChanged;
+    public event Action<AppState>? StateChanged;
     public event Action EventSequenceChanged;
     public event Action<string> StatusMessageChanged;
 
@@ -66,7 +66,7 @@ public class MacroController
         }
     }
 
-    public void SaveSequence(string filePath = null)
+    public void SaveSequence(string? filePath = null)
     {
         var pathToSave = filePath ?? _currentFilePath;
         if (string.IsNullOrEmpty(pathToSave))
