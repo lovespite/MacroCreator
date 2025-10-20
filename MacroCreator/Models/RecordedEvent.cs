@@ -3,6 +3,8 @@
 // 命名空间定义了应用程序的入口点
 namespace MacroCreator.Models;
 
+public delegate bool ContainsEventNameDelegate(string eventName);
+
 /// <summary>
 /// 所有录制事件的基类
 /// XmlInclude 属性是必需的，以便 XmlSerializer 能够识别和处理派生类。
@@ -32,8 +34,7 @@ public abstract class RecordedEvent
     public EventPriority Priority { get; set; } = EventPriority.Normal;
 
     /// <summary>
-    /// 事件名称（可选），用于标识和跳转。默认为 null（匿名事件）。
-    /// 名称只能包含英文字母和数字。
+    /// 事件名称（可选），用于标识和跳转。默认为 null（匿名事件） 
     /// </summary>
     public string? EventName { get; set; }
 

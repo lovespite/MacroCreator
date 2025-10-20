@@ -7,16 +7,29 @@ public partial class MainForm : Form
 {
     private readonly MacroController _controller;
     private InsertJumpForm? _insertJumpForm;
+    private RecordedEvent? _activeEvent;
+
+    public RecordedEvent? ActiveEvent
+    {
+        get => _activeEvent;
+        private set
+        {
+            _activeEvent = value;
+            playFromCursorToolStripMenuItem.Enabled = _activeEvent is not null;
+        }
+    }
 
     public MainForm()
     {
         _controller = new MacroController();
         InitializeComponent();
 
+        ActiveEvent = null;
+
         // 订阅 Controller 事件
         _controller.StateChanged += OnAppStateChanged;
         _controller.EventSequenceChanged += RefreshEventList;
-        _controller.StatusMessageChanged += (msg) => statusLabel!.Text = msg;
+        _controller.StatusMessageChanged += Controller_StatusChanged;
 
         UpdateTitle();
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态
@@ -24,8 +37,29 @@ public partial class MainForm : Form
 
     #region Event Handlers 
 
+    private void Controller_StatusChanged(string message)
+    {
+        statusLabel.Text = message;
+        textBoxLogger.Text += message + Environment.NewLine;
+        textBoxLogger.SelectionStart = textBoxLogger.Text.Length;
+        textBoxLogger.ScrollToCaret();
+    }
+
     private void MainForm_Load(object sender, EventArgs e)
     {
+        InstallGlobalHotkeys();
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        UninstallGlobalHotkeys();
+        base.OnFormClosed(e);
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        HandleGlobalHotkey(m);
+        base.WndProc(ref m);
     }
 
     private void NewToolStripMenuItem_Click(object sender, EventArgs e)
@@ -41,7 +75,24 @@ public partial class MainForm : Form
 
     private async void BtnPlay_Click(object sender, EventArgs e)
     {
-        await _controller.StartPlayback();
+        try
+        {
+            if (cbHideForm.Checked) Hide();
+            await _controller.StartPlayback();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            Show();
+        }
+    }
+
+    private void PlayFromCursorToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        if (ActiveEvent is null) return;
     }
 
     private void BtnStop_Click(object sender, EventArgs e)
@@ -54,52 +105,36 @@ public partial class MainForm : Form
         Close();
     }
 
-    private async void MainForm_KeyDown(object sender, KeyEventArgs e)
-    {
-        switch (e.KeyCode)
-        {
-            case Keys.F9:
-                if (btnRecord.Enabled) _controller.StartRecording();
-                break;
-            case Keys.F10:
-                if (btnPlay.Enabled) await _controller.StartPlayback();
-                break;
-            case Keys.F11:
-                if (btnStop.Enabled) _controller.Stop();
-                break;
-        }
-    }
-
-    private void EventListView_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.KeyCode == Keys.Delete && lvEvents.SelectedItems.Count > 0)
-        {
-            var indices = new List<int>();
-            foreach (ListViewItem item in lvEvents.SelectedItems)
-            {
-                indices.Add(item.Index);
-            }
-            _controller.DeleteEventsAt(indices);
-        }
-    }
-
     private void EventListView_Click(object sender, EventArgs e)
     {
+        ActiveEvent = null;
+        if (lvEvents.SelectedItems.Count == 0) return;
+        if (lvEvents.SelectedItems[0].Tag is not RecordedEvent ev) return;
+
+        ActiveEvent = ev;
+
         // 如果 InsertJumpForm 处于选择模式，处理选择
-        if (_insertJumpForm != null && lvEvents.SelectedItems.Count > 0)
+        if (_insertJumpForm is not null)
         {
-            if (lvEvents.SelectedItems[0].Tag is RecordedEvent ev && ev.HasName)
-                _insertJumpForm.SetSelectedTarget(ev);
+            if (!ActiveEvent.HasName) return;
+            _insertJumpForm.SetSelectedTarget(ActiveEvent);
+            return;
         }
     }
 
     private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
     {
         using var ofd = new OpenFileDialog { Filter = "XML 文件 (*.xml)|*.xml|所有文件 (*.*)|*.*" };
-        if (ofd.ShowDialog() == DialogResult.OK)
+        if (ofd.ShowDialog() != DialogResult.OK) return;
+
+        try
         {
-            try { _controller.LoadSequence(ofd.FileName); UpdateTitle(); }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            _controller.LoadSequence(ofd.FileName);
+            UpdateTitle();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -108,11 +143,17 @@ public partial class MainForm : Form
         if (string.IsNullOrEmpty(_controller.CurrentFilePath))
         {
             SaveAsToolStripMenuItem_Click(sender, e);
+            return;
         }
-        else
+
+        try
         {
-            try { _controller.SaveSequence(); UpdateTitle(); }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            _controller.SaveSequence();
+            UpdateTitle();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -120,10 +161,16 @@ public partial class MainForm : Form
     {
         using var sfd = new SaveFileDialog { Filter = "XML 文件 (*.xml)|*.xml|所有文件 (*.*)|*.*" };
 
-        if (sfd.ShowDialog() == DialogResult.OK)
+        if (sfd.ShowDialog() != DialogResult.OK) return;
+
+        try
         {
-            try { _controller.SaveSequence(sfd.FileName); UpdateTitle(); }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            _controller.SaveSequence(sfd.FileName);
+            UpdateTitle();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -136,7 +183,7 @@ public partial class MainForm : Form
             return;
         }
 
-        _insertJumpForm = new InsertJumpForm(_controller.EventSequence.Count);
+        _insertJumpForm = new InsertJumpForm($"FlowControl_{lvEvents.Items.Count}");
 
         // 订阅事件
         _insertJumpForm.JumpEventCreated += (jumpEvent) =>
@@ -166,7 +213,24 @@ public partial class MainForm : Form
 
     private void LvEvents_ItemActivate(object sender, EventArgs e)
     {
+    }
 
+    private void InsertDelayToolStripMenuItem1_Click(object sender, EventArgs e)
+    {
+        using var inputDialog = new InsertDelayForm(nameof(DelayEvent) + "_" + lvEvents.Items.Count);
+
+        inputDialog.ContainsEventNameCallback += ContainsEventWithName;
+
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+
+        var ev = new DelayEvent()
+        {
+            DelayMilliseconds = (int)inputDialog.DelayMilliseconds,
+            EventName = inputDialog.EventName,
+        };
+
+        _controller.AddEvent(ev);
     }
 
     private void RenameEventToolStripMenuItem_Click(object sender, EventArgs e)
@@ -178,89 +242,100 @@ public partial class MainForm : Form
         var ev = _controller.EventSequence[selectedIndex];
 
         // 创建输入对话框
-        using var inputDialog = new Form
+        using var inputDialog = new RenameEventForm(ev.EventName ?? $"{ev.GetType().Name}_{lvEvents.Items.Count}");
+        inputDialog.ContainsEventNameCallback += ContainsEventWithName;
+
+        if (inputDialog.ShowDialog() != DialogResult.OK) return;
+
+        var newName = inputDialog.EventName;
+
+        // 验证名称
+        if (!string.IsNullOrWhiteSpace(newName))
         {
-            Text = "重命名事件",
-            Width = 400,
-            Height = 150,
-            StartPosition = FormStartPosition.CenterParent,
-            FormBorderStyle = FormBorderStyle.FixedDialog,
-            MaximizeBox = false,
-            MinimizeBox = false
-        };
-
-        var label = new Label
-        {
-            Text = "事件名称（仅英文字母和数字，留空表示匿名）:",
-            Left = 10,
-            Top = 20,
-            Width = 360
-        };
-
-        var textBox = new TextBox
-        {
-            Left = 10,
-            Top = 45,
-            Width = 360,
-            Text = ev.EventName ?? ""
-        };
-
-        var okButton = new Button
-        {
-            Text = "确定",
-            Left = 210,
-            Top = 75,
-            DialogResult = DialogResult.OK
-        };
-
-        var cancelButton = new Button
-        {
-            Text = "取消",
-            Left = 290,
-            Top = 75,
-            DialogResult = DialogResult.Cancel
-        };
-
-        inputDialog.Controls.AddRange([label, textBox, okButton, cancelButton]);
-        inputDialog.AcceptButton = okButton;
-        inputDialog.CancelButton = cancelButton;
-
-        if (inputDialog.ShowDialog() == DialogResult.OK)
-        {
-            string newName = textBox.Text.Trim();
-
-            // 验证名称
-            if (!string.IsNullOrWhiteSpace(newName))
+            if (!RecordedEvent.IsValidEventName(newName))
             {
-                if (!RecordedEvent.IsValidEventName(newName))
-                {
-                    MessageBox.Show("事件名称只能包含英文字母和数字。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // 检查名称是否已存在
-                for (int i = 0; i < _controller.EventSequence.Count; i++)
-                {
-                    if (i != selectedIndex && _controller.EventSequence[i].EventName == newName)
-                    {
-                        MessageBox.Show($"事件名称 '{newName}' 已被其他事件使用。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-                }
+                MessageBox.Show("事件名称不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
 
-            // 更新事件名称
-            ev.EventName = string.IsNullOrWhiteSpace(newName) ? null : newName;
-            RefreshEventList();
-            statusLabel!.Text = string.IsNullOrWhiteSpace(newName)
-                ? "事件已设为匿名。"
-                : $"事件已重命名为 '{newName}'。";
+            // 检查名称是否已存在
+            for (int i = 0; i < _controller.EventSequence.Count; i++)
+            {
+                if (i != selectedIndex && _controller.EventSequence[i].EventName == newName)
+                {
+                    MessageBox.Show($"事件名称 '{newName}' 已被其他事件使用。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
         }
+
+        // 更新事件名称
+        ev.EventName = string.IsNullOrWhiteSpace(newName) ? null : newName;
+        RefreshEventList();
+
+        Controller_StatusChanged(string.IsNullOrWhiteSpace(newName)
+            ? "事件已设为匿名。"
+            : $"事件已重命名为 '{newName}'。");
+    }
+
+    private void DeleteToolStripMenuItem5_Click(object sender, EventArgs e)
+    {
+        if (lvEvents.SelectedItems.Count == 0) return;
+        var indices = new List<int>();
+
+        foreach (ListViewItem item in lvEvents.SelectedItems)
+            indices.Add(item.Index);
+
+        _controller.DeleteEventsAt(indices);
     }
 
     #endregion
 
     #region Private Methods
+
+    private void InstallGlobalHotkeys()
+    {
+        var handle = this.Handle;
+        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_RECORD,
+            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
+            Keys.F9);
+        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_PLAYBACK,
+            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
+            Keys.F10);
+        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_STOP,
+            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
+            Keys.F11);
+    }
+
+    private void UninstallGlobalHotkeys()
+    {
+        var handle = this.Handle;
+        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_RECORD);
+        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_PLAYBACK);
+        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_STOP);
+    }
+
+    private void HandleGlobalHotkey(Message m)
+    {
+        if (m.Msg != Native.NativeMethods.WM_HOTKEY)
+            return;
+        int id = m.WParam.ToInt32();
+        switch (id)
+        {
+            case Native.NativeMethods.HOTKEY_ID_RECORD:
+                if (btnRecord.Enabled)
+                    BtnRecord_Click(this, EventArgs.Empty);
+                break;
+            case Native.NativeMethods.HOTKEY_ID_PLAYBACK:
+                if (btnPlay.Enabled)
+                    BtnPlay_Click(this, EventArgs.Empty);
+                break;
+            case Native.NativeMethods.HOTKEY_ID_STOP:
+                if (btnStop.Enabled)
+                    BtnStop_Click(this, EventArgs.Empty);
+                break;
+        }
+    }
 
     private void RefreshEventList()
     {
@@ -274,7 +349,7 @@ public partial class MainForm : Form
 
             // 如果事件有名称，在序号后显示名称
             string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
-                ? (i + 1).ToString()
+                ? "(匿名)"
                 : $"{ev.EventName} ({i + 1})";
 
             var item = new ListViewItem([
@@ -315,5 +390,10 @@ public partial class MainForm : Form
         Text = $"自动化宏工具 - {fileName}";
     }
 
-    #endregion 
+    #endregion
+
+    public bool ContainsEventWithName(string eventName)
+    {
+        return _controller.EventSequence.Any(ev => string.Equals(ev.EventName, eventName, StringComparison.OrdinalIgnoreCase));
+    }
 }

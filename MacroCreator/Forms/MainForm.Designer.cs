@@ -28,6 +28,7 @@ namespace MacroCreator.Forms
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             menuStrip = new MenuStrip();
             fileToolStripMenuItem = new ToolStripMenuItem();
             newToolStripMenuItem = new ToolStripMenuItem();
@@ -37,34 +38,48 @@ namespace MacroCreator.Forms
             toolStripSeparator1 = new ToolStripSeparator();
             exitToolStripMenuItem = new ToolStripMenuItem();
             ctrlToolStripMenuItem1 = new ToolStripMenuItem();
+            toolStripMenuItem4 = new ToolStripMenuItem();
+            toolStripSeparator5 = new ToolStripSeparator();
             playToolStripMenuItem = new ToolStripMenuItem();
             stopToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator2 = new ToolStripSeparator();
             playFromCursorToolStripMenuItem = new ToolStripMenuItem();
             editToolStripMenuItem = new ToolStripMenuItem();
-            insertJumpToolStripMenuItem = new ToolStripMenuItem();
+            RenameEvent2ToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator3 = new ToolStripSeparator();
+            toolStripMenuItem1 = new ToolStripMenuItem();
+            toolStripMenuItem2 = new ToolStripMenuItem();
+            toolStripMenuItem3 = new ToolStripMenuItem();
+            DeleteToolStripMenuItem5 = new ToolStripMenuItem();
+            toolStripSeparator4 = new ToolStripSeparator();
             clearStripMenuItem = new ToolStripMenuItem();
             statusStrip = new StatusStrip();
             statusLabel = new ToolStripStatusLabel();
             toolStripContainer = new ToolStripContainer();
+            splitContainer1 = new SplitContainer();
             lvEvents = new ListView();
-            contextMenuStripEvents = new ContextMenuStrip();
-            renameEventToolStripMenuItem = new ToolStripMenuItem();
             columnHeader1 = new ColumnHeader();
             columnHeader2 = new ColumnHeader();
             columnHeader3 = new ColumnHeader();
             columnHeader4 = new ColumnHeader();
+            contextMenuStripEvents = new ContextMenuStrip(components);
+            renameEventToolStripMenuItem = new ToolStripMenuItem();
+            textBoxLogger = new TextBox();
             buttonPanel = new FlowLayoutPanel();
             btnRecord = new Button();
             btnPlay = new Button();
             btnStop = new Button();
+            cbHideForm = new CheckBox();
             menuStrip.SuspendLayout();
             statusStrip.SuspendLayout();
             toolStripContainer.BottomToolStripPanel.SuspendLayout();
             toolStripContainer.ContentPanel.SuspendLayout();
             toolStripContainer.TopToolStripPanel.SuspendLayout();
             toolStripContainer.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
+            splitContainer1.Panel1.SuspendLayout();
+            splitContainer1.Panel2.SuspendLayout();
+            splitContainer1.SuspendLayout();
             contextMenuStripEvents.SuspendLayout();
             buttonPanel.SuspendLayout();
             SuspendLayout();
@@ -77,7 +92,7 @@ namespace MacroCreator.Forms
             menuStrip.Location = new Point(0, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.RenderMode = ToolStripRenderMode.System;
-            menuStrip.Size = new Size(761, 25);
+            menuStrip.Size = new Size(945, 25);
             menuStrip.TabIndex = 0;
             menuStrip.Text = "menuStrip";
             // 
@@ -135,57 +150,111 @@ namespace MacroCreator.Forms
             // 
             // ctrlToolStripMenuItem1
             // 
-            ctrlToolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { playToolStripMenuItem, stopToolStripMenuItem, toolStripSeparator2, playFromCursorToolStripMenuItem });
+            ctrlToolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { toolStripMenuItem4, toolStripSeparator5, playToolStripMenuItem, stopToolStripMenuItem, toolStripSeparator2, playFromCursorToolStripMenuItem });
             ctrlToolStripMenuItem1.Name = "ctrlToolStripMenuItem1";
             ctrlToolStripMenuItem1.Size = new Size(60, 21);
             ctrlToolStripMenuItem1.Text = "控制(&C)";
             // 
+            // toolStripMenuItem4
+            // 
+            toolStripMenuItem4.Name = "toolStripMenuItem4";
+            toolStripMenuItem4.ShortcutKeys = Keys.F9;
+            toolStripMenuItem4.Size = new Size(226, 22);
+            toolStripMenuItem4.Text = "录制(&R)";
+            toolStripMenuItem4.Click += BtnRecord_Click;
+            // 
+            // toolStripSeparator5
+            // 
+            toolStripSeparator5.Name = "toolStripSeparator5";
+            toolStripSeparator5.Size = new Size(223, 6);
+            // 
             // playToolStripMenuItem
             // 
             playToolStripMenuItem.Name = "playToolStripMenuItem";
-            playToolStripMenuItem.Size = new Size(165, 22);
+            playToolStripMenuItem.ShortcutKeys = Keys.F10;
+            playToolStripMenuItem.Size = new Size(226, 22);
             playToolStripMenuItem.Text = "播放(&P)";
+            playToolStripMenuItem.Click += BtnPlay_Click;
             // 
             // stopToolStripMenuItem
             // 
             stopToolStripMenuItem.Name = "stopToolStripMenuItem";
-            stopToolStripMenuItem.Size = new Size(165, 22);
+            stopToolStripMenuItem.ShortcutKeys = Keys.F11;
+            stopToolStripMenuItem.Size = new Size(226, 22);
             stopToolStripMenuItem.Text = "停止(&S)";
+            stopToolStripMenuItem.Click += BtnStop_Click;
             // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new Size(162, 6);
+            toolStripSeparator2.Size = new Size(223, 6);
             // 
             // playFromCursorToolStripMenuItem
             // 
             playFromCursorToolStripMenuItem.Name = "playFromCursorToolStripMenuItem";
-            playFromCursorToolStripMenuItem.Size = new Size(165, 22);
-            playFromCursorToolStripMenuItem.Text = "从 0 开始播放(&L)";
+            playFromCursorToolStripMenuItem.ShortcutKeys = Keys.F12;
+            playFromCursorToolStripMenuItem.Size = new Size(226, 22);
+            playFromCursorToolStripMenuItem.Text = "从活动事件开始播放(&L)";
+            playFromCursorToolStripMenuItem.Click += PlayFromCursorToolStripMenuItem_Click;
             // 
             // editToolStripMenuItem
             // 
-            editToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { insertJumpToolStripMenuItem, toolStripSeparator3, clearStripMenuItem });
+            editToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { RenameEvent2ToolStripMenuItem, toolStripSeparator3, toolStripMenuItem1, DeleteToolStripMenuItem5, toolStripSeparator4, clearStripMenuItem });
             editToolStripMenuItem.Name = "editToolStripMenuItem";
             editToolStripMenuItem.Size = new Size(59, 21);
             editToolStripMenuItem.Text = "编辑(&E)";
             // 
-            // insertJumpToolStripMenuItem
+            // RenameEvent2ToolStripMenuItem
             // 
-            insertJumpToolStripMenuItem.Name = "insertJumpToolStripMenuItem";
-            insertJumpToolStripMenuItem.Size = new Size(161, 22);
-            insertJumpToolStripMenuItem.Text = "插入控制事件(&J)";
-            insertJumpToolStripMenuItem.Click += InsertJumpToolStripMenuItem_Click;
+            RenameEvent2ToolStripMenuItem.Name = "RenameEvent2ToolStripMenuItem";
+            RenameEvent2ToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.R;
+            RenameEvent2ToolStripMenuItem.Size = new Size(197, 22);
+            RenameEvent2ToolStripMenuItem.Text = "重命名事件(&R)";
+            RenameEvent2ToolStripMenuItem.Click += RenameEventToolStripMenuItem_Click;
             // 
             // toolStripSeparator3
             // 
             toolStripSeparator3.Name = "toolStripSeparator3";
-            toolStripSeparator3.Size = new Size(158, 6);
+            toolStripSeparator3.Size = new Size(194, 6);
+            // 
+            // toolStripMenuItem1
+            // 
+            toolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { toolStripMenuItem2, toolStripMenuItem3 });
+            toolStripMenuItem1.Name = "toolStripMenuItem1";
+            toolStripMenuItem1.Size = new Size(197, 22);
+            toolStripMenuItem1.Text = "插入(&I)";
+            // 
+            // toolStripMenuItem2
+            // 
+            toolStripMenuItem2.Name = "toolStripMenuItem2";
+            toolStripMenuItem2.Size = new Size(117, 22);
+            toolStripMenuItem2.Text = "延迟(&D)";
+            toolStripMenuItem2.Click += InsertDelayToolStripMenuItem1_Click;
+            // 
+            // toolStripMenuItem3
+            // 
+            toolStripMenuItem3.Name = "toolStripMenuItem3";
+            toolStripMenuItem3.Size = new Size(117, 22);
+            toolStripMenuItem3.Text = "控制(&C)";
+            toolStripMenuItem3.Click += InsertJumpToolStripMenuItem_Click;
+            // 
+            // DeleteToolStripMenuItem5
+            // 
+            DeleteToolStripMenuItem5.Name = "DeleteToolStripMenuItem5";
+            DeleteToolStripMenuItem5.ShortcutKeys = Keys.Delete;
+            DeleteToolStripMenuItem5.Size = new Size(197, 22);
+            DeleteToolStripMenuItem5.Text = "删除(&D)";
+            DeleteToolStripMenuItem5.Click += DeleteToolStripMenuItem5_Click;
+            // 
+            // toolStripSeparator4
+            // 
+            toolStripSeparator4.Name = "toolStripSeparator4";
+            toolStripSeparator4.Size = new Size(194, 6);
             // 
             // clearStripMenuItem
             // 
             clearStripMenuItem.Name = "clearStripMenuItem";
-            clearStripMenuItem.Size = new Size(161, 22);
+            clearStripMenuItem.Size = new Size(197, 22);
             clearStripMenuItem.Text = "清理(&C)";
             clearStripMenuItem.Click += ClearStripMenuItem_Click;
             // 
@@ -196,7 +265,7 @@ namespace MacroCreator.Forms
             statusStrip.Items.AddRange(new ToolStripItem[] { statusLabel });
             statusStrip.Location = new Point(0, 0);
             statusStrip.Name = "statusStrip";
-            statusStrip.Size = new Size(761, 22);
+            statusStrip.Size = new Size(945, 22);
             statusStrip.TabIndex = 0;
             // 
             // statusLabel
@@ -214,15 +283,15 @@ namespace MacroCreator.Forms
             // 
             // toolStripContainer.ContentPanel
             // 
-            toolStripContainer.ContentPanel.Controls.Add(lvEvents);
+            toolStripContainer.ContentPanel.Controls.Add(splitContainer1);
             toolStripContainer.ContentPanel.Controls.Add(buttonPanel);
             toolStripContainer.ContentPanel.Margin = new Padding(4, 3, 4, 3);
-            toolStripContainer.ContentPanel.Size = new Size(761, 482);
+            toolStripContainer.ContentPanel.Size = new Size(945, 550);
             toolStripContainer.Dock = DockStyle.Fill;
             toolStripContainer.Location = new Point(4, 0);
             toolStripContainer.Margin = new Padding(4, 3, 4, 3);
             toolStripContainer.Name = "toolStripContainer";
-            toolStripContainer.Size = new Size(761, 529);
+            toolStripContainer.Size = new Size(945, 597);
             toolStripContainer.TabIndex = 0;
             toolStripContainer.Text = "toolStripContainer";
             // 
@@ -230,40 +299,42 @@ namespace MacroCreator.Forms
             // 
             toolStripContainer.TopToolStripPanel.Controls.Add(menuStrip);
             // 
+            // splitContainer1
+            // 
+            splitContainer1.Dock = DockStyle.Fill;
+            splitContainer1.Location = new Point(0, 54);
+            splitContainer1.Name = "splitContainer1";
+            // 
+            // splitContainer1.Panel1
+            // 
+            splitContainer1.Panel1.Controls.Add(lvEvents);
+            // 
+            // splitContainer1.Panel2
+            // 
+            splitContainer1.Panel2.Controls.Add(textBoxLogger);
+            splitContainer1.Size = new Size(945, 496);
+            splitContainer1.SplitterDistance = 639;
+            splitContainer1.TabIndex = 2;
+            // 
             // lvEvents
             // 
             lvEvents.Columns.AddRange(new ColumnHeader[] { columnHeader1, columnHeader2, columnHeader3, columnHeader4 });
             lvEvents.ContextMenuStrip = contextMenuStripEvents;
             lvEvents.Dock = DockStyle.Fill;
             lvEvents.FullRowSelect = true;
-            lvEvents.Location = new Point(0, 54);
+            lvEvents.Location = new Point(0, 0);
             lvEvents.Margin = new Padding(4, 3, 4, 3);
             lvEvents.Name = "lvEvents";
-            lvEvents.Size = new Size(761, 428);
+            lvEvents.Size = new Size(639, 496);
             lvEvents.TabIndex = 1;
             lvEvents.UseCompatibleStateImageBehavior = false;
             lvEvents.View = View.Details;
-            lvEvents.ItemActivate += LvEvents_ItemActivate;
             lvEvents.Click += EventListView_Click;
-            lvEvents.KeyDown += EventListView_KeyDown;
-            // 
-            // contextMenuStripEvents
-            // 
-            contextMenuStripEvents.Items.AddRange(new ToolStripItem[] { renameEventToolStripMenuItem });
-            contextMenuStripEvents.Name = "contextMenuStripEvents";
-            contextMenuStripEvents.Size = new Size(181, 26);
-            // 
-            // renameEventToolStripMenuItem
-            // 
-            renameEventToolStripMenuItem.Name = "renameEventToolStripMenuItem";
-            renameEventToolStripMenuItem.Size = new Size(180, 22);
-            renameEventToolStripMenuItem.Text = "重命名事件(&R)...";
-            renameEventToolStripMenuItem.Click += RenameEventToolStripMenuItem_Click;
             // 
             // columnHeader1
             // 
-            columnHeader1.Text = "ID";
-            columnHeader1.Width = 50;
+            columnHeader1.Text = "名称";
+            columnHeader1.Width = 120;
             // 
             // columnHeader2
             // 
@@ -273,12 +344,37 @@ namespace MacroCreator.Forms
             // columnHeader3
             // 
             columnHeader3.Text = "描述";
-            columnHeader3.Width = 450;
+            columnHeader3.Width = 250;
             // 
             // columnHeader4
             // 
             columnHeader4.Text = "延迟(ms)";
             columnHeader4.Width = 100;
+            // 
+            // contextMenuStripEvents
+            // 
+            contextMenuStripEvents.Items.AddRange(new ToolStripItem[] { renameEventToolStripMenuItem });
+            contextMenuStripEvents.Name = "contextMenuStripEvents";
+            contextMenuStripEvents.Size = new Size(153, 26);
+            // 
+            // renameEventToolStripMenuItem
+            // 
+            renameEventToolStripMenuItem.Name = "renameEventToolStripMenuItem";
+            renameEventToolStripMenuItem.Size = new Size(152, 22);
+            renameEventToolStripMenuItem.Text = "重命名事件(&R)";
+            renameEventToolStripMenuItem.Click += RenameEventToolStripMenuItem_Click;
+            // 
+            // textBoxLogger
+            // 
+            textBoxLogger.BackColor = Color.Gainsboro;
+            textBoxLogger.BorderStyle = BorderStyle.None;
+            textBoxLogger.Dock = DockStyle.Fill;
+            textBoxLogger.Location = new Point(0, 0);
+            textBoxLogger.Multiline = true;
+            textBoxLogger.Name = "textBoxLogger";
+            textBoxLogger.ReadOnly = true;
+            textBoxLogger.Size = new Size(302, 496);
+            textBoxLogger.TabIndex = 0;
             // 
             // buttonPanel
             // 
@@ -286,12 +382,13 @@ namespace MacroCreator.Forms
             buttonPanel.Controls.Add(btnRecord);
             buttonPanel.Controls.Add(btnPlay);
             buttonPanel.Controls.Add(btnStop);
+            buttonPanel.Controls.Add(cbHideForm);
             buttonPanel.Dock = DockStyle.Top;
             buttonPanel.Location = new Point(0, 0);
             buttonPanel.Margin = new Padding(4, 3, 4, 3);
             buttonPanel.Name = "buttonPanel";
             buttonPanel.Padding = new Padding(5);
-            buttonPanel.Size = new Size(761, 54);
+            buttonPanel.Size = new Size(945, 54);
             buttonPanel.TabIndex = 0;
             // 
             // btnRecord
@@ -328,20 +425,33 @@ namespace MacroCreator.Forms
             btnStop.UseVisualStyleBackColor = true;
             btnStop.Click += BtnStop_Click;
             // 
+            // cbHideForm
+            // 
+            cbHideForm.AutoSize = true;
+            cbHideForm.Checked = true;
+            cbHideForm.CheckState = CheckState.Checked;
+            cbHideForm.Location = new Point(311, 8);
+            cbHideForm.Name = "cbHideForm";
+            cbHideForm.Padding = new Padding(0, 16, 0, 0);
+            cbHideForm.Size = new Size(128, 37);
+            cbHideForm.TabIndex = 3;
+            cbHideForm.Text = "播放时隐藏窗体(&H)";
+            cbHideForm.UseVisualStyleBackColor = true;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(769, 533);
+            ClientSize = new Size(953, 601);
             Controls.Add(toolStripContainer);
             KeyPreview = true;
             MainMenuStrip = menuStrip;
             Margin = new Padding(4, 3, 4, 3);
             Name = "MainForm";
             Padding = new Padding(4, 0, 4, 4);
+            StartPosition = FormStartPosition.CenterScreen;
             Text = "自动化宏工具";
             Load += MainForm_Load;
-            KeyDown += MainForm_KeyDown;
             menuStrip.ResumeLayout(false);
             menuStrip.PerformLayout();
             statusStrip.ResumeLayout(false);
@@ -354,8 +464,14 @@ namespace MacroCreator.Forms
             toolStripContainer.TopToolStripPanel.PerformLayout();
             toolStripContainer.ResumeLayout(false);
             toolStripContainer.PerformLayout();
+            splitContainer1.Panel1.ResumeLayout(false);
+            splitContainer1.Panel2.ResumeLayout(false);
+            splitContainer1.Panel2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
+            splitContainer1.ResumeLayout(false);
             contextMenuStripEvents.ResumeLayout(false);
             buttonPanel.ResumeLayout(false);
+            buttonPanel.PerformLayout();
             ResumeLayout(false);
 
         }
@@ -371,7 +487,6 @@ namespace MacroCreator.Forms
         private ToolStripSeparator toolStripSeparator1;
         private ToolStripMenuItem exitToolStripMenuItem;
         private ToolStripMenuItem editToolStripMenuItem;
-        private ToolStripMenuItem insertJumpToolStripMenuItem;
         private StatusStrip statusStrip;
         private ToolStripStatusLabel statusLabel;
         private ToolStripContainer toolStripContainer;
@@ -393,5 +508,16 @@ namespace MacroCreator.Forms
         private ToolStripMenuItem playFromCursorToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator3;
         private ToolStripMenuItem clearStripMenuItem;
+        private ToolStripSeparator toolStripSeparator4;
+        private ToolStripMenuItem RenameEvent2ToolStripMenuItem;
+        private ToolStripMenuItem toolStripMenuItem1;
+        private ToolStripMenuItem toolStripMenuItem2;
+        private ToolStripMenuItem toolStripMenuItem3;
+        private ToolStripMenuItem toolStripMenuItem4;
+        private ToolStripSeparator toolStripSeparator5;
+        private CheckBox cbHideForm;
+        private ToolStripMenuItem DeleteToolStripMenuItem5;
+        private SplitContainer splitContainer1;
+        private TextBox textBoxLogger;
     }
 }

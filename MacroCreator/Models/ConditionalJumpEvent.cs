@@ -42,18 +42,6 @@ public class ConditionalJumpEvent : RecordedEvent
     public string? FalseTargetEventName { get; set; }
 
     /// <summary>
-    /// 条件为真时的标签（已弃用，使用 TrueTargetEventName）
-    /// </summary>
-    [Obsolete("使用 TrueTargetEventName 代替")]
-    public string? TrueLabel { get; set; }
-
-    /// <summary>
-    /// 条件为假时的标签（已弃用，使用 FalseTargetEventName）
-    /// </summary>
-    [Obsolete("使用 FalseTargetEventName 代替")]
-    public string? FalseLabel { get; set; }
-
-    /// <summary>
     /// 条件为真时要执行的外部文件路径（可选）
     /// </summary>
     public string? FilePathIfMatch { get; set; }

@@ -37,7 +37,7 @@ public class MacroController
         {
             { typeof(MouseEvent), new MouseEventPlayer() },
             { typeof(KeyboardEvent), new KeyboardEventPlayer() },
-            { typeof(DelayEvent), new DelayEventPlayer() }, 
+            { typeof(DelayEvent), new DelayEventPlayer() },
             { typeof(JumpEvent), new JumpEventPlayer() },
             { typeof(ConditionalJumpEvent), new ConditionalJumpEventPlayer() },
             { typeof(BreakEvent), new BreakEventPlayer() }
@@ -115,7 +115,6 @@ public class MacroController
     public void StartRecording()
     {
         if (CurrentState != AppState.Idle) return;
-        // _eventSequence.Clear();
         EventSequenceChanged?.Invoke();
         _recordingService.Start();
         SetState(AppState.Recording);
@@ -130,12 +129,7 @@ public class MacroController
         StatusMessageChanged?.Invoke("播放中... 按 F11 停止。");
         try
         {
-            await _playbackService.Play(_eventSequence, async (filePath) =>
-            {
-                StatusMessageChanged?.Invoke($"跳转到文件: {filePath} 并开始播放...");
-                var newSequence = FileService.Load(filePath);
-                await _playbackService.Play(newSequence, null); // 嵌套播放暂时不支持再次跳转
-            });
+            await _playbackService.Play(_eventSequence, LoadAndPlayNewFile);
             StatusMessageChanged?.Invoke("播放完成。");
         }
         catch (TaskCanceledException)
@@ -146,6 +140,13 @@ public class MacroController
         {
             SetState(AppState.Idle);
         }
+    }
+
+    private async Task LoadAndPlayNewFile(string filePath)
+    {
+        StatusMessageChanged?.Invoke($"跳转到文件: {filePath} 并开始播放...");
+        var newSequence = FileService.Load(filePath);
+        await _playbackService.Play(newSequence, LoadAndPlayNewFile); // 嵌套播放暂时不支持再次跳转
     }
 
     public void Stop()

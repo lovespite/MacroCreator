@@ -12,22 +12,39 @@ public class PlaybackContext
     /// 取消令牌，用于停止播放
     /// </summary>
     public CancellationToken CancellationToken { get; }
-    
+
     /// <summary>
     /// 加载并播放新文件的回调函数
     /// </summary>
     public Func<string, Task>? LoadAndPlayNewFileCallback { get; }
-    
+
     /// <summary>
     /// 事件序列的只读列表，用于按名称查找事件
     /// </summary>
     public IReadOnlyList<RecordedEvent> Events { get; }
-    
+
+    private readonly IDictionary<string, int> _eventNameToIndexCache = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
     public PlaybackContext(CancellationToken token, IReadOnlyList<RecordedEvent> events, Func<string, Task>? callback)
     {
         CancellationToken = token;
         Events = events;
         LoadAndPlayNewFileCallback = callback;
+
+        BuildEventNameIndexCache();
+    }
+
+    private void BuildEventNameIndexCache()
+    {
+        _eventNameToIndexCache.Clear();
+        for (int i = 0; i < Events.Count; i++)
+        {
+            var eventName = Events[i].EventName;
+            if (!string.IsNullOrWhiteSpace(eventName) && !_eventNameToIndexCache.ContainsKey(eventName))
+            {
+                _eventNameToIndexCache[eventName] = i;
+            }
+        }
     }
 
     /// <summary>
@@ -38,12 +55,12 @@ public class PlaybackContext
     public int FindEventIndexByName(string? eventName)
     {
         if (string.IsNullOrWhiteSpace(eventName))
-            return -1;
-
-        for (int i = 0; i < Events.Count; i++)
         {
-            if (Events[i].EventName == eventName)
-                return i;
+            return -1;
+        }
+        if (_eventNameToIndexCache.TryGetValue(eventName, out int index))
+        {
+            return index;
         }
         return -1;
     }

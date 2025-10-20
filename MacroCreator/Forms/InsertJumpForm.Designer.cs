@@ -40,8 +40,6 @@ namespace MacroCreator.Forms
             rbConditionalJump = new RadioButton();
             rbBreak = new RadioButton();
             pnlUnconditional = new Panel();
-            lblTargetIndex = new Label();
-            nudTargetIndex = new NumericUpDown();
             btnSelectTarget = new Button();
             lblTargetLabel = new Label();
             txtTargetLabel = new TextBox();
@@ -59,29 +57,37 @@ namespace MacroCreator.Forms
             pnlCustomCondition = new Panel();
             lblCustomCondition = new Label();
             txtCustomCondition = new TextBox();
-            lblHint = new Label();
             pnlJumpTargets = new Panel();
-            lblTrueTarget = new Label();
-            btnSelectTrueTarget = new Button();
-            txtTrueLabel = new TextBox();
-            txtTrueFilePath = new TextBox();
-            btnBrowseTrueFile = new Button();
-            chkFalseTargetEnabled = new CheckBox();
-            btnSelectFalseTarget = new Button();
-            txtFalseLabel = new TextBox();
-            txtFalseFilePath = new TextBox();
+            panel2 = new Panel();
+            rdFalseFilePath = new RadioButton();
+            rdFalseEventName = new RadioButton();
+            txtFalseTargetEventName = new TextBox();
             btnBrowseFalseFile = new Button();
+            txtFalseFilePath = new TextBox();
+            btnSelectFalseTarget = new Button();
+            panel1 = new Panel();
+            rdTrueFilePath = new RadioButton();
+            rdTrueEventName = new RadioButton();
+            txtTrueTargetEventName = new TextBox();
+            btnBrowseTrueFile = new Button();
+            btnSelectTrueTarget = new Button();
+            txtTrueFilePath = new TextBox();
+            lblTrueTarget = new Label();
+            chkFalseTargetEnabled = new CheckBox();
             lblFalseHint = new Label();
             btnOK = new Button();
             btnCancel = new Button();
             colorPickerTimer = new System.Windows.Forms.Timer(components);
+            label1 = new Label();
+            textBoxEventName = new TextBox();
             pnlJumpType.SuspendLayout();
             pnlUnconditional.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)nudTargetIndex).BeginInit();
             pnlConditional.SuspendLayout();
             pnlPixelCondition.SuspendLayout();
             pnlCustomCondition.SuspendLayout();
             pnlJumpTargets.SuspendLayout();
+            panel2.SuspendLayout();
+            panel1.SuspendLayout();
             SuspendLayout();
             // 
             // pnlJumpType
@@ -89,7 +95,7 @@ namespace MacroCreator.Forms
             pnlJumpType.Controls.Add(rbUnconditionalJump);
             pnlJumpType.Controls.Add(rbConditionalJump);
             pnlJumpType.Controls.Add(rbBreak);
-            pnlJumpType.Location = new Point(20, 23);
+            pnlJumpType.Location = new Point(20, 58);
             pnlJumpType.Name = "pnlJumpType";
             pnlJumpType.Size = new Size(550, 56);
             pnlJumpType.TabIndex = 0;
@@ -132,57 +138,36 @@ namespace MacroCreator.Forms
             // pnlUnconditional
             // 
             pnlUnconditional.BorderStyle = BorderStyle.FixedSingle;
-            pnlUnconditional.Controls.Add(lblTargetIndex);
-            pnlUnconditional.Controls.Add(nudTargetIndex);
             pnlUnconditional.Controls.Add(btnSelectTarget);
             pnlUnconditional.Controls.Add(lblTargetLabel);
             pnlUnconditional.Controls.Add(txtTargetLabel);
-            pnlUnconditional.Location = new Point(20, 91);
+            pnlUnconditional.Location = new Point(20, 126);
             pnlUnconditional.Name = "pnlUnconditional";
-            pnlUnconditional.Size = new Size(550, 113);
+            pnlUnconditional.Size = new Size(550, 52);
             pnlUnconditional.TabIndex = 1;
-            // 
-            // lblTargetIndex
-            // 
-            lblTargetIndex.AutoSize = true;
-            lblTargetIndex.Location = new Point(10, 23);
-            lblTargetIndex.Name = "lblTargetIndex";
-            lblTargetIndex.Size = new Size(95, 17);
-            lblTargetIndex.TabIndex = 0;
-            lblTargetIndex.Text = "跳转到事件索引:";
-            // 
-            // nudTargetIndex
-            // 
-            nudTargetIndex.Location = new Point(120, 20);
-            nudTargetIndex.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            nudTargetIndex.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
-            nudTargetIndex.Name = "nudTargetIndex";
-            nudTargetIndex.Size = new Size(80, 23);
-            nudTargetIndex.TabIndex = 1;
-            nudTargetIndex.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
             // btnSelectTarget
             // 
-            btnSelectTarget.Location = new Point(210, 19);
+            btnSelectTarget.Location = new Point(341, 11);
             btnSelectTarget.Name = "btnSelectTarget";
-            btnSelectTarget.Size = new Size(110, 25);
+            btnSelectTarget.Size = new Size(78, 25);
             btnSelectTarget.TabIndex = 4;
-            btnSelectTarget.Text = "从列表选择...";
+            btnSelectTarget.Text = "选择...";
             btnSelectTarget.UseVisualStyleBackColor = true;
             btnSelectTarget.Click += BtnSelectTarget_Click;
             // 
             // lblTargetLabel
             // 
             lblTargetLabel.AutoSize = true;
-            lblTargetLabel.Location = new Point(10, 57);
+            lblTargetLabel.Location = new Point(8, 16);
             lblTargetLabel.Name = "lblTargetLabel";
-            lblTargetLabel.Size = new Size(83, 17);
+            lblTargetLabel.Size = new Size(107, 17);
             lblTargetLabel.TabIndex = 2;
-            lblTargetLabel.Text = "目标事件名称:";
+            lblTargetLabel.Text = "跳转目标事件名称:";
             // 
             // txtTargetLabel
             // 
-            txtTargetLabel.Location = new Point(120, 54);
+            txtTargetLabel.Location = new Point(129, 13);
             txtTargetLabel.Name = "txtTargetLabel";
             txtTargetLabel.PlaceholderText = "留空表示匿名事件（使用索引）";
             txtTargetLabel.Size = new Size(200, 23);
@@ -196,9 +181,9 @@ namespace MacroCreator.Forms
             pnlConditional.Controls.Add(pnlPixelCondition);
             pnlConditional.Controls.Add(pnlCustomCondition);
             pnlConditional.Controls.Add(pnlJumpTargets);
-            pnlConditional.Location = new Point(20, 91);
+            pnlConditional.Location = new Point(20, 126);
             pnlConditional.Name = "pnlConditional";
-            pnlConditional.Size = new Size(550, 340);
+            pnlConditional.Size = new Size(550, 378);
             pnlConditional.TabIndex = 2;
             pnlConditional.Visible = false;
             // 
@@ -239,7 +224,7 @@ namespace MacroCreator.Forms
             // lblCoords
             // 
             lblCoords.AutoSize = true;
-            lblCoords.Location = new Point(10, 14);
+            lblCoords.Location = new Point(9, 19);
             lblCoords.Name = "lblCoords";
             lblCoords.Size = new Size(93, 17);
             lblCoords.TabIndex = 0;
@@ -247,22 +232,22 @@ namespace MacroCreator.Forms
             // 
             // txtX
             // 
-            txtX.Location = new Point(120, 12);
+            txtX.Location = new Point(119, 17);
             txtX.Name = "txtX";
-            txtX.Size = new Size(50, 23);
+            txtX.Size = new Size(100, 23);
             txtX.TabIndex = 1;
             // 
             // txtY
             // 
-            txtY.Location = new Point(180, 12);
+            txtY.Location = new Point(225, 17);
             txtY.Name = "txtY";
-            txtY.Size = new Size(50, 23);
+            txtY.Size = new Size(94, 23);
             txtY.TabIndex = 2;
             // 
             // lblColor
             // 
             lblColor.AutoSize = true;
-            lblColor.Location = new Point(10, 48);
+            lblColor.Location = new Point(10, 54);
             lblColor.Name = "lblColor";
             lblColor.Size = new Size(59, 17);
             lblColor.TabIndex = 3;
@@ -271,16 +256,15 @@ namespace MacroCreator.Forms
             // colorPanel
             // 
             colorPanel.BackColor = Color.Red;
-            colorPanel.BorderStyle = BorderStyle.FixedSingle;
-            colorPanel.Location = new Point(120, 48);
+            colorPanel.Location = new Point(121, 51);
             colorPanel.Name = "colorPanel";
-            colorPanel.Size = new Size(50, 22);
+            colorPanel.Size = new Size(98, 22);
             colorPanel.TabIndex = 4;
             // 
             // lblColorHex
             // 
             lblColorHex.AutoSize = true;
-            lblColorHex.Location = new Point(180, 51);
+            lblColorHex.Location = new Point(225, 54);
             lblColorHex.Name = "lblColorHex";
             lblColorHex.Size = new Size(56, 17);
             lblColorHex.TabIndex = 5;
@@ -288,7 +272,7 @@ namespace MacroCreator.Forms
             // 
             // btnPickColor
             // 
-            btnPickColor.Location = new Point(260, 46);
+            btnPickColor.Location = new Point(417, 54);
             btnPickColor.Name = "btnPickColor";
             btnPickColor.Size = new Size(100, 26);
             btnPickColor.TabIndex = 6;
@@ -300,7 +284,6 @@ namespace MacroCreator.Forms
             // 
             pnlCustomCondition.Controls.Add(lblCustomCondition);
             pnlCustomCondition.Controls.Add(txtCustomCondition);
-            pnlCustomCondition.Controls.Add(lblHint);
             pnlCustomCondition.Location = new Point(10, 57);
             pnlCustomCondition.Name = "pnlCustomCondition";
             pnlCustomCondition.Size = new Size(530, 91);
@@ -310,7 +293,7 @@ namespace MacroCreator.Forms
             // lblCustomCondition
             // 
             lblCustomCondition.AutoSize = true;
-            lblCustomCondition.Location = new Point(0, 11);
+            lblCustomCondition.Location = new Point(12, 11);
             lblCustomCondition.Name = "lblCustomCondition";
             lblCustomCondition.Size = new Size(71, 17);
             lblCustomCondition.TabIndex = 0;
@@ -318,129 +301,75 @@ namespace MacroCreator.Forms
             // 
             // txtCustomCondition
             // 
-            txtCustomCondition.Location = new Point(0, 34);
+            txtCustomCondition.Location = new Point(89, 11);
+            txtCustomCondition.Multiline = true;
             txtCustomCondition.Name = "txtCustomCondition";
-            txtCustomCondition.Size = new Size(400, 23);
+            txtCustomCondition.Size = new Size(428, 69);
             txtCustomCondition.TabIndex = 1;
             txtCustomCondition.Text = "true";
             // 
-            // lblHint
-            // 
-            lblHint.AutoSize = true;
-            lblHint.ForeColor = Color.Gray;
-            lblHint.Location = new Point(0, 62);
-            lblHint.Name = "lblHint";
-            lblHint.Size = new Size(199, 17);
-            lblHint.TabIndex = 2;
-            lblHint.Text = "提示: 可使用 hour, random 等变量";
-            // 
             // pnlJumpTargets
             // 
+            pnlJumpTargets.Controls.Add(panel2);
+            pnlJumpTargets.Controls.Add(panel1);
             pnlJumpTargets.Controls.Add(lblTrueTarget);
-            pnlJumpTargets.Controls.Add(btnSelectTrueTarget);
-            pnlJumpTargets.Controls.Add(txtTrueLabel);
-            pnlJumpTargets.Controls.Add(txtTrueFilePath);
-            pnlJumpTargets.Controls.Add(btnBrowseTrueFile);
             pnlJumpTargets.Controls.Add(chkFalseTargetEnabled);
-            pnlJumpTargets.Controls.Add(btnSelectFalseTarget);
-            pnlJumpTargets.Controls.Add(txtFalseLabel);
-            pnlJumpTargets.Controls.Add(txtFalseFilePath);
-            pnlJumpTargets.Controls.Add(btnBrowseFalseFile);
             pnlJumpTargets.Controls.Add(lblFalseHint);
             pnlJumpTargets.Location = new Point(10, 159);
             pnlJumpTargets.Name = "pnlJumpTargets";
-            pnlJumpTargets.Size = new Size(530, 170);
+            pnlJumpTargets.Size = new Size(530, 204);
             pnlJumpTargets.TabIndex = 4;
             // 
-            // lblTrueTarget
+            // panel2
             // 
-            lblTrueTarget.AutoSize = true;
-            lblTrueTarget.Location = new Point(10, 13);
-            lblTrueTarget.Name = "lblTrueTarget";
-            lblTrueTarget.Size = new Size(83, 17);
-            lblTrueTarget.TabIndex = 0;
-            lblTrueTarget.Text = "条件真时跳转:";
+            panel2.Controls.Add(rdFalseFilePath);
+            panel2.Controls.Add(rdFalseEventName);
+            panel2.Controls.Add(txtFalseTargetEventName);
+            panel2.Controls.Add(btnBrowseFalseFile);
+            panel2.Controls.Add(txtFalseFilePath);
+            panel2.Controls.Add(btnSelectFalseTarget);
+            panel2.Location = new Point(126, 101);
+            panel2.Name = "panel2";
+            panel2.Size = new Size(391, 69);
+            panel2.TabIndex = 14;
             // 
-            // btnSelectTrueTarget
+            // rdFalseFilePath
             // 
-            btnSelectTrueTarget.Location = new Point(400, 9);
-            btnSelectTrueTarget.Name = "btnSelectTrueTarget";
-            btnSelectTrueTarget.Size = new Size(75, 24);
-            btnSelectTrueTarget.TabIndex = 11;
-            btnSelectTrueTarget.Text = "选择...";
-            btnSelectTrueTarget.UseVisualStyleBackColor = true;
-            btnSelectTrueTarget.Click += BtnSelectTrueTarget_Click;
+            rdFalseFilePath.AutoSize = true;
+            rdFalseFilePath.Enabled = false;
+            rdFalseFilePath.Location = new Point(12, 43);
+            rdFalseFilePath.Name = "rdFalseFilePath";
+            rdFalseFilePath.Size = new Size(14, 13);
+            rdFalseFilePath.TabIndex = 13;
+            rdFalseFilePath.UseVisualStyleBackColor = true;
+            rdFalseFilePath.CheckedChanged += rdFalseFilePath_CheckedChanged;
             // 
-            // txtTrueLabel
+            // rdFalseEventName
             // 
-            txtTrueLabel.Location = new Point(154, 10);
-            txtTrueLabel.Name = "txtTrueLabel";
-            txtTrueLabel.PlaceholderText = "事件名称";
-            txtTrueLabel.Size = new Size(240, 23);
-            txtTrueLabel.TabIndex = 2;
+            rdFalseEventName.AutoSize = true;
+            rdFalseEventName.Checked = true;
+            rdFalseEventName.Enabled = false;
+            rdFalseEventName.Location = new Point(12, 13);
+            rdFalseEventName.Name = "rdFalseEventName";
+            rdFalseEventName.Size = new Size(14, 13);
+            rdFalseEventName.TabIndex = 14;
+            rdFalseEventName.TabStop = true;
+            rdFalseEventName.UseVisualStyleBackColor = true;
+            rdFalseEventName.CheckedChanged += rdFalseEventName_CheckedChanged;
             // 
-            // txtTrueFilePath
+            // txtFalseTargetEventName
             // 
-            txtTrueFilePath.Location = new Point(154, 39);
-            txtTrueFilePath.Name = "txtTrueFilePath";
-            txtTrueFilePath.PlaceholderText = "或执行外部文件 (可选)";
-            txtTrueFilePath.Size = new Size(240, 23);
-            txtTrueFilePath.TabIndex = 3;
-            // 
-            // btnBrowseTrueFile
-            // 
-            btnBrowseTrueFile.Location = new Point(400, 38);
-            btnBrowseTrueFile.Name = "btnBrowseTrueFile";
-            btnBrowseTrueFile.Size = new Size(75, 24);
-            btnBrowseTrueFile.TabIndex = 4;
-            btnBrowseTrueFile.Text = "浏览...";
-            btnBrowseTrueFile.UseVisualStyleBackColor = true;
-            btnBrowseTrueFile.Click += BtnBrowseTrueFile_Click;
-            // 
-            // chkFalseTargetEnabled
-            // 
-            chkFalseTargetEnabled.AutoSize = true;
-            chkFalseTargetEnabled.Location = new Point(34, 75);
-            chkFalseTargetEnabled.Name = "chkFalseTargetEnabled";
-            chkFalseTargetEnabled.Size = new Size(102, 21);
-            chkFalseTargetEnabled.TabIndex = 5;
-            chkFalseTargetEnabled.Text = "条件假时跳转:";
-            chkFalseTargetEnabled.UseVisualStyleBackColor = true;
-            chkFalseTargetEnabled.CheckedChanged += ChkFalseTargetEnabled_CheckedChanged;
-            // 
-            // btnSelectFalseTarget
-            // 
-            btnSelectFalseTarget.Enabled = false;
-            btnSelectFalseTarget.Location = new Point(400, 72);
-            btnSelectFalseTarget.Name = "btnSelectFalseTarget";
-            btnSelectFalseTarget.Size = new Size(75, 24);
-            btnSelectFalseTarget.TabIndex = 12;
-            btnSelectFalseTarget.Text = "选择...";
-            btnSelectFalseTarget.UseVisualStyleBackColor = true;
-            btnSelectFalseTarget.Click += BtnSelectFalseTarget_Click;
-            // 
-            // txtFalseLabel
-            // 
-            txtFalseLabel.Enabled = false;
-            txtFalseLabel.Location = new Point(154, 73);
-            txtFalseLabel.Name = "txtFalseLabel";
-            txtFalseLabel.PlaceholderText = "事件名称";
-            txtFalseLabel.Size = new Size(240, 23);
-            txtFalseLabel.TabIndex = 7;
-            // 
-            // txtFalseFilePath
-            // 
-            txtFalseFilePath.Enabled = false;
-            txtFalseFilePath.Location = new Point(154, 102);
-            txtFalseFilePath.Name = "txtFalseFilePath";
-            txtFalseFilePath.PlaceholderText = "或执行外部文件 (可选)";
-            txtFalseFilePath.Size = new Size(240, 23);
-            txtFalseFilePath.TabIndex = 8;
+            txtFalseTargetEventName.Enabled = false;
+            txtFalseTargetEventName.Location = new Point(32, 8);
+            txtFalseTargetEventName.Name = "txtFalseTargetEventName";
+            txtFalseTargetEventName.PlaceholderText = "事件名称";
+            txtFalseTargetEventName.Size = new Size(265, 23);
+            txtFalseTargetEventName.TabIndex = 7;
             // 
             // btnBrowseFalseFile
             // 
             btnBrowseFalseFile.Enabled = false;
-            btnBrowseFalseFile.Location = new Point(400, 101);
+            btnBrowseFalseFile.Location = new Point(303, 36);
             btnBrowseFalseFile.Name = "btnBrowseFalseFile";
             btnBrowseFalseFile.Size = new Size(75, 24);
             btnBrowseFalseFile.TabIndex = 9;
@@ -448,11 +377,124 @@ namespace MacroCreator.Forms
             btnBrowseFalseFile.UseVisualStyleBackColor = true;
             btnBrowseFalseFile.Click += BtnBrowseFalseFile_Click;
             // 
+            // txtFalseFilePath
+            // 
+            txtFalseFilePath.Enabled = false;
+            txtFalseFilePath.Location = new Point(32, 37);
+            txtFalseFilePath.Name = "txtFalseFilePath";
+            txtFalseFilePath.PlaceholderText = "或执行外部文件 (可选)";
+            txtFalseFilePath.Size = new Size(265, 23);
+            txtFalseFilePath.TabIndex = 8;
+            // 
+            // btnSelectFalseTarget
+            // 
+            btnSelectFalseTarget.Enabled = false;
+            btnSelectFalseTarget.Location = new Point(303, 7);
+            btnSelectFalseTarget.Name = "btnSelectFalseTarget";
+            btnSelectFalseTarget.Size = new Size(75, 24);
+            btnSelectFalseTarget.TabIndex = 12;
+            btnSelectFalseTarget.Text = "选择...";
+            btnSelectFalseTarget.UseVisualStyleBackColor = true;
+            btnSelectFalseTarget.Click += BtnSelectFalseTarget_Click;
+            // 
+            // panel1
+            // 
+            panel1.Controls.Add(rdTrueFilePath);
+            panel1.Controls.Add(rdTrueEventName);
+            panel1.Controls.Add(txtTrueTargetEventName);
+            panel1.Controls.Add(btnBrowseTrueFile);
+            panel1.Controls.Add(btnSelectTrueTarget);
+            panel1.Controls.Add(txtTrueFilePath);
+            panel1.Location = new Point(126, 17);
+            panel1.Name = "panel1";
+            panel1.Size = new Size(391, 69);
+            panel1.TabIndex = 13;
+            // 
+            // rdTrueFilePath
+            // 
+            rdTrueFilePath.AutoSize = true;
+            rdTrueFilePath.Location = new Point(12, 44);
+            rdTrueFilePath.Name = "rdTrueFilePath";
+            rdTrueFilePath.Size = new Size(14, 13);
+            rdTrueFilePath.TabIndex = 12;
+            rdTrueFilePath.UseVisualStyleBackColor = true;
+            rdTrueFilePath.CheckedChanged += rdTrueFilePath_CheckedChanged;
+            // 
+            // rdTrueEventName
+            // 
+            rdTrueEventName.AutoSize = true;
+            rdTrueEventName.Checked = true;
+            rdTrueEventName.Location = new Point(12, 15);
+            rdTrueEventName.Name = "rdTrueEventName";
+            rdTrueEventName.Size = new Size(14, 13);
+            rdTrueEventName.TabIndex = 12;
+            rdTrueEventName.TabStop = true;
+            rdTrueEventName.UseVisualStyleBackColor = true;
+            rdTrueEventName.CheckedChanged += rdTrueEventName_CheckedChanged;
+            // 
+            // txtTrueTargetEventName
+            // 
+            txtTrueTargetEventName.Location = new Point(32, 9);
+            txtTrueTargetEventName.Name = "txtTrueTargetEventName";
+            txtTrueTargetEventName.PlaceholderText = "事件名称";
+            txtTrueTargetEventName.Size = new Size(265, 23);
+            txtTrueTargetEventName.TabIndex = 2;
+            // 
+            // btnBrowseTrueFile
+            // 
+            btnBrowseTrueFile.Enabled = false;
+            btnBrowseTrueFile.Location = new Point(303, 37);
+            btnBrowseTrueFile.Name = "btnBrowseTrueFile";
+            btnBrowseTrueFile.Size = new Size(75, 24);
+            btnBrowseTrueFile.TabIndex = 4;
+            btnBrowseTrueFile.Text = "浏览...";
+            btnBrowseTrueFile.UseVisualStyleBackColor = true;
+            btnBrowseTrueFile.Click += BtnBrowseTrueFile_Click;
+            // 
+            // btnSelectTrueTarget
+            // 
+            btnSelectTrueTarget.Location = new Point(303, 7);
+            btnSelectTrueTarget.Name = "btnSelectTrueTarget";
+            btnSelectTrueTarget.Size = new Size(75, 24);
+            btnSelectTrueTarget.TabIndex = 11;
+            btnSelectTrueTarget.Text = "选择...";
+            btnSelectTrueTarget.UseVisualStyleBackColor = true;
+            btnSelectTrueTarget.Click += BtnSelectTrueTarget_Click;
+            // 
+            // txtTrueFilePath
+            // 
+            txtTrueFilePath.Enabled = false;
+            txtTrueFilePath.Location = new Point(32, 38);
+            txtTrueFilePath.Name = "txtTrueFilePath";
+            txtTrueFilePath.PlaceholderText = "或执行外部文件 (可选)";
+            txtTrueFilePath.Size = new Size(265, 23);
+            txtTrueFilePath.TabIndex = 3;
+            // 
+            // lblTrueTarget
+            // 
+            lblTrueTarget.AutoSize = true;
+            lblTrueTarget.Location = new Point(10, 28);
+            lblTrueTarget.Name = "lblTrueTarget";
+            lblTrueTarget.Size = new Size(83, 17);
+            lblTrueTarget.TabIndex = 0;
+            lblTrueTarget.Text = "条件真时跳转:";
+            // 
+            // chkFalseTargetEnabled
+            // 
+            chkFalseTargetEnabled.AutoSize = true;
+            chkFalseTargetEnabled.Location = new Point(10, 111);
+            chkFalseTargetEnabled.Name = "chkFalseTargetEnabled";
+            chkFalseTargetEnabled.Size = new Size(102, 21);
+            chkFalseTargetEnabled.TabIndex = 5;
+            chkFalseTargetEnabled.Text = "条件假时跳转:";
+            chkFalseTargetEnabled.UseVisualStyleBackColor = true;
+            chkFalseTargetEnabled.CheckedChanged += ChkFalseTargetEnabled_CheckedChanged;
+            // 
             // lblFalseHint
             // 
             lblFalseHint.AutoSize = true;
             lblFalseHint.ForeColor = Color.Gray;
-            lblFalseHint.Location = new Point(34, 137);
+            lblFalseHint.Location = new Point(126, 173);
             lblFalseHint.Name = "lblFalseHint";
             lblFalseHint.Size = new Size(236, 17);
             lblFalseHint.TabIndex = 10;
@@ -460,21 +502,21 @@ namespace MacroCreator.Forms
             // 
             // btnOK
             // 
-            btnOK.Location = new Point(362, 450);
+            btnOK.Location = new Point(362, 528);
             btnOK.Name = "btnOK";
             btnOK.Size = new Size(101, 36);
             btnOK.TabIndex = 3;
-            btnOK.Text = "确定";
+            btnOK.Text = "确定(&O)";
             btnOK.UseVisualStyleBackColor = true;
             btnOK.Click += BtnOK_Click;
             // 
             // btnCancel
             // 
-            btnCancel.Location = new Point(469, 450);
+            btnCancel.Location = new Point(469, 528);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(101, 36);
             btnCancel.TabIndex = 4;
-            btnCancel.Text = "取消";
+            btnCancel.Text = "取消(&C)";
             btnCancel.UseVisualStyleBackColor = true;
             btnCancel.Click += BtnCancel_Click;
             // 
@@ -482,18 +524,38 @@ namespace MacroCreator.Forms
             // 
             colorPickerTimer.Tick += ColorPickerTimer_Tick;
             // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(20, 23);
+            label1.Name = "label1";
+            label1.Size = new Size(56, 17);
+            label1.TabIndex = 5;
+            label1.Text = "事件名称";
+            // 
+            // textBoxEventName
+            // 
+            textBoxEventName.Location = new Point(82, 20);
+            textBoxEventName.Name = "textBoxEventName";
+            textBoxEventName.PlaceholderText = "(可选)";
+            textBoxEventName.Size = new Size(488, 23);
+            textBoxEventName.TabIndex = 6;
+            // 
             // InsertJumpForm
             // 
             AcceptButton = btnOK;
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = btnCancel;
-            ClientSize = new Size(589, 510);
+            ClientSize = new Size(589, 578);
+            Controls.Add(textBoxEventName);
+            Controls.Add(label1);
             Controls.Add(pnlJumpType);
             Controls.Add(pnlUnconditional);
             Controls.Add(btnOK);
             Controls.Add(btnCancel);
             Controls.Add(pnlConditional);
+            FormBorderStyle = FormBorderStyle.FixedToolWindow;
             KeyPreview = true;
             MaximizeBox = false;
             Name = "InsertJumpForm";
@@ -505,7 +567,6 @@ namespace MacroCreator.Forms
             pnlJumpType.PerformLayout();
             pnlUnconditional.ResumeLayout(false);
             pnlUnconditional.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)nudTargetIndex).EndInit();
             pnlConditional.ResumeLayout(false);
             pnlConditional.PerformLayout();
             pnlPixelCondition.ResumeLayout(false);
@@ -514,7 +575,12 @@ namespace MacroCreator.Forms
             pnlCustomCondition.PerformLayout();
             pnlJumpTargets.ResumeLayout(false);
             pnlJumpTargets.PerformLayout();
+            panel2.ResumeLayout(false);
+            panel2.PerformLayout();
+            panel1.ResumeLayout(false);
+            panel1.PerformLayout();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -524,8 +590,6 @@ namespace MacroCreator.Forms
         private RadioButton rbConditionalJump;
         private RadioButton rbBreak;
         private Panel pnlUnconditional;
-        private Label lblTargetIndex;
-        private NumericUpDown nudTargetIndex;
         private Label lblTargetLabel;
         private TextBox txtTargetLabel;
         private Panel pnlConditional;
@@ -542,14 +606,13 @@ namespace MacroCreator.Forms
         private Panel pnlCustomCondition;
         private Label lblCustomCondition;
         private TextBox txtCustomCondition;
-        private Label lblHint;
         private Panel pnlJumpTargets;
         private Label lblTrueTarget;
-        private TextBox txtTrueLabel;
+        private TextBox txtTrueTargetEventName;
         private TextBox txtTrueFilePath;
         private Button btnBrowseTrueFile;
         private CheckBox chkFalseTargetEnabled;
-        private TextBox txtFalseLabel;
+        private TextBox txtFalseTargetEventName;
         private TextBox txtFalseFilePath;
         private Button btnBrowseFalseFile;
         private Label lblFalseHint;
@@ -559,5 +622,13 @@ namespace MacroCreator.Forms
         private Button btnSelectTarget;
         private Button btnSelectTrueTarget;
         private Button btnSelectFalseTarget;
+        private Label label1;
+        private TextBox textBoxEventName;
+        private Panel panel1;
+        private RadioButton rdTrueFilePath;
+        private RadioButton rdTrueEventName;
+        private Panel panel2;
+        private RadioButton rdFalseFilePath;
+        private RadioButton rdFalseEventName;
     }
 }

@@ -82,6 +82,45 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     public static partial int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    public const uint WM_HOTKEY = 0x0312;
+
+    public const uint MOD_ALT = 0x0001;
+    public const uint MOD_CONTROL = 0x0002;
+    public const uint MOD_SHIFT = 0x0004;
+    public const uint MOD_NOREPEAT = 0x4000;
+
+    [Flags]
+    public enum ModifierKeys : uint
+    {
+        None = 0,
+        Alt = MOD_ALT,
+        Control = MOD_CONTROL,
+        Shift = MOD_SHIFT,
+        NoRepeat = MOD_NOREPEAT
+    }
+
+    public const int HOTKEY_ID_RECORD = 1;
+    public const int HOTKEY_ID_PLAYBACK = 2;
+    public const int HOTKEY_ID_STOP = 3;
+
+    public static bool InstallHotKey(IntPtr hWnd, int id, ModifierKeys fsModifiers, Keys vk)
+    {
+        return RegisterHotKey(hWnd, id, (uint)fsModifiers, (uint)vk);
+    }
+
+    public static bool UninstallHotKey(IntPtr hWnd, int id)
+    {
+        return UnregisterHotKey(hWnd, id);
+    }
+
 
     public static Color GetPixelColor(int x, int y)
     {

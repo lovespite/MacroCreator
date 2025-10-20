@@ -10,24 +10,27 @@ public partial class InsertJumpForm : Form
 {
     public RecordedEvent? JumpEvent { get; private set; }
 
-    private readonly int totalEventCount;
     private bool isSelectingTarget = false;
     private Action<RecordedEvent>? onTargetSelected;
 
+    public event ContainsEventNameDelegate? ContainsEventName;
     public event Action<RecordedEvent>? JumpEventCreated;
 
-    public InsertJumpForm(int eventCount)
+    public string? EventName => string.IsNullOrWhiteSpace(textBoxEventName.Text) ? null : textBoxEventName.Text.Trim();
+
+    public InsertJumpForm(string? defaultEventName = null)
     {
-        totalEventCount = eventCount;
         InitializeComponent();
 
         // 设置初始值
+        textBoxEventName.Text = defaultEventName ?? string.Empty;
         cmbConditionType.SelectedIndex = 0;
         lblColorHex.Text = ColorTranslator.ToHtml(Color.Red);
+    }
 
-        // 设置数值控件的最大值
-        var maxValue = Math.Max(1, totalEventCount);
-        nudTargetIndex.Maximum = maxValue;
+    private bool HasEventName(string name)
+    {
+        return ContainsEventName?.Invoke(name) ?? true;
     }
 
     private void RbJumpType_CheckedChanged(object sender, EventArgs e)
@@ -44,10 +47,16 @@ public partial class InsertJumpForm : Form
 
     private void ChkFalseTargetEnabled_CheckedChanged(object sender, EventArgs e)
     {
-        txtFalseLabel.Enabled = chkFalseTargetEnabled.Checked;
-        txtFalseFilePath.Enabled = chkFalseTargetEnabled.Checked;
-        btnBrowseFalseFile.Enabled = chkFalseTargetEnabled.Checked;
-        btnSelectFalseTarget.Enabled = chkFalseTargetEnabled.Checked;
+        var chk = chkFalseTargetEnabled.Checked;
+
+        rdFalseEventName.Enabled = chk;
+        rdFalseFilePath.Enabled = chk;
+
+        txtFalseTargetEventName.Enabled = chk && rdFalseEventName.Checked;
+        btnSelectFalseTarget.Enabled = chk && rdFalseEventName.Checked;
+        txtFalseFilePath.Enabled = chk && rdFalseFilePath.Checked;
+        btnBrowseFalseFile.Enabled = chk && rdFalseFilePath.Checked;
+
     }
 
     private void BtnBrowseTrueFile_Click(object sender, EventArgs e)
@@ -109,17 +118,20 @@ public partial class InsertJumpForm : Form
 
     private void BtnOK_Click(object sender, EventArgs e)
     {
+        // 中断
         if (rbBreak.Checked)
         {
             JumpEvent = new BreakEvent();
         }
+
+        // 无条件跳转
         else if (rbUnconditionalJump.Checked)
         {
             // 验证目标事件名称（如果提供）
             string targetName = txtTargetLabel.Text.Trim();
             if (!RecordedEvent.IsValidEventName(targetName))
             {
-                MessageBox.Show("事件名称只能包含英文字母和数字。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "目标事件不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -128,24 +140,26 @@ public partial class InsertJumpForm : Form
                 TargetEventName = targetName
             };
         }
+
+        // 条件跳转
         else if (rbConditionalJump.Checked)
         {
             // 验证目标事件名称（如果提供）
-            string trueTargetName = txtTrueLabel.Text.Trim();
+            string trueTargetName = txtTrueTargetEventName.Text.Trim();
 
-            if (string.IsNullOrWhiteSpace(trueTargetName) || !RecordedEvent.IsValidEventName(trueTargetName))
+            if (rdTrueEventName.Checked && !RecordedEvent.IsValidEventName(trueTargetName))
             {
-                MessageBox.Show("分支事件名称只能包含英文字母和数字。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "目标事件名称不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            string? falseTargetName = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseLabel.Text)
-                ? txtFalseLabel.Text.Trim()
+            string? falseTargetName = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseTargetEventName.Text)
+                ? txtFalseTargetEventName.Text.Trim()
                 : null;
 
             if (falseTargetName != null && !RecordedEvent.IsValidEventName(falseTargetName))
             {
-                MessageBox.Show("分支事件名称只能包含英文字母和数字。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "目标事件不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -185,7 +199,11 @@ public partial class InsertJumpForm : Form
             JumpEvent = conditionalJump;
         }
 
-        if (JumpEvent is not null) JumpEventCreated?.Invoke(JumpEvent);
+        if (JumpEvent is not null)
+        {
+            JumpEvent.EventName = EventName;
+            JumpEventCreated?.Invoke(JumpEvent);
+        }
         Close();
     }
 
@@ -254,7 +272,7 @@ public partial class InsertJumpForm : Form
     {
         StartSelectingTarget((ev) =>
         {
-            txtTrueLabel.Text = ev.EventName;
+            txtTrueTargetEventName.Text = ev.EventName;
         });
     }
 
@@ -262,13 +280,37 @@ public partial class InsertJumpForm : Form
     {
         StartSelectingTarget((ev) =>
         {
-            txtFalseLabel.Text = ev.EventName;
+            txtFalseTargetEventName.Text = ev.EventName;
         });
     }
 
     private void InsertJumpForm_Load(object sender, EventArgs e)
     {
 
+    }
+
+    private void rdTrueEventName_CheckedChanged(object sender, EventArgs e)
+    {
+        txtTrueTargetEventName.Enabled = rdTrueEventName.Checked;
+        btnSelectTrueTarget.Enabled = rdTrueEventName.Checked;
+    }
+
+    private void rdTrueFilePath_CheckedChanged(object sender, EventArgs e)
+    {
+        txtTrueFilePath.Enabled = rdTrueFilePath.Checked;
+        btnBrowseTrueFile.Enabled = rdTrueFilePath.Checked;
+    }
+
+    private void rdFalseEventName_CheckedChanged(object sender, EventArgs e)
+    {
+        txtFalseTargetEventName.Enabled = rdFalseEventName.Checked && chkFalseTargetEnabled.Checked;
+        btnSelectFalseTarget.Enabled = rdFalseEventName.Checked && chkFalseTargetEnabled.Checked;
+    }
+
+    private void rdFalseFilePath_CheckedChanged(object sender, EventArgs e)
+    {
+        txtFalseFilePath.Enabled = rdFalseFilePath.Checked;
+        btnBrowseFalseFile.Enabled = rdFalseFilePath.Checked;
     }
 }
 

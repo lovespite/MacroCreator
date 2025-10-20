@@ -9,62 +9,48 @@ namespace MacroCreator.Services;
 /// </summary>
 public class ConditionalJumpEventPlayer : IEventPlayer
 {
-    public async Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
     {
         if (ev is ConditionalJumpEvent conditionalJump)
         {
             bool conditionMet = EvaluateCondition(conditionalJump);
-            
+
             // 检查是否需要执行外部文件
             string? filePath = conditionMet ? conditionalJump.FilePathIfMatch : conditionalJump.FilePathIfNotMatch;
-            
-            if (!string.IsNullOrEmpty(filePath) && context.LoadAndPlayNewFileCallback != null)
+
+            if (!string.IsNullOrEmpty(filePath) && context.LoadAndPlayNewFileCallback is not null)
             {
                 // 返回跳转到外部文件的结果
-                return PlaybackResult.JumpToFile(filePath);
+                return Task.FromResult(PlaybackResult.JumpToFile(filePath));
             }
-            
-            // 如果没有外部文件，则执行序列内跳转
-            int targetIndex;
-            string? targetEventName;
 
+            // 如果没有外部文件，则执行序列内跳转
+
+            string? targetEventName = conditionMet
+                ? conditionalJump.TrueTargetEventName
+                : conditionalJump.FalseTargetEventName;
+
+            var targetIndex = context.FindEventIndexByName(targetEventName);
+
+            // 如果指定了目标事件名称，优先使用名称查找
             if (conditionMet)
             {
-                targetIndex = conditionalJump.TrueTargetIndex;
-                targetEventName = conditionalJump.TrueTargetEventName;
+                if (targetIndex < 0)
+                {
+                    throw new InvalidOperationException($"无法跳转到未命名或不存在的事件: '{conditionalJump.TrueTargetEventName}'");
+                }
+                // 返回跳转结果
+                return Task.FromResult(PlaybackResult.Jump(targetIndex));
             }
             else
             {
-                // 如果 FalseTargetIndex 为 -1，表示继续执行下一个事件
-                if (conditionalJump.FalseTargetIndex < 0)
-                {
-                    return PlaybackResult.Continue(); // 不跳转，继续执行
-                }
-                targetIndex = conditionalJump.FalseTargetIndex;
-                targetEventName = conditionalJump.FalseTargetEventName;
+                return targetIndex >= 0
+                    ? Task.FromResult(PlaybackResult.Jump(targetIndex))
+                    : Task.FromResult(PlaybackResult.Continue());
             }
-
-            // 如果指定了目标事件名称，优先使用名称查找
-            if (!string.IsNullOrWhiteSpace(targetEventName))
-            {
-                int foundIndex = context.FindEventIndexByName(targetEventName);
-                if (foundIndex >= 0)
-                {
-                    targetIndex = foundIndex;
-                }
-                else
-                {
-                    // 无法跳转到匿名事件或未找到的事件，继续执行下一个事件
-                    return PlaybackResult.Continue();
-                }
-            }
-            
-            // 返回跳转结果
-            return PlaybackResult.Jump(targetIndex);
         }
 
-        await Task.Yield();
-        return PlaybackResult.Continue();
+        return Task.FromResult(PlaybackResult.Continue());
     }
 
     private static bool EvaluateCondition(ConditionalJumpEvent conditionalJump)
@@ -86,7 +72,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
         {
             var actualColor = NativeMethods.GetPixelColor(x, y);
             var expectedColor = ColorTranslator.FromHtml(expectedColorHex);
-            
+
             // 允许一定的颜色容差（RGB各通道差值小于等于5）
             const int tolerance = 5;
             return Math.Abs(actualColor.R - expectedColor.R) <= tolerance &&
@@ -110,12 +96,12 @@ public class ConditionalJumpEventPlayer : IEventPlayer
         {
             // 支持简单的条件表达式，如时间、随机数等
             condition = condition.ToLower().Trim();
-            
+
             if (condition == "true")
                 return true;
             if (condition == "false")
                 return false;
-                
+
             // 支持时间条件，如 "hour >= 9 && hour <= 17"
             if (condition.Contains("hour"))
             {
@@ -123,7 +109,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
                 condition = condition.Replace("hour", hour.ToString());
                 return EvaluateSimpleExpression(condition);
             }
-            
+
             // 支持随机条件，如 "random > 0.5"
             if (condition.Contains("random"))
             {
@@ -131,7 +117,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
                 condition = condition.Replace("random", random.ToString("F2"));
                 return EvaluateSimpleExpression(condition);
             }
-            
+
             return false;
         }
         catch
