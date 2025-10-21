@@ -16,7 +16,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
             bool conditionMet = EvaluateCondition(conditionalJump);
 
             // 检查是否需要执行外部文件
-            string? filePath = conditionMet ? conditionalJump.FilePathIfMatch : conditionalJump.FilePathIfNotMatch;
+            string? filePath = conditionMet ? conditionalJump.TrueTargetFilePath : conditionalJump.FalseTargetFilePath;
 
             if (!string.IsNullOrEmpty(filePath) && context.LoadAndPlayNewFileCallback is not null)
             {
@@ -57,24 +57,20 @@ public class ConditionalJumpEventPlayer : IEventPlayer
     {
         return conditionalJump.ConditionType switch
         {
-            ConditionType.PixelColor => CheckPixelColor(conditionalJump.X, conditionalJump.Y, conditionalJump.ExpectedColorHex),
-            ConditionType.Custom => EvaluateCustomCondition(conditionalJump.CustomCondition),
+            ConditionType.PixelColor => CheckPixelColor(conditionalJump.X, conditionalJump.Y, conditionalJump.ExpectedColor, conditionalJump.PixelTolerance),
+            ConditionType.CustomExpression => EvaluateCustomCondition(conditionalJump.CustomCondition),
             _ => false
         };
     }
 
-    private static bool CheckPixelColor(int x, int y, string? expectedColorHex)
+    private static bool CheckPixelColor(int x, int y, int expectedColorArgb, byte tolerance = 0)
     {
-        if (string.IsNullOrEmpty(expectedColorHex))
-            return false;
-
         try
         {
             var actualColor = NativeMethods.GetPixelColor(x, y);
-            var expectedColor = ColorTranslator.FromHtml(expectedColorHex);
+            var expectedColor = Color.FromArgb(expectedColorArgb);
 
-            // 允许一定的颜色容差（RGB各通道差值小于等于5）
-            const int tolerance = 5;
+            // 允许一定的颜色容差（RGB各通道差值小于等于5） 
             return Math.Abs(actualColor.R - expectedColor.R) <= tolerance &&
                    Math.Abs(actualColor.G - expectedColor.G) <= tolerance &&
                    Math.Abs(actualColor.B - expectedColor.B) <= tolerance;

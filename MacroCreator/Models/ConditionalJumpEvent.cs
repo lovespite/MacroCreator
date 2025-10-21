@@ -1,4 +1,6 @@
 // 命名空间定义了应用程序的入口点
+using MacroCreator.Utils;
+
 namespace MacroCreator.Models;
 
 /// <summary>
@@ -24,7 +26,12 @@ public class ConditionalJumpEvent : RecordedEvent
     /// <summary>
     /// 预期的颜色值（当ConditionType为PixelColor时使用）
     /// </summary>
-    public string? ExpectedColorHex { get; set; }
+    public int ExpectedColor { get; set; }
+
+    /// <summary>
+    /// 颜色容差值（当ConditionType为PixelColor时使用）
+    /// </summary>
+    public byte PixelTolerance { get; set; }
 
     /// <summary>
     /// 自定义条件表达式（当ConditionType为Custom时使用）
@@ -44,33 +51,44 @@ public class ConditionalJumpEvent : RecordedEvent
     /// <summary>
     /// 条件为真时要执行的外部文件路径（可选）
     /// </summary>
-    public string? FilePathIfMatch { get; set; }
+    public string? TrueTargetFilePath { get; set; }
 
     /// <summary>
     /// 条件为假时要执行的外部文件路径（可选）
     /// </summary>
-    public string? FilePathIfNotMatch { get; set; }
+    public string? FalseTargetFilePath { get; set; }
 
     public override string GetDescription()
     {
         var conditionDesc = ConditionType switch
         {
-            ConditionType.PixelColor => $"检查点({X},{Y})颜色是否为{ExpectedColorHex}",
-            ConditionType.Custom => $"自定义条件: {CustomCondition}",
+            ConditionType.PixelColor => $"检查点({X},{Y})颜色是否为{GetColorDescription()}",
+            ConditionType.CustomExpression => $"自定义条件: {CustomCondition}",
             _ => "未知条件"
         };
 
-        var trueBranch = !string.IsNullOrEmpty(FilePathIfMatch)
-            ? $"执行文件: {Path.GetFileName(FilePathIfMatch)}"
+        var trueBranch = !string.IsNullOrEmpty(TrueTargetFilePath)
+            ? $"执行文件: {Path.GetFileName(TrueTargetFilePath)}"
             : $"跳转事件: {TrueTargetEventName}";
 
-        var falseBranch = !string.IsNullOrEmpty(FilePathIfNotMatch)
-            ? $"执行文件: {Path.GetFileName(FilePathIfNotMatch)}"
+        var falseBranch = !string.IsNullOrEmpty(FalseTargetFilePath)
+            ? $"执行文件: {Path.GetFileName(FalseTargetFilePath)}"
             : (!string.IsNullOrEmpty(FalseTargetEventName)
                 ? $"跳转事件: {FalseTargetEventName}"
                 : "继续执行");
 
         return $"条件跳转: {conditionDesc} → 真:{trueBranch}, 假:{falseBranch}";
+    }
+
+    private string GetColorDescription()
+    {
+        Color color = Color.FromArgb(ExpectedColor);
+        var expr = color.ExpressAsRgbColor();
+        if (PixelTolerance > 0)
+        {
+            expr += $"[±{PixelTolerance}]";
+        }
+        return expr;
     }
 }
 
@@ -87,5 +105,5 @@ public enum ConditionType
     /// <summary>
     /// 自定义条件表达式
     /// </summary>
-    Custom
+    CustomExpression
 }

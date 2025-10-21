@@ -184,6 +184,7 @@ public partial class MainForm : Form
         }
 
         _insertJumpForm = new InsertJumpForm($"FlowControl_{lvEvents.Items.Count}");
+        _insertJumpForm.ContainsEventName += ContainsEventWithName;
 
         // 订阅事件
         _insertJumpForm.JumpEventCreated += (jumpEvent) =>
@@ -350,7 +351,7 @@ public partial class MainForm : Form
             // 如果事件有名称，在序号后显示名称
             string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
                 ? "(匿名)"
-                : $"{ev.EventName} ({i + 1})";
+                : $"{ev.EventName}";
 
             var item = new ListViewItem([
                 indexDisplay,

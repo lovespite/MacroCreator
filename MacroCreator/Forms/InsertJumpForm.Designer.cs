@@ -47,12 +47,14 @@ namespace MacroCreator.Forms
             lblConditionType = new Label();
             cmbConditionType = new ComboBox();
             pnlPixelCondition = new Panel();
+            lblColorHex = new TextBox();
+            nudColorTolerance = new NumericUpDown();
             lblCoords = new Label();
             txtX = new TextBox();
             txtY = new TextBox();
+            label2 = new Label();
             lblColor = new Label();
             colorPanel = new Panel();
-            lblColorHex = new Label();
             btnPickColor = new Button();
             pnlCustomCondition = new Panel();
             lblCustomCondition = new Label();
@@ -84,6 +86,7 @@ namespace MacroCreator.Forms
             pnlUnconditional.SuspendLayout();
             pnlConditional.SuspendLayout();
             pnlPixelCondition.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)nudColorTolerance).BeginInit();
             pnlCustomCondition.SuspendLayout();
             pnlJumpTargets.SuspendLayout();
             panel2.SuspendLayout();
@@ -116,7 +119,7 @@ namespace MacroCreator.Forms
             // rbConditionalJump
             // 
             rbConditionalJump.AutoSize = true;
-            rbConditionalJump.Location = new Point(156, 17);
+            rbConditionalJump.Location = new Point(151, 17);
             rbConditionalJump.Name = "rbConditionalJump";
             rbConditionalJump.Size = new Size(74, 21);
             rbConditionalJump.TabIndex = 1;
@@ -148,7 +151,7 @@ namespace MacroCreator.Forms
             // 
             // btnSelectTarget
             // 
-            btnSelectTarget.Location = new Point(341, 11);
+            btnSelectTarget.Location = new Point(436, 11);
             btnSelectTarget.Name = "btnSelectTarget";
             btnSelectTarget.Size = new Size(78, 25);
             btnSelectTarget.TabIndex = 4;
@@ -159,7 +162,7 @@ namespace MacroCreator.Forms
             // lblTargetLabel
             // 
             lblTargetLabel.AutoSize = true;
-            lblTargetLabel.Location = new Point(8, 16);
+            lblTargetLabel.Location = new Point(17, 16);
             lblTargetLabel.Name = "lblTargetLabel";
             lblTargetLabel.Size = new Size(107, 17);
             lblTargetLabel.TabIndex = 2;
@@ -167,10 +170,10 @@ namespace MacroCreator.Forms
             // 
             // txtTargetLabel
             // 
-            txtTargetLabel.Location = new Point(129, 13);
+            txtTargetLabel.Location = new Point(140, 13);
             txtTargetLabel.Name = "txtTargetLabel";
             txtTargetLabel.PlaceholderText = "留空表示匿名事件（使用索引）";
-            txtTargetLabel.Size = new Size(200, 23);
+            txtTargetLabel.Size = new Size(290, 23);
             txtTargetLabel.TabIndex = 3;
             // 
             // pnlConditional
@@ -209,22 +212,41 @@ namespace MacroCreator.Forms
             // 
             // pnlPixelCondition
             // 
+            pnlPixelCondition.Controls.Add(lblColorHex);
+            pnlPixelCondition.Controls.Add(nudColorTolerance);
             pnlPixelCondition.Controls.Add(lblCoords);
             pnlPixelCondition.Controls.Add(txtX);
             pnlPixelCondition.Controls.Add(txtY);
+            pnlPixelCondition.Controls.Add(label2);
             pnlPixelCondition.Controls.Add(lblColor);
             pnlPixelCondition.Controls.Add(colorPanel);
-            pnlPixelCondition.Controls.Add(lblColorHex);
             pnlPixelCondition.Controls.Add(btnPickColor);
             pnlPixelCondition.Location = new Point(10, 57);
             pnlPixelCondition.Name = "pnlPixelCondition";
             pnlPixelCondition.Size = new Size(530, 91);
             pnlPixelCondition.TabIndex = 2;
             // 
+            // lblColorHex
+            // 
+            lblColorHex.Location = new Point(158, 51);
+            lblColorHex.Name = "lblColorHex";
+            lblColorHex.Size = new Size(170, 23);
+            lblColorHex.TabIndex = 8;
+            lblColorHex.Text = "RGB(255 0 0)";
+            lblColorHex.TextChanged += LblColorHex_TextChanged;
+            // 
+            // nudColorTolerance
+            // 
+            nudColorTolerance.Location = new Point(429, 52);
+            nudColorTolerance.Maximum = new decimal(new int[] { 255, 0, 0, 0 });
+            nudColorTolerance.Name = "nudColorTolerance";
+            nudColorTolerance.Size = new Size(75, 23);
+            nudColorTolerance.TabIndex = 7;
+            // 
             // lblCoords
             // 
             lblCoords.AutoSize = true;
-            lblCoords.Location = new Point(9, 19);
+            lblCoords.Location = new Point(21, 19);
             lblCoords.Name = "lblCoords";
             lblCoords.Size = new Size(93, 17);
             lblCoords.TabIndex = 0;
@@ -232,22 +254,31 @@ namespace MacroCreator.Forms
             // 
             // txtX
             // 
-            txtX.Location = new Point(119, 17);
+            txtX.Location = new Point(128, 17);
             txtX.Name = "txtX";
-            txtX.Size = new Size(100, 23);
+            txtX.Size = new Size(94, 23);
             txtX.TabIndex = 1;
             // 
             // txtY
             // 
-            txtY.Location = new Point(225, 17);
+            txtY.Location = new Point(234, 17);
             txtY.Name = "txtY";
             txtY.Size = new Size(94, 23);
             txtY.TabIndex = 2;
             // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(360, 54);
+            label2.Name = "label2";
+            label2.Size = new Size(60, 17);
+            label2.TabIndex = 3;
+            label2.Text = "RGB容差:";
+            // 
             // lblColor
             // 
             lblColor.AutoSize = true;
-            lblColor.Location = new Point(10, 54);
+            lblColor.Location = new Point(55, 54);
             lblColor.Name = "lblColor";
             lblColor.Size = new Size(59, 17);
             lblColor.TabIndex = 3;
@@ -256,23 +287,15 @@ namespace MacroCreator.Forms
             // colorPanel
             // 
             colorPanel.BackColor = Color.Red;
-            colorPanel.Location = new Point(121, 51);
+            colorPanel.BorderStyle = BorderStyle.FixedSingle;
+            colorPanel.Location = new Point(129, 52);
             colorPanel.Name = "colorPanel";
-            colorPanel.Size = new Size(98, 22);
+            colorPanel.Size = new Size(22, 22);
             colorPanel.TabIndex = 4;
-            // 
-            // lblColorHex
-            // 
-            lblColorHex.AutoSize = true;
-            lblColorHex.Location = new Point(225, 54);
-            lblColorHex.Name = "lblColorHex";
-            lblColorHex.Size = new Size(56, 17);
-            lblColorHex.TabIndex = 5;
-            lblColorHex.Text = "#FF0000";
             // 
             // btnPickColor
             // 
-            btnPickColor.Location = new Point(417, 54);
+            btnPickColor.Location = new Point(404, 15);
             btnPickColor.Name = "btnPickColor";
             btnPickColor.Size = new Size(100, 26);
             btnPickColor.TabIndex = 6;
@@ -293,7 +316,7 @@ namespace MacroCreator.Forms
             // lblCustomCondition
             // 
             lblCustomCondition.AutoSize = true;
-            lblCustomCondition.Location = new Point(12, 11);
+            lblCustomCondition.Location = new Point(43, 14);
             lblCustomCondition.Name = "lblCustomCondition";
             lblCustomCondition.Size = new Size(71, 17);
             lblCustomCondition.TabIndex = 0;
@@ -301,10 +324,10 @@ namespace MacroCreator.Forms
             // 
             // txtCustomCondition
             // 
-            txtCustomCondition.Location = new Point(89, 11);
+            txtCustomCondition.Location = new Point(130, 11);
             txtCustomCondition.Multiline = true;
             txtCustomCondition.Name = "txtCustomCondition";
-            txtCustomCondition.Size = new Size(428, 69);
+            txtCustomCondition.Size = new Size(387, 69);
             txtCustomCondition.TabIndex = 1;
             txtCustomCondition.Text = "true";
             // 
@@ -342,7 +365,7 @@ namespace MacroCreator.Forms
             rdFalseFilePath.Size = new Size(14, 13);
             rdFalseFilePath.TabIndex = 13;
             rdFalseFilePath.UseVisualStyleBackColor = true;
-            rdFalseFilePath.CheckedChanged += rdFalseFilePath_CheckedChanged;
+            rdFalseFilePath.CheckedChanged += RdFalseFilePath_CheckedChanged;
             // 
             // rdFalseEventName
             // 
@@ -355,7 +378,7 @@ namespace MacroCreator.Forms
             rdFalseEventName.TabIndex = 14;
             rdFalseEventName.TabStop = true;
             rdFalseEventName.UseVisualStyleBackColor = true;
-            rdFalseEventName.CheckedChanged += rdFalseEventName_CheckedChanged;
+            rdFalseEventName.CheckedChanged += RdFalseEventName_CheckedChanged;
             // 
             // txtFalseTargetEventName
             // 
@@ -418,7 +441,7 @@ namespace MacroCreator.Forms
             rdTrueFilePath.Size = new Size(14, 13);
             rdTrueFilePath.TabIndex = 12;
             rdTrueFilePath.UseVisualStyleBackColor = true;
-            rdTrueFilePath.CheckedChanged += rdTrueFilePath_CheckedChanged;
+            rdTrueFilePath.CheckedChanged += RdTrueFilePath_CheckedChanged;
             // 
             // rdTrueEventName
             // 
@@ -430,7 +453,7 @@ namespace MacroCreator.Forms
             rdTrueEventName.TabIndex = 12;
             rdTrueEventName.TabStop = true;
             rdTrueEventName.UseVisualStyleBackColor = true;
-            rdTrueEventName.CheckedChanged += rdTrueEventName_CheckedChanged;
+            rdTrueEventName.CheckedChanged += RdTrueEventName_CheckedChanged;
             // 
             // txtTrueTargetEventName
             // 
@@ -473,7 +496,7 @@ namespace MacroCreator.Forms
             // lblTrueTarget
             // 
             lblTrueTarget.AutoSize = true;
-            lblTrueTarget.Location = new Point(10, 28);
+            lblTrueTarget.Location = new Point(31, 28);
             lblTrueTarget.Name = "lblTrueTarget";
             lblTrueTarget.Size = new Size(83, 17);
             lblTrueTarget.TabIndex = 0;
@@ -482,7 +505,7 @@ namespace MacroCreator.Forms
             // chkFalseTargetEnabled
             // 
             chkFalseTargetEnabled.AutoSize = true;
-            chkFalseTargetEnabled.Location = new Point(10, 111);
+            chkFalseTargetEnabled.Location = new Point(12, 111);
             chkFalseTargetEnabled.Name = "chkFalseTargetEnabled";
             chkFalseTargetEnabled.Size = new Size(102, 21);
             chkFalseTargetEnabled.TabIndex = 5;
@@ -571,6 +594,7 @@ namespace MacroCreator.Forms
             pnlConditional.PerformLayout();
             pnlPixelCondition.ResumeLayout(false);
             pnlPixelCondition.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)nudColorTolerance).EndInit();
             pnlCustomCondition.ResumeLayout(false);
             pnlCustomCondition.PerformLayout();
             pnlJumpTargets.ResumeLayout(false);
@@ -601,7 +625,6 @@ namespace MacroCreator.Forms
         private TextBox txtY;
         private Label lblColor;
         private Panel colorPanel;
-        private Label lblColorHex;
         private Button btnPickColor;
         private Panel pnlCustomCondition;
         private Label lblCustomCondition;
@@ -630,5 +653,8 @@ namespace MacroCreator.Forms
         private Panel panel2;
         private RadioButton rdFalseFilePath;
         private RadioButton rdFalseEventName;
+        private TextBox lblColorHex;
+        private NumericUpDown nudColorTolerance;
+        private Label label2;
     }
 }

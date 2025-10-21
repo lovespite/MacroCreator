@@ -1,5 +1,6 @@
 // 命名空间定义了应用程序的入口点
 using MacroCreator.Models;
+using MacroCreator.Utils;
 
 namespace MacroCreator.Forms;
 
@@ -25,7 +26,7 @@ public partial class InsertJumpForm : Form
         // 设置初始值
         textBoxEventName.Text = defaultEventName ?? string.Empty;
         cmbConditionType.SelectedIndex = 0;
-        lblColorHex.Text = ColorTranslator.ToHtml(Color.Red);
+        lblColorHex.Text = Color.Red.ExpressAsRgbColor();
     }
 
     private bool HasEventName(string name)
@@ -103,7 +104,7 @@ public partial class InsertJumpForm : Form
             Color color = Native.NativeMethods.GetPixelColor(pos);
 
             colorPanel.BackColor = color;
-            lblColorHex.Text = ColorTranslator.ToHtml(color);
+            lblColorHex.Text = color.ExpressAsRgbColor();
         }
         catch { }
 
@@ -118,6 +119,15 @@ public partial class InsertJumpForm : Form
 
     private void BtnOK_Click(object sender, EventArgs e)
     {
+        if (EventName is not null)
+        {
+            if (HasEventName(EventName))
+            {
+                MessageBox.Show(this, $"事件名称 '{EventName}' 已被使用，请选择一个唯一的名称。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+        }
+
         // 中断
         if (rbBreak.Checked)
         {
@@ -145,54 +155,83 @@ public partial class InsertJumpForm : Form
         else if (rbConditionalJump.Checked)
         {
             // 验证目标事件名称（如果提供）
-            string trueTargetName = txtTrueTargetEventName.Text.Trim();
+            string tTargetEventName = txtTrueTargetEventName.Text.Trim();
+            string tTargetFilePath = txtTrueFilePath.Text.Trim();
 
-            if (rdTrueEventName.Checked && !RecordedEvent.IsValidEventName(trueTargetName))
+            if (rdTrueEventName.Checked && !RecordedEvent.IsValidEventName(tTargetEventName))
             {
+                txtTrueTargetEventName.ForeColor = Color.Red;
                 MessageBox.Show(this, "目标事件名称不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            string? falseTargetName = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseTargetEventName.Text)
+            if (rdTrueFilePath.Checked && !PathHelper.IsValidFilePath(tTargetFilePath))
+            {
+                txtTrueFilePath.ForeColor = Color.Red;
+                MessageBox.Show(this, "请提供有效的文件路径", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string? fTargetEventName =
+                chkFalseTargetEnabled.Checked && rdFalseEventName.Checked && !string.IsNullOrWhiteSpace(txtFalseTargetEventName.Text)
                 ? txtFalseTargetEventName.Text.Trim()
                 : null;
+            string? fTargetFilePath =
+                chkFalseTargetEnabled.Checked && rdFalseFilePath.Checked && !string.IsNullOrWhiteSpace(txtFalseFilePath.Text)
+                ? txtFalseFilePath.Text.Trim()
+                : null;
 
-            if (falseTargetName != null && !RecordedEvent.IsValidEventName(falseTargetName))
+            if (chkFalseTargetEnabled.Checked && rdFalseEventName.Checked && !RecordedEvent.IsValidEventName(fTargetEventName))
             {
+                txtFalseTargetEventName.ForeColor = Color.Red;
                 MessageBox.Show(this, "目标事件不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (chkFalseTargetEnabled.Checked && rdTrueFilePath.Checked && !PathHelper.IsValidFilePath(fTargetFilePath))
+            {
+                txtFalseFilePath.ForeColor = Color.Red;
+                MessageBox.Show(this, "请提供有效的文件路径", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             var conditionalJump = new ConditionalJumpEvent
             {
-                TrueTargetEventName = trueTargetName,
-                FalseTargetEventName = falseTargetName,
-                FilePathIfMatch = string.IsNullOrWhiteSpace(txtTrueFilePath.Text) ? null : txtTrueFilePath.Text.Trim(),
-                FilePathIfNotMatch = chkFalseTargetEnabled.Checked && !string.IsNullOrWhiteSpace(txtFalseFilePath.Text) ? txtFalseFilePath.Text.Trim() : null
+                TrueTargetEventName = tTargetEventName,
+                TrueTargetFilePath = tTargetFilePath,
+                FalseTargetEventName = fTargetEventName,
+                FalseTargetFilePath = fTargetFilePath
             };
 
             if (cmbConditionType.SelectedIndex == 0) // 像素颜色检查
             {
                 if (!int.TryParse(txtX.Text, out int x) || !int.TryParse(txtY.Text, out int y))
                 {
-                    MessageBox.Show("请输入有效的 X 和 Y 坐标。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, "请输入有效的 X 和 Y 坐标。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (!ColorHelper.TryParseExpressionColor(lblColorHex.Text, out Color c))
+                {
+                    MessageBox.Show(this, "请输入有效的颜色值。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
                 conditionalJump.ConditionType = ConditionType.PixelColor;
                 conditionalJump.X = x;
                 conditionalJump.Y = y;
-                conditionalJump.ExpectedColorHex = lblColorHex.Text;
+                conditionalJump.ExpectedColor = c.ToArgb();
+                conditionalJump.PixelTolerance = (byte)nudColorTolerance.Value;
             }
             else // 自定义条件
             {
                 if (string.IsNullOrWhiteSpace(txtCustomCondition.Text))
                 {
-                    MessageBox.Show("请输入自定义条件表达式。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, "请输入自定义条件表达式。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                conditionalJump.ConditionType = ConditionType.Custom;
+                conditionalJump.ConditionType = ConditionType.CustomExpression;
                 conditionalJump.CustomCondition = txtCustomCondition.Text.Trim();
             }
 
@@ -289,28 +328,36 @@ public partial class InsertJumpForm : Form
 
     }
 
-    private void rdTrueEventName_CheckedChanged(object sender, EventArgs e)
+    private void RdTrueEventName_CheckedChanged(object sender, EventArgs e)
     {
         txtTrueTargetEventName.Enabled = rdTrueEventName.Checked;
         btnSelectTrueTarget.Enabled = rdTrueEventName.Checked;
     }
 
-    private void rdTrueFilePath_CheckedChanged(object sender, EventArgs e)
+    private void RdTrueFilePath_CheckedChanged(object sender, EventArgs e)
     {
         txtTrueFilePath.Enabled = rdTrueFilePath.Checked;
         btnBrowseTrueFile.Enabled = rdTrueFilePath.Checked;
     }
 
-    private void rdFalseEventName_CheckedChanged(object sender, EventArgs e)
+    private void RdFalseEventName_CheckedChanged(object sender, EventArgs e)
     {
         txtFalseTargetEventName.Enabled = rdFalseEventName.Checked && chkFalseTargetEnabled.Checked;
         btnSelectFalseTarget.Enabled = rdFalseEventName.Checked && chkFalseTargetEnabled.Checked;
     }
 
-    private void rdFalseFilePath_CheckedChanged(object sender, EventArgs e)
+    private void RdFalseFilePath_CheckedChanged(object sender, EventArgs e)
     {
         txtFalseFilePath.Enabled = rdFalseFilePath.Checked;
         btnBrowseFalseFile.Enabled = rdFalseFilePath.Checked;
+    }
+
+    private void LblColorHex_TextChanged(object sender, EventArgs e)
+    {
+        if (ColorHelper.TryParseExpressionColor(lblColorHex.Text, out Color color))
+            colorPanel.BackColor = color;
+        else
+            colorPanel.BackColor = Color.Black;
     }
 }
 
