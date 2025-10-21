@@ -7,19 +7,24 @@ namespace MacroCreator.Forms;
 /// <summary>
 /// 用于插入跳转事件的窗体
 /// </summary>
-public partial class InsertJumpForm : Form
+public partial class EditFlowControlEventForm : Form
 {
     public RecordedEvent? JumpEvent { get; private set; }
 
     private bool isSelectingTarget = false;
     private Action<RecordedEvent>? onTargetSelected;
+    private bool isEditMode = false;
+    private string? originalEventName = null;
 
     public event ContainsEventNameDelegate? ContainsEventName;
     public event Action<RecordedEvent>? JumpEventCreated;
 
     public string? EventName => string.IsNullOrWhiteSpace(textBoxEventName.Text) ? null : textBoxEventName.Text.Trim();
 
-    public InsertJumpForm(string? defaultEventName = null)
+    /// <summary>
+    /// 创建新跳转事件的构造函数
+    /// </summary>
+    public EditFlowControlEventForm(string? defaultEventName = null)
     {
         InitializeComponent();
 
@@ -27,11 +32,92 @@ public partial class InsertJumpForm : Form
         textBoxEventName.Text = defaultEventName ?? string.Empty;
         cmbConditionType.SelectedIndex = 0;
         lblColorHex.Text = Color.Red.ExpressAsRgbColor();
+        isEditMode = false;
+    }
+
+    /// <summary>
+    /// 编辑现有跳转事件的构造函数
+    /// </summary>
+    public EditFlowControlEventForm(RecordedEvent existingEvent) : this()
+    {
+        if (existingEvent is null)
+            throw new ArgumentNullException(nameof(existingEvent));
+
+        isEditMode = true;
+        originalEventName = existingEvent.EventName;
+        LoadEventData(existingEvent);
+        Text = "编辑跳转事件";
     }
 
     private bool HasEventName(string name)
     {
         return ContainsEventName?.Invoke(name) ?? true;
+    }
+
+    /// <summary>
+    /// 加载现有事件数据到表单
+    /// </summary>
+    private void LoadEventData(RecordedEvent @event)
+    {
+        textBoxEventName.Text = @event.EventName ?? string.Empty;
+
+        if (@event is BreakEvent)
+        {
+            rbBreak.Checked = true;
+        }
+        else if (@event is JumpEvent jumpEvent)
+        {
+            rbUnconditionalJump.Checked = true;
+            txtTargetLabel.Text = jumpEvent.TargetEventName ?? string.Empty;
+        }
+        else if (@event is ConditionalJumpEvent conditionalJump)
+        {
+            rbConditionalJump.Checked = true;
+
+            // 设置条件类型
+            if (conditionalJump.ConditionType == ConditionType.PixelColor)
+            {
+                cmbConditionType.SelectedIndex = 0;
+                txtX.Text = conditionalJump.X.ToString();
+                txtY.Text = conditionalJump.Y.ToString();
+                lblColorHex.Text = ColorHelper.ExpressAsRgbColor(Color.FromArgb(conditionalJump.ExpectedColor));
+                nudColorTolerance.Value = conditionalJump.PixelTolerance;
+            }
+            else if (conditionalJump.ConditionType == ConditionType.CustomExpression)
+            {
+                cmbConditionType.SelectedIndex = 1;
+                txtCustomCondition.Text = conditionalJump.CustomCondition ?? string.Empty;
+            }
+
+            // 设置真分支
+            if (!string.IsNullOrEmpty(conditionalJump.TrueTargetFilePath))
+            {
+                rdTrueFilePath.Checked = true;
+                txtTrueFilePath.Text = conditionalJump.TrueTargetFilePath;
+            }
+            else
+            {
+                rdTrueEventName.Checked = true;
+                txtTrueTargetEventName.Text = conditionalJump.TrueTargetEventName ?? string.Empty;
+            }
+
+            // 设置假分支
+            if (!string.IsNullOrEmpty(conditionalJump.FalseTargetEventName) || !string.IsNullOrEmpty(conditionalJump.FalseTargetFilePath))
+            {
+                chkFalseTargetEnabled.Checked = true;
+
+                if (!string.IsNullOrEmpty(conditionalJump.FalseTargetFilePath))
+                {
+                    rdFalseFilePath.Checked = true;
+                    txtFalseFilePath.Text = conditionalJump.FalseTargetFilePath;
+                }
+                else
+                {
+                    rdFalseEventName.Checked = true;
+                    txtFalseTargetEventName.Text = conditionalJump.FalseTargetEventName ?? string.Empty;
+                }
+            }
+        }
     }
 
     private void RbJumpType_CheckedChanged(object sender, EventArgs e)
@@ -119,12 +205,17 @@ public partial class InsertJumpForm : Form
 
     private void BtnOK_Click(object sender, EventArgs e)
     {
+        // 验证事件名称：如果是编辑模式且名称未改变，或者名称为空，则跳过验证
         if (EventName is not null)
         {
-            if (HasEventName(EventName))
+            // 如果是编辑模式且名称未改变，允许保留原名称
+            if (!(isEditMode && string.Equals(EventName, originalEventName, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(this, $"事件名称 '{EventName}' 已被使用，请选择一个唯一的名称。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                if (HasEventName(EventName))
+                {
+                    MessageBox.Show(this, $"事件名称 '{EventName}' 已被使用，请选择一个唯一的名称。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
             }
         }
 

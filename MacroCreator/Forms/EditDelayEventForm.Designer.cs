@@ -1,6 +1,6 @@
 ﻿namespace MacroCreator.Forms
 {
-    partial class InsertDelayForm
+    partial class EditDelayEventForm
     {
         /// <summary>
         /// Required designer variable.

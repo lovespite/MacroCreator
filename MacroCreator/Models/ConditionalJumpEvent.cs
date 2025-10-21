@@ -6,7 +6,7 @@ namespace MacroCreator.Models;
 /// <summary>
 /// 条件跳转事件 - 基于指定条件决定是否跳转
 /// </summary>
-public class ConditionalJumpEvent : RecordedEvent
+public class ConditionalJumpEvent : FlowControlEvent
 {
     /// <summary>
     /// 条件类型

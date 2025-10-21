@@ -95,10 +95,34 @@ public class MacroController
         }
     }
 
+    public int IndexOfEvent(RecordedEvent ev)
+    {
+        return _eventSequence.IndexOf(ev);
+    }
+
     public void AddEvent(RecordedEvent ev)
     {
         _eventSequence.Add(ev);
         EventSequenceChanged?.Invoke();
+    }
+
+    public int InsertEventAt(int index, RecordedEvent ev)
+    {
+        _eventSequence.Insert(index, ev);
+        EventSequenceChanged?.Invoke();
+        return index;
+    }
+
+    public int InsertEventBefore(RecordedEvent targetEvent, RecordedEvent newEvent)
+    {
+        int index = _eventSequence.IndexOf(targetEvent);
+        if (index == -1)
+        {
+            throw new ArgumentException("目标事件不在序列中。", nameof(targetEvent));
+        }
+        _eventSequence.Insert(index, newEvent);
+        EventSequenceChanged?.Invoke();
+        return index;
     }
 
     public void DeleteEventsAt(IEnumerable<int> indices)
@@ -110,6 +134,14 @@ public class MacroController
             _eventSequence.RemoveAt(sortedIndices[i]);
         }
         EventSequenceChanged?.Invoke();
+    }
+
+    public RecordedEvent ReplaceEvent(int index, RecordedEvent newEvent)
+    {
+        var oldEvent = _eventSequence[index];
+        _eventSequence[index] = newEvent;
+        EventSequenceChanged?.Invoke();
+        return oldEvent;
     }
 
     public void StartRecording()

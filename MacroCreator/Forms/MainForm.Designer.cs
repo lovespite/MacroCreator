@@ -62,8 +62,11 @@ namespace MacroCreator.Forms
             columnHeader2 = new ColumnHeader();
             columnHeader3 = new ColumnHeader();
             columnHeader4 = new ColumnHeader();
-            contextMenuStripEvents = new ContextMenuStrip(components);
+            lvEventsContextMenu = new ContextMenuStrip(components);
+            editEventToolStripMenuItem = new ToolStripMenuItem();
             renameEventToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator6 = new ToolStripSeparator();
+            删除DToolStripMenuItem = new ToolStripMenuItem();
             textBoxLogger = new TextBox();
             buttonPanel = new FlowLayoutPanel();
             btnRecord = new Button();
@@ -80,7 +83,7 @@ namespace MacroCreator.Forms
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
             splitContainer1.SuspendLayout();
-            contextMenuStripEvents.SuspendLayout();
+            lvEventsContextMenu.SuspendLayout();
             buttonPanel.SuspendLayout();
             SuspendLayout();
             // 
@@ -236,7 +239,7 @@ namespace MacroCreator.Forms
             toolStripMenuItem3.Name = "toolStripMenuItem3";
             toolStripMenuItem3.Size = new Size(117, 22);
             toolStripMenuItem3.Text = "控制(&C)";
-            toolStripMenuItem3.Click += InsertJumpToolStripMenuItem_Click;
+            toolStripMenuItem3.Click += InsertFcEventToolStripMenuItem_Click;
             // 
             // DeleteToolStripMenuItem5
             // 
@@ -319,7 +322,7 @@ namespace MacroCreator.Forms
             // lvEvents
             // 
             lvEvents.Columns.AddRange(new ColumnHeader[] { columnHeader1, columnHeader2, columnHeader3, columnHeader4 });
-            lvEvents.ContextMenuStrip = contextMenuStripEvents;
+            lvEvents.ContextMenuStrip = lvEventsContextMenu;
             lvEvents.Dock = DockStyle.Fill;
             lvEvents.FullRowSelect = true;
             lvEvents.Location = new Point(0, 0);
@@ -329,6 +332,7 @@ namespace MacroCreator.Forms
             lvEvents.TabIndex = 1;
             lvEvents.UseCompatibleStateImageBehavior = false;
             lvEvents.View = View.Details;
+            lvEvents.ItemSelectionChanged += LvEvents_ItemSelectionChanged;
             lvEvents.Click += EventListView_Click;
             // 
             // columnHeader1
@@ -351,18 +355,39 @@ namespace MacroCreator.Forms
             columnHeader4.Text = "延迟(ms)";
             columnHeader4.Width = 100;
             // 
-            // contextMenuStripEvents
+            // lvEventsContextMenu
             // 
-            contextMenuStripEvents.Items.AddRange(new ToolStripItem[] { renameEventToolStripMenuItem });
-            contextMenuStripEvents.Name = "contextMenuStripEvents";
-            contextMenuStripEvents.Size = new Size(153, 26);
+            lvEventsContextMenu.Items.AddRange(new ToolStripItem[] { editEventToolStripMenuItem, renameEventToolStripMenuItem, toolStripSeparator6, 删除DToolStripMenuItem });
+            lvEventsContextMenu.Name = "contextMenuStripEvents";
+            lvEventsContextMenu.RenderMode = ToolStripRenderMode.System;
+            lvEventsContextMenu.Size = new Size(181, 98);
+            lvEventsContextMenu.Opening += ContextMenuStripEvents_Opening;
+            // 
+            // editEventToolStripMenuItem
+            // 
+            editEventToolStripMenuItem.Name = "editEventToolStripMenuItem";
+            editEventToolStripMenuItem.Size = new Size(180, 22);
+            editEventToolStripMenuItem.Text = "编辑(&E)";
+            editEventToolStripMenuItem.Click += EditEventToolStripMenuItem_Click;
             // 
             // renameEventToolStripMenuItem
             // 
             renameEventToolStripMenuItem.Name = "renameEventToolStripMenuItem";
-            renameEventToolStripMenuItem.Size = new Size(152, 22);
+            renameEventToolStripMenuItem.Size = new Size(180, 22);
             renameEventToolStripMenuItem.Text = "重命名事件(&R)";
             renameEventToolStripMenuItem.Click += RenameEventToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator6
+            // 
+            toolStripSeparator6.Name = "toolStripSeparator6";
+            toolStripSeparator6.Size = new Size(177, 6);
+            // 
+            // 删除DToolStripMenuItem
+            // 
+            删除DToolStripMenuItem.Name = "删除DToolStripMenuItem";
+            删除DToolStripMenuItem.Size = new Size(180, 22);
+            删除DToolStripMenuItem.Text = "删除(&D)";
+            删除DToolStripMenuItem.Click += DeleteToolStripMenuItem5_Click;
             // 
             // textBoxLogger
             // 
@@ -469,7 +494,7 @@ namespace MacroCreator.Forms
             splitContainer1.Panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
             splitContainer1.ResumeLayout(false);
-            contextMenuStripEvents.ResumeLayout(false);
+            lvEventsContextMenu.ResumeLayout(false);
             buttonPanel.ResumeLayout(false);
             buttonPanel.PerformLayout();
             ResumeLayout(false);
@@ -491,8 +516,9 @@ namespace MacroCreator.Forms
         private ToolStripStatusLabel statusLabel;
         private ToolStripContainer toolStripContainer;
         private ListView lvEvents;
-        private ContextMenuStrip contextMenuStripEvents;
+        private ContextMenuStrip lvEventsContextMenu;
         private ToolStripMenuItem renameEventToolStripMenuItem;
+        private ToolStripMenuItem editEventToolStripMenuItem;
         private ColumnHeader columnHeader1;
         private ColumnHeader columnHeader2;
         private ColumnHeader columnHeader3;
@@ -519,5 +545,7 @@ namespace MacroCreator.Forms
         private ToolStripMenuItem DeleteToolStripMenuItem5;
         private SplitContainer splitContainer1;
         private TextBox textBoxLogger;
+        private ToolStripSeparator toolStripSeparator6;
+        private ToolStripMenuItem 删除DToolStripMenuItem;
     }
 }

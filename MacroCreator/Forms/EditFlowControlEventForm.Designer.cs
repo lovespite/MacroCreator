@@ -2,7 +2,7 @@ using MacroCreator.Models;
 
 namespace MacroCreator.Forms
 {
-    partial class InsertJumpForm
+    partial class EditFlowControlEventForm
     {
         /// <summary>
         /// Required designer variable.

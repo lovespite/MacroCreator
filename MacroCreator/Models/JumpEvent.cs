@@ -4,7 +4,7 @@ namespace MacroCreator.Models;
 /// <summary>
 /// 无条件跳转事件 - 跳转到指定的事件索引或名称
 /// </summary>
-public class JumpEvent : RecordedEvent
+public class JumpEvent : FlowControlEvent
 {
     /// <summary>
     /// 目标事件的名称 - 优先使用名称跳转

@@ -60,6 +60,10 @@ public abstract class RecordedEvent
         return !string.IsNullOrWhiteSpace(name);
     }
 
+    public virtual string TypeName => GetType().Name;
+
+    public virtual string DisplayName => EventName is null ? TypeName : EventName;
+
     public abstract string GetDescription();
 }
 

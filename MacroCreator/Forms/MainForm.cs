@@ -1,12 +1,14 @@
 ﻿using MacroCreator.Controller;
 using MacroCreator.Models;
+using System.Diagnostics;
+using System.Runtime.Intrinsics.X86;
 
 namespace MacroCreator.Forms;
 
 public partial class MainForm : Form
 {
     private readonly MacroController _controller;
-    private InsertJumpForm? _insertJumpForm;
+    private EditFlowControlEventForm? _fcEventEditForm;
     private RecordedEvent? _activeEvent;
 
     public RecordedEvent? ActiveEvent
@@ -108,19 +110,15 @@ public partial class MainForm : Form
 
     private void EventListView_Click(object sender, EventArgs e)
     {
-        ActiveEvent = null;
-        if (lvEvents.SelectedItems.Count == 0) return;
-        if (lvEvents.SelectedItems[0].Tag is not RecordedEvent ev) return;
+        if (_fcEventEditForm is null) return;
 
-        ActiveEvent = ev;
+        if (ActiveEvent is null || !ActiveEvent.HasName) return;
+        _fcEventEditForm.SetSelectedTarget(ActiveEvent);
+    }
 
-        // 如果 InsertJumpForm 处于选择模式，处理选择
-        if (_insertJumpForm is not null)
-        {
-            if (!ActiveEvent.HasName) return;
-            _insertJumpForm.SetSelectedTarget(ActiveEvent);
-            return;
-        }
+    private void LvEvents_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
+    {
+        ActiveEvent = e.IsSelected ? e.Item?.Tag as RecordedEvent : null;
     }
 
     private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
@@ -178,37 +176,40 @@ public partial class MainForm : Form
         }
     }
 
-    private void InsertJumpToolStripMenuItem_Click(object sender, EventArgs e)
+    private void InsertFcEventToolStripMenuItem_Click(object sender, EventArgs e)
     {
         // 如果窗体已经存在且未关闭，则激活它
-        if (_insertJumpForm != null && !_insertJumpForm.IsDisposed)
+        if (_fcEventEditForm != null && !_fcEventEditForm.IsDisposed)
         {
-            _insertJumpForm.Activate();
+            _fcEventEditForm.Activate();
             return;
         }
 
-        _insertJumpForm = new InsertJumpForm($"FlowControl_{lvEvents.Items.Count}");
-        _insertJumpForm.ContainsEventName += ContainsEventWithName;
+        _fcEventEditForm = new EditFlowControlEventForm($"FlowControl_{lvEvents.Items.Count}");
+        _fcEventEditForm.ContainsEventName += ContainsEventWithName;
 
         // 订阅事件
-        _insertJumpForm.JumpEventCreated += (jumpEvent) =>
+        _fcEventEditForm.JumpEventCreated += (jumpEvent) =>
         {
-            _controller.AddEvent(jumpEvent);
+            if (ActiveEvent is null)
+                _controller.AddEvent(jumpEvent);
+            else
+                _controller.InsertEventBefore(ActiveEvent, jumpEvent);
         };
 
-        _insertJumpForm.FormClosed += (s, args) =>
+        _fcEventEditForm.FormClosed += (s, args) =>
         {
-            _insertJumpForm = null;
+            _fcEventEditForm = null;
         };
 
         // 设置位置在主窗体右侧
-        _insertJumpForm.StartPosition = FormStartPosition.Manual;
-        _insertJumpForm.Location = new Point(
+        _fcEventEditForm.StartPosition = FormStartPosition.Manual;
+        _fcEventEditForm.Location = new Point(
             this.Location.X + this.Width + 10,
             this.Location.Y
         );
 
-        _insertJumpForm.Show(this);
+        _fcEventEditForm.Show(this);
     }
 
     private void ClearStripMenuItem_Click(object sender, EventArgs e)
@@ -222,7 +223,7 @@ public partial class MainForm : Form
 
     private void InsertDelayToolStripMenuItem1_Click(object sender, EventArgs e)
     {
-        using var inputDialog = new InsertDelayForm(nameof(DelayEvent) + "_" + lvEvents.Items.Count);
+        using var inputDialog = new EditDelayEventForm(nameof(DelayEvent) + "_" + lvEvents.Items.Count);
 
         inputDialog.ContainsEventNameCallback += ContainsEventWithName;
 
@@ -235,20 +236,20 @@ public partial class MainForm : Form
             EventName = inputDialog.EventName,
         };
 
-        _controller.AddEvent(ev);
+        if (ActiveEvent is null)
+            _controller.AddEvent(ev);
+        else
+            _controller.InsertEventBefore(ActiveEvent, ev);
     }
 
     private void RenameEventToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        if (lvEvents.SelectedItems.Count != 1)
-            return;
+        if (ActiveEvent is not RecordedEvent ev) return;
 
-        int selectedIndex = lvEvents.SelectedItems[0].Index;
-        var ev = _controller.EventSequence[selectedIndex];
         var originalName = ev.EventName is null ? "匿名事件" : $"'{ev.EventName}'";
 
         // 创建输入对话框
-        using var inputDialog = new RenameEventForm(ev.EventName ?? $"{ev.GetType().Name}_{lvEvents.Items.Count}");
+        using var inputDialog = new RenameEventForm(ev.EventName ?? $"{ev.GetType().Name}_{_controller.IndexOfEvent(ev)}");
         inputDialog.ContainsEventNameCallback += ContainsEventWithName;
 
         if (inputDialog.ShowDialog() != DialogResult.OK) return;
@@ -271,9 +272,99 @@ public partial class MainForm : Form
         _controller.DeleteEventsAt(indices);
     }
 
+    private void ContextMenuStripEvents_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (lvEvents.SelectedItems.Count == 0)
+        {
+            e.Cancel = true;
+            return;
+        }
+        if (lvEvents.SelectedItems.Count > 1)
+        {
+            renameEventToolStripMenuItem.Enabled = false;
+            editEventToolStripMenuItem.Enabled = false;
+        }
+        else
+        {
+            renameEventToolStripMenuItem.Enabled = true;
+            editEventToolStripMenuItem.Enabled = true;
+        }
+    }
+
+    private void EditEventToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        if (lvEvents.SelectedItems.Count != 1) return;
+        if (_fcEventEditForm is not null)
+        {
+            Controller_StatusChanged("请先关闭当前事件编辑窗口");
+            MessageBox.Show(this, "请先关闭当前事件编辑窗口", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (ActiveEvent is not RecordedEvent ev) return;
+
+        if (ev is FlowControlEvent fcEvent)
+        {
+            EditFlowControlEvent(fcEvent);
+        }
+        if (ev is DelayEvent delayEvent)
+        {
+            EditDelayEvent(delayEvent);
+        }
+        else
+        {
+            Controller_StatusChanged($"无法编辑 {ev.TypeName} 事件");
+        }
+    }
+
     #endregion
 
-    #region Private Methods
+    #region Private Methods    
+
+    private void EditDelayEvent(DelayEvent ev)
+    {
+        using var inputDialog = new EditDelayEventForm(ev);
+        inputDialog.ContainsEventNameCallback += ContainsEventWithName;
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+
+        ev.DelayMilliseconds = (int)inputDialog.DelayMilliseconds;
+        ev.EventName = inputDialog.EventName;
+
+        RefreshEventList();
+        Controller_StatusChanged($"'{ev.DisplayName}' 事件已更新");
+    }
+
+    private void EditFlowControlEvent(FlowControlEvent ev)
+    {
+        // 打开编辑窗体
+        _fcEventEditForm = new EditFlowControlEventForm(ev);
+        _fcEventEditForm.ContainsEventName += ContainsEventWithName;
+
+        // 订阅事件更新
+        _fcEventEditForm.JumpEventCreated += (updatedEvent) =>
+        {
+            // 替换原有事件 
+            var replaced = _controller.ReplaceEvent(_controller.IndexOfEvent(ev), updatedEvent);
+            // 保持原有的时间戳
+            updatedEvent.TimeSinceLastEvent = ev.TimeSinceLastEvent;
+            RefreshEventList();
+            Controller_StatusChanged($"'{replaced.DisplayName}' 事件已更新");
+        };
+
+        _fcEventEditForm.FormClosed += (s, args) =>
+        {
+            _fcEventEditForm = null;
+        };
+
+        // 设置位置在主窗体右侧
+        _fcEventEditForm.StartPosition = FormStartPosition.Manual;
+        _fcEventEditForm.Location = new Point(
+            this.Location.X + this.Width + 10,
+            this.Location.Y
+        );
+
+        _fcEventEditForm.Show(this);
+    }
 
     private void InstallGlobalHotkeys()
     {
@@ -323,6 +414,7 @@ public partial class MainForm : Form
     {
         // BeginUpdate/EndUpdate 防止闪烁
         lvEvents.BeginUpdate();
+        var selectedIndex = lvEvents.SelectedIndices.Count > 0 ? lvEvents.SelectedIndices[0] : -1;
         lvEvents.Items.Clear();
         var eventSequence = _controller.EventSequence;
         for (int i = 0; i < eventSequence.Count; i++)
@@ -336,7 +428,7 @@ public partial class MainForm : Form
 
             var item = new ListViewItem([
                 indexDisplay,
-                ev.GetType().Name,
+                ev.TypeName,
                 ev.GetDescription(),
                 $"{ev.TimeSinceLastEvent:0.00}"
             ])
@@ -347,9 +439,14 @@ public partial class MainForm : Form
             lvEvents.Items.Add(item);
         }
         lvEvents.EndUpdate();
-        if (lvEvents.Items.Count > 0)
+
+        if (selectedIndex >= lvEvents.Items.Count)
+            selectedIndex = lvEvents.Items.Count - 1;
+
+        if (selectedIndex >= 0)
         {
-            lvEvents.EnsureVisible(lvEvents.Items.Count - 1);
+            lvEvents.Items[selectedIndex].Selected = true;
+            lvEvents.Items[selectedIndex].EnsureVisible();
         }
     }
 
