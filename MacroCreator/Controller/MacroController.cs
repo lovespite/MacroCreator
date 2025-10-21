@@ -10,12 +10,12 @@ namespace MacroCreator.Controller;
 /// </summary>
 public class MacroController
 {
-    private List<RecordedEvent> _eventSequence = [];
+    private List<RecordedEvent> _events = [];
     private readonly RecordingService _recordingService;
     private readonly PlaybackService _playbackService;
     private string? _currentFilePath = null;
 
-    public IReadOnlyList<RecordedEvent> EventSequence => _eventSequence.AsReadOnly();
+    public IReadOnlyList<RecordedEvent> EventSequence => _events.AsReadOnly();
     public AppState CurrentState { get; private set; } = AppState.Idle;
     public string? CurrentFilePath => _currentFilePath;
 
@@ -28,8 +28,8 @@ public class MacroController
         _recordingService = new RecordingService();
         _recordingService.OnEventRecorded += (ev) =>
         {
-            _eventSequence.Add(ev);
-            EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Add, _eventSequence.Count - 1, ev));
+            _events.Add(ev);
+            EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Add, _events.Count - 1, ev));
         };
 
         // 使用策略模式初始化回放服务
@@ -47,7 +47,7 @@ public class MacroController
 
     public void NewSequence()
     {
-        _eventSequence.Clear();
+        _events.Clear();
         _currentFilePath = null;
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Clear));
         StatusMessageChanged?.Invoke("已创建新序列");
@@ -55,7 +55,7 @@ public class MacroController
 
     public void ClearSequence()
     {
-        _eventSequence.Clear();
+        _events.Clear();
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Clear));
         StatusMessageChanged?.Invoke("序列已清空");
     }
@@ -64,7 +64,7 @@ public class MacroController
     {
         try
         {
-            _eventSequence = FileService.Load(filePath);
+            _events = FileService.Load(filePath);
             _currentFilePath = filePath;
             EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.FullRefresh));
             StatusMessageChanged?.Invoke($"文件已加载: {Path.GetFileName(filePath)}");
@@ -85,7 +85,7 @@ public class MacroController
 
         try
         {
-            FileService.Save(pathToSave, _eventSequence);
+            FileService.Save(pathToSave, _events);
             _currentFilePath = pathToSave;
             StatusMessageChanged?.Invoke($"文件已保存到 {pathToSave}");
         }
@@ -97,30 +97,30 @@ public class MacroController
 
     public int IndexOfEvent(RecordedEvent ev)
     {
-        return _eventSequence.IndexOf(ev);
+        return _events.IndexOf(ev);
     }
 
     public void AddEvent(RecordedEvent ev)
     {
-        _eventSequence.Add(ev);
-        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Add, _eventSequence.Count - 1, ev));
+        _events.Add(ev);
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Add, _events.Count - 1, ev));
     }
 
     public int InsertEventAt(int index, RecordedEvent ev)
     {
-        _eventSequence.Insert(index, ev);
+        _events.Insert(index, ev);
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Insert, index, ev));
         return index;
     }
 
     public int InsertEventBefore(RecordedEvent targetEvent, RecordedEvent newEvent)
     {
-        int index = _eventSequence.IndexOf(targetEvent);
+        int index = _events.IndexOf(targetEvent);
         if (index == -1)
         {
             throw new ArgumentException("目标事件不在序列中。", nameof(targetEvent));
         }
-        _eventSequence.Insert(index, newEvent);
+        _events.Insert(index, newEvent);
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Insert, index, newEvent));
         return index;
     }
@@ -131,15 +131,15 @@ public class MacroController
         sortedIndices.Sort();
         for (int i = sortedIndices.Count - 1; i >= 0; i--)
         {
-            _eventSequence.RemoveAt(sortedIndices[i]);
+            _events.RemoveAt(sortedIndices[i]);
         }
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Delete, sortedIndices));
     }
 
     public RecordedEvent ReplaceEvent(int index, RecordedEvent newEvent)
     {
-        var oldEvent = _eventSequence[index];
-        _eventSequence[index] = newEvent;
+        var oldEvent = _events[index];
+        _events[index] = newEvent;
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Replace, index, newEvent));
         return oldEvent;
     }
@@ -160,7 +160,7 @@ public class MacroController
         StatusMessageChanged?.Invoke("播放中... 按 F11 停止");
         try
         {
-            await _playbackService.Play(_eventSequence, LoadAndPlayNewFile);
+            await Playback();
             StatusMessageChanged?.Invoke("播放完成");
         }
         catch (TaskCanceledException)
@@ -173,11 +173,34 @@ public class MacroController
         }
     }
 
+    private async Task Playback()
+    {
+        var tcs = new TaskCompletionSource();
+        Thread playbackThread = new(() =>
+        {
+            try
+            {
+                _playbackService.Play(_events, LoadAndPlayNewFile).GetAwaiter().GetResult();
+                tcs.SetResult();
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
+
+        playbackThread.Name = "PlaybackServiceThread";
+        playbackThread.IsBackground = true;
+        playbackThread.Start();
+
+        await tcs.Task;
+    }
+
     private async Task LoadAndPlayNewFile(string filePath)
     {
         StatusMessageChanged?.Invoke($"跳转到文件: {filePath} 并开始播放...");
         var newSequence = FileService.Load(filePath);
-        await _playbackService.Play(newSequence, LoadAndPlayNewFile); // 嵌套播放暂时不支持再次跳转
+        await _playbackService.Play(newSequence, LoadAndPlayNewFile);
     }
 
     public void Stop()
@@ -190,7 +213,6 @@ public class MacroController
         else if (CurrentState == AppState.Playing)
         {
             _playbackService.Stop();
-            // 状态将在 StartPlayback 的 finally 块中被设置
         }
         SetState(AppState.Idle);
     }

@@ -5,12 +5,12 @@ namespace MacroCreator.Services;
 
 public class DelayEventPlayer : IEventPlayer
 {
-    public Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public Task<PlaybackResult> ExecuteAsync(PlaybackContext context)
     {
         // DelayEvent 的延迟现在由 PlaybackService 统一处理
         // 这里不需要额外的延迟逻辑，只是作为占位符
         // 如果需要，可以在这里添加其他与延迟事件相关的逻辑
         return Task.FromResult(PlaybackResult.Continue());
     }
-} 
+}
 

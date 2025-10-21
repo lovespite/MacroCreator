@@ -8,15 +8,15 @@ namespace MacroCreator.Services;
 /// </summary>
 public class JumpEventPlayer : IEventPlayer
 {
-    public Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public Task<PlaybackResult> ExecuteAsync(PlaybackContext context)
     {
-        if (ev is JumpEvent jumpEvent)
+        if (context.CurrentEvent is JumpEvent jumpEvent)
         {
             int targetIndex = context.FindEventIndexByName(jumpEvent.TargetEventName);
 
             if (targetIndex < 0)
             {
-                throw new InvalidOperationException($"无法跳转到未命名或不存在的事件: '{jumpEvent.TargetEventName}'");
+                throw new EventFlowControlException($"无效的跳转目标: '{jumpEvent.TargetEventName}'", context.CurrentEvent, context.CurrentEventIndex);
             }
 
             // 返回跳转结果

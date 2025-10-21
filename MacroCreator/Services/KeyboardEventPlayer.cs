@@ -7,9 +7,9 @@ namespace MacroCreator.Services;
 
 public class KeyboardEventPlayer : IEventPlayer
 {
-    public Task<PlaybackResult> ExecuteAsync(RecordedEvent ev, PlaybackContext context)
+    public Task<PlaybackResult> ExecuteAsync(PlaybackContext context)
     {
-        var ke = (KeyboardEvent)ev;
+        var ke = (KeyboardEvent)context.CurrentEvent;
         ushort vk = (ushort)ke.Key;
         ushort scanCode = (ushort)NativeMethods.MapVirtualKeyA(vk, 0);
         uint flags = ke.Action == KeyboardAction.KeyDown ? 0 : NativeMethods.KEYEVENTF_KEYUP;
@@ -30,9 +30,8 @@ public class KeyboardEventPlayer : IEventPlayer
             }
         };
 
-        var inputs = new[] { input };
-        NativeMethods.SendInput(1, inputs, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
+        NativeMethods.SendInput(1, [input], Marshal.SizeOf<NativeMethods.INPUT>());
         return Task.FromResult(PlaybackResult.Continue());
     }
-} 
+}
 

@@ -247,7 +247,7 @@ public partial class EditFlowControlEventForm : Form
         {
             // 验证目标事件名称（如果提供）
             string tTargetEventName = txtTrueTargetEventName.Text.Trim();
-            string tTargetFilePath = txtTrueFilePath.Text.Trim();
+            string? tTargetFilePath = rdTrueFilePath.Checked ? txtTrueFilePath.Text.Trim(): null;
 
             if (rdTrueEventName.Checked && !RecordedEvent.IsValidEventName(tTargetEventName))
             {

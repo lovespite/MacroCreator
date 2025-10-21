@@ -8,13 +8,13 @@ namespace MacroCreator.Services;
 /// </summary>
 public class BreakEventPlayer : IEventPlayer
 {
-    public Task<PlaybackResult> ExecuteAsync(RecordedEvent recordedEvent, PlaybackContext context)
+    public Task<PlaybackResult> ExecuteAsync(PlaybackContext context)
     {
-        if (recordedEvent is not BreakEvent)
+        if (context.CurrentEvent is not BreakEvent)
         {
-            throw new ArgumentException("事件类型必须是 BreakEvent", nameof(recordedEvent));
+            throw new ArgumentException("事件类型必须是 BreakEvent", context.CurrentEvent.TypeName);
         }
-        
+
         // 返回中断结果
         return Task.FromResult(PlaybackResult.Break());
     }

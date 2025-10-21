@@ -226,7 +226,7 @@ public partial class MainForm : Form
         var selectedIndex = lvEvents.SelectedIndices.Count > 0 ? lvEvents.SelectedIndices[0] : -1;
         lvEvents.Items.Clear();
         var eventSequence = _controller.EventSequence;
-        
+
         foreach (var ev in eventSequence)
         {
             var item = CreateListViewItem(ev);
@@ -296,6 +296,7 @@ public partial class MainForm : Form
         bool isIdle = state == AppState.Idle;
 
         lvEvents.Visible = state != AppState.Recording;
+        lvEvents.Enabled = state != AppState.Playing;
 
         btnPlay.Enabled = isIdle;
         btnStop.Enabled = !isIdle;
@@ -357,10 +358,17 @@ public partial class MainForm : Form
             if (cbHideForm.Checked) Hide();
             await _controller.StartPlayback();
         }
+        catch (EventFlowControlException ex)
+        { 
+            Controller_StatusChanged($"ERR! 播放在 {ex.EventIndex} ({ex.Event.DisplayName}) 中断：{ex.Message}");
+        }
+        catch (EventPlayerException ex)
+        {
+            Controller_StatusChanged($"ERR! 播放在 {ex.EventIndex} ({ex.Event.DisplayName}) 中断：{ex.Message}");
+        }
         catch (Exception ex)
         {
-            Controller_StatusChanged("ERR! 播放过程中发生错误：" + ex.Message);
-            MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Controller_StatusChanged($"ERR! 未知错误：{ex.Message}");
         }
         finally
         {
@@ -470,6 +478,8 @@ public partial class MainForm : Form
                 _controller.AddEvent(jumpEvent);
             else
                 _controller.InsertEventBefore(ActiveEvent, jumpEvent);
+
+            Controller_StatusChanged($"'{jumpEvent.DisplayName}' 事件已创建");
         };
 
         _fcEventEditForm.FormClosed += (s, args) =>
@@ -515,6 +525,8 @@ public partial class MainForm : Form
             _controller.AddEvent(ev);
         else
             _controller.InsertEventBefore(ActiveEvent, ev);
+
+        Controller_StatusChanged($"'{ev.DisplayName}' 事件已创建");
     }
 
     private void RenameEventToolStripMenuItem_Click(object sender, EventArgs e)
