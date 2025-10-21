@@ -37,6 +37,164 @@ public partial class MainForm : Form
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态
     }
 
+    public bool ContainsEventWithName(string eventName)
+    {
+        return _controller.EventSequence.Any(ev => string.Equals(ev.EventName, eventName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    #region Private Methods    
+
+    private void EditDelayEvent(DelayEvent ev)
+    {
+        using var inputDialog = new EditDelayEventForm(ev);
+        inputDialog.ContainsEventNameCallback += ContainsEventWithName;
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+
+        ev.DelayMilliseconds = (int)inputDialog.DelayMilliseconds;
+        ev.EventName = inputDialog.EventName;
+
+        RefreshEventList();
+        Controller_StatusChanged($"'{ev.DisplayName}' 事件已更新");
+    }
+
+    private void EditFlowControlEvent(FlowControlEvent ev)
+    {
+        // 打开编辑窗体
+        _fcEventEditForm = new EditFlowControlEventForm(ev);
+        _fcEventEditForm.ContainsEventName += ContainsEventWithName;
+
+        // 订阅事件更新
+        _fcEventEditForm.JumpEventCreated += (updatedEvent) =>
+        {
+            // 替换原有事件 
+            var replaced = _controller.ReplaceEvent(_controller.IndexOfEvent(ev), updatedEvent);
+            // 保持原有的时间戳
+            updatedEvent.TimeSinceLastEvent = ev.TimeSinceLastEvent;
+            RefreshEventList();
+            Controller_StatusChanged($"'{replaced.DisplayName}' 事件已更新");
+        };
+
+        _fcEventEditForm.FormClosed += (s, args) =>
+        {
+            _fcEventEditForm = null;
+        };
+
+        // 设置位置在主窗体右侧
+        _fcEventEditForm.StartPosition = FormStartPosition.Manual;
+        _fcEventEditForm.Location = new Point(
+            this.Location.X + this.Width + 10,
+            this.Location.Y
+        );
+
+        _fcEventEditForm.Show(this);
+    }
+
+    private void InstallGlobalHotkeys()
+    {
+        var handle = this.Handle;
+        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_RECORD,
+            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
+            Keys.F9);
+        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_PLAYBACK,
+            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
+            Keys.F10);
+        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_STOP,
+            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
+            Keys.F11);
+    }
+
+    private void UninstallGlobalHotkeys()
+    {
+        var handle = this.Handle;
+        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_RECORD);
+        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_PLAYBACK);
+        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_STOP);
+    }
+
+    private void HandleGlobalHotkey(Message m)
+    {
+        if (m.Msg != Native.NativeMethods.WM_HOTKEY)
+            return;
+        int id = m.WParam.ToInt32();
+        switch (id)
+        {
+            case Native.NativeMethods.HOTKEY_ID_RECORD:
+                if (btnRecord.Enabled)
+                    BtnRecord_Click(this, EventArgs.Empty);
+                break;
+            case Native.NativeMethods.HOTKEY_ID_PLAYBACK:
+                if (btnPlay.Enabled)
+                    BtnPlay_Click(this, EventArgs.Empty);
+                break;
+            case Native.NativeMethods.HOTKEY_ID_STOP:
+                if (btnStop.Enabled)
+                    BtnStop_Click(this, EventArgs.Empty);
+                break;
+        }
+    }
+
+    private void RefreshEventList()
+    {
+        // BeginUpdate/EndUpdate 防止闪烁
+        lvEvents.BeginUpdate();
+        var selectedIndex = lvEvents.SelectedIndices.Count > 0 ? lvEvents.SelectedIndices[0] : -1;
+        lvEvents.Items.Clear();
+        var eventSequence = _controller.EventSequence;
+        for (int i = 0; i < eventSequence.Count; i++)
+        {
+            var ev = eventSequence[i];
+
+            // 如果事件有名称，在序号后显示名称
+            string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
+                ? "(匿名)"
+                : $"{ev.EventName}";
+
+            var item = new ListViewItem([
+                indexDisplay,
+                ev.TypeName,
+                ev.GetDescription(),
+                $"{ev.TimeSinceLastEvent:0.00}"
+            ])
+            {
+                Tag = ev,
+            };
+
+            lvEvents.Items.Add(item);
+        }
+        lvEvents.EndUpdate();
+
+        if (selectedIndex >= lvEvents.Items.Count)
+            selectedIndex = lvEvents.Items.Count - 1;
+
+        if (selectedIndex >= 0)
+        {
+            lvEvents.Items[selectedIndex].Selected = true;
+            lvEvents.Items[selectedIndex].EnsureVisible();
+        }
+    }
+
+    private void OnAppStateChanged(AppState state)
+    {
+        bool isIdle = state == AppState.Idle;
+
+        lvEvents.Visible = state != AppState.Recording;
+
+        btnPlay.Enabled = isIdle;
+        btnStop.Enabled = !isIdle;
+        btnRecord.Enabled = isIdle;
+
+        menuStrip.Enabled = isIdle;
+    }
+
+    private void UpdateTitle()
+    {
+        string fileName = string.IsNullOrEmpty(_controller.CurrentFilePath) ? "未命名" : Path.GetFileName(_controller.CurrentFilePath);
+        Text = $"MacroCreator - {fileName}";
+    }
+
+    #endregion
+
     #region Event Handlers 
 
     private void Controller_StatusChanged(string message)
@@ -317,162 +475,4 @@ public partial class MainForm : Form
     }
 
     #endregion
-
-    #region Private Methods    
-
-    private void EditDelayEvent(DelayEvent ev)
-    {
-        using var inputDialog = new EditDelayEventForm(ev);
-        inputDialog.ContainsEventNameCallback += ContainsEventWithName;
-        var ret = inputDialog.ShowDialog(this);
-        if (ret != DialogResult.OK) return;
-
-        ev.DelayMilliseconds = (int)inputDialog.DelayMilliseconds;
-        ev.EventName = inputDialog.EventName;
-
-        RefreshEventList();
-        Controller_StatusChanged($"'{ev.DisplayName}' 事件已更新");
-    }
-
-    private void EditFlowControlEvent(FlowControlEvent ev)
-    {
-        // 打开编辑窗体
-        _fcEventEditForm = new EditFlowControlEventForm(ev);
-        _fcEventEditForm.ContainsEventName += ContainsEventWithName;
-
-        // 订阅事件更新
-        _fcEventEditForm.JumpEventCreated += (updatedEvent) =>
-        {
-            // 替换原有事件 
-            var replaced = _controller.ReplaceEvent(_controller.IndexOfEvent(ev), updatedEvent);
-            // 保持原有的时间戳
-            updatedEvent.TimeSinceLastEvent = ev.TimeSinceLastEvent;
-            RefreshEventList();
-            Controller_StatusChanged($"'{replaced.DisplayName}' 事件已更新");
-        };
-
-        _fcEventEditForm.FormClosed += (s, args) =>
-        {
-            _fcEventEditForm = null;
-        };
-
-        // 设置位置在主窗体右侧
-        _fcEventEditForm.StartPosition = FormStartPosition.Manual;
-        _fcEventEditForm.Location = new Point(
-            this.Location.X + this.Width + 10,
-            this.Location.Y
-        );
-
-        _fcEventEditForm.Show(this);
-    }
-
-    private void InstallGlobalHotkeys()
-    {
-        var handle = this.Handle;
-        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_RECORD,
-            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
-            Keys.F9);
-        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_PLAYBACK,
-            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
-            Keys.F10);
-        Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_STOP,
-            Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
-            Keys.F11);
-    }
-
-    private void UninstallGlobalHotkeys()
-    {
-        var handle = this.Handle;
-        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_RECORD);
-        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_PLAYBACK);
-        Native.NativeMethods.UninstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_STOP);
-    }
-
-    private void HandleGlobalHotkey(Message m)
-    {
-        if (m.Msg != Native.NativeMethods.WM_HOTKEY)
-            return;
-        int id = m.WParam.ToInt32();
-        switch (id)
-        {
-            case Native.NativeMethods.HOTKEY_ID_RECORD:
-                if (btnRecord.Enabled)
-                    BtnRecord_Click(this, EventArgs.Empty);
-                break;
-            case Native.NativeMethods.HOTKEY_ID_PLAYBACK:
-                if (btnPlay.Enabled)
-                    BtnPlay_Click(this, EventArgs.Empty);
-                break;
-            case Native.NativeMethods.HOTKEY_ID_STOP:
-                if (btnStop.Enabled)
-                    BtnStop_Click(this, EventArgs.Empty);
-                break;
-        }
-    }
-
-    private void RefreshEventList()
-    {
-        // BeginUpdate/EndUpdate 防止闪烁
-        lvEvents.BeginUpdate();
-        var selectedIndex = lvEvents.SelectedIndices.Count > 0 ? lvEvents.SelectedIndices[0] : -1;
-        lvEvents.Items.Clear();
-        var eventSequence = _controller.EventSequence;
-        for (int i = 0; i < eventSequence.Count; i++)
-        {
-            var ev = eventSequence[i];
-
-            // 如果事件有名称，在序号后显示名称
-            string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
-                ? "(匿名)"
-                : $"{ev.EventName}";
-
-            var item = new ListViewItem([
-                indexDisplay,
-                ev.TypeName,
-                ev.GetDescription(),
-                $"{ev.TimeSinceLastEvent:0.00}"
-            ])
-            {
-                Tag = ev,
-            };
-
-            lvEvents.Items.Add(item);
-        }
-        lvEvents.EndUpdate();
-
-        if (selectedIndex >= lvEvents.Items.Count)
-            selectedIndex = lvEvents.Items.Count - 1;
-
-        if (selectedIndex >= 0)
-        {
-            lvEvents.Items[selectedIndex].Selected = true;
-            lvEvents.Items[selectedIndex].EnsureVisible();
-        }
-    }
-
-    private void OnAppStateChanged(AppState state)
-    {
-        bool isIdle = state == AppState.Idle;
-
-        lvEvents.Visible = state != AppState.Recording;
-
-        btnPlay.Enabled = isIdle;
-        btnStop.Enabled = !isIdle;
-        btnRecord.Enabled = isIdle;
-
-        menuStrip.Enabled = isIdle;
-    }
-
-    private void UpdateTitle()
-    {
-        string fileName = string.IsNullOrEmpty(_controller.CurrentFilePath) ? "未命名" : Path.GetFileName(_controller.CurrentFilePath);
-        Text = $"MacroCreator - {fileName}";
-    }
-
-    #endregion
-
-    public bool ContainsEventWithName(string eventName)
-    {
-        return _controller.EventSequence.Any(ev => string.Equals(ev.EventName, eventName, StringComparison.OrdinalIgnoreCase));
-    }
 }
