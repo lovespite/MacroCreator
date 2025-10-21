@@ -1,6 +1,6 @@
 ﻿namespace MacroCreator.Models;
 
-public class DelayEvent : RecordedEvent
+public class DelayEvent : MacroEvent
 {
     public int DelayMilliseconds { get; set; }
     public override string GetDescription()

@@ -9,7 +9,7 @@ namespace MacroCreator.Services;
 public class PlaybackContext : IDisposable
 {
     public int CurrentEventIndex { get; private set; } = 0;
-    public RecordedEvent CurrentEvent => Events[CurrentEventIndex];
+    public MacroEvent CurrentEvent => Events[CurrentEventIndex];
 
     private readonly CancellationTokenSource _cts = new();
 
@@ -28,11 +28,11 @@ public class PlaybackContext : IDisposable
     /// <summary>
     /// 事件序列的只读列表，用于按名称查找事件
     /// </summary>
-    public IReadOnlyList<RecordedEvent> Events { get; }
+    public IReadOnlyList<MacroEvent> Events { get; }
 
     private readonly Dictionary<string, int> _eventNameToIndexCache = new(StringComparer.OrdinalIgnoreCase);
 
-    public PlaybackContext(IReadOnlyList<RecordedEvent> events, CallExternalFileDelegate? callback)
+    public PlaybackContext(IReadOnlyList<MacroEvent> events, CallExternalFileDelegate? callback)
     {
         Events = events;
         LoadAndPlayNewFileCallback = callback;

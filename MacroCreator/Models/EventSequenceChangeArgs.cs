@@ -64,9 +64,9 @@ public class EventSequenceChangeArgs
     /// <summary>
     /// 相关的事件对象
     /// </summary>
-    public RecordedEvent? Event { get; set; }
+    public MacroEvent? Event { get; set; }
 
-    public EventSequenceChangeArgs(EventSequenceChangeType changeType, int? index = null, RecordedEvent? ev = null)
+    public EventSequenceChangeArgs(EventSequenceChangeType changeType, int? index = null, MacroEvent? ev = null)
     {
         ChangeType = changeType;
         Index = index;

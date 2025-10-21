@@ -1,6 +1,6 @@
 ﻿namespace MacroCreator.Models;
 
-public class MouseEvent : RecordedEvent
+public class MouseEvent : MacroEvent
 {
     public MouseAction Action { get; set; }
     public int X { get; set; }

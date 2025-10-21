@@ -53,16 +53,7 @@ public partial class HighPrecisionTimer
             timeEndPeriod(1);
             _highResolutionEnabled = false;
         }
-    }
-
-    /// <summary>
-    /// 获取当前高精度时间戳（微秒）
-    /// </summary>
-    public long GetMicroseconds()
-    {
-        QueryPerformanceCounter(out long counter);
-        return (counter * 1000000) / _frequency;
-    }
+    } 
 
     /// <summary>
     /// 获取当前高精度时间戳（毫秒，带小数）

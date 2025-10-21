@@ -1,6 +1,6 @@
 ﻿namespace MacroCreator.Models;
 
-public class KeyboardEvent : RecordedEvent
+public class KeyboardEvent : MacroEvent
 {
     public KeyboardAction Action { get; set; }
     public Keys Key { get; set; }

@@ -9,9 +9,9 @@ public partial class MainForm : Form
 {
     private readonly MacroController _controller;
     private EditFlowControlEventForm? _fcEventEditForm;
-    private RecordedEvent? _activeEvent;
+    private MacroEvent? _activeEvent;
 
-    public RecordedEvent? ActiveEvent
+    public MacroEvent? ActiveEvent
     {
         get => _activeEvent;
         private set
@@ -256,7 +256,7 @@ public partial class MainForm : Form
     /// <summary>
     /// 创建ListViewItem
     /// </summary>
-    private ListViewItem CreateListViewItem(RecordedEvent ev)
+    private ListViewItem CreateListViewItem(MacroEvent ev)
     {
         string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
             ? "(匿名)"
@@ -278,7 +278,7 @@ public partial class MainForm : Form
     /// <summary>
     /// 更新现有ListViewItem的显示内容
     /// </summary>
-    private void UpdateListViewItem(ListViewItem item, RecordedEvent ev)
+    private void UpdateListViewItem(ListViewItem item, MacroEvent ev)
     {
         string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
             ? "(匿名)"
@@ -401,7 +401,7 @@ public partial class MainForm : Form
 
     private void LvEvents_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
     {
-        ActiveEvent = e.IsSelected ? e.Item?.Tag as RecordedEvent : null;
+        ActiveEvent = e.IsSelected ? e.Item?.Tag as MacroEvent : null;
     }
 
     private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
@@ -531,7 +531,7 @@ public partial class MainForm : Form
 
     private void RenameEventToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        if (ActiveEvent is not RecordedEvent ev) return;
+        if (ActiveEvent is not MacroEvent ev) return;
 
         var originalName = ev.EventName is null ? "匿名事件" : $"'{ev.EventName}'";
 
@@ -592,7 +592,7 @@ public partial class MainForm : Form
             MessageBox.Show(this, "请先关闭当前事件编辑窗口", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (ActiveEvent is not RecordedEvent ev) return;
+        if (ActiveEvent is not MacroEvent ev) return;
 
         if (ev is FlowControlEvent fcEvent)
         {

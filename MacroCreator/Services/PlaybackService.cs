@@ -19,7 +19,7 @@ public class PlaybackService(Dictionary<Type, IEventPlayer> players) : IDisposab
     /// </summary>
     public PlaybackPerformanceMonitor PerformanceMonitor => _performanceMonitor;
 
-    public async Task Play(List<RecordedEvent> events, CallExternalFileDelegate? loadAndPlayNewFileCallback)
+    public async Task Play(List<MacroEvent> events, CallExternalFileDelegate? loadAndPlayNewFileCallback)
     {
         using var context = _context = new PlaybackContext(events, loadAndPlayNewFileCallback);
 

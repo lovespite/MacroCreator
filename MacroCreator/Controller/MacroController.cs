@@ -10,12 +10,12 @@ namespace MacroCreator.Controller;
 /// </summary>
 public class MacroController
 {
-    private List<RecordedEvent> _events = [];
+    private List<MacroEvent> _events = [];
     private readonly RecordingService _recordingService;
     private readonly PlaybackService _playbackService;
     private string? _currentFilePath = null;
 
-    public IReadOnlyList<RecordedEvent> EventSequence => _events.AsReadOnly();
+    public IReadOnlyList<MacroEvent> EventSequence => _events.AsReadOnly();
     public AppState CurrentState { get; private set; } = AppState.Idle;
     public string? CurrentFilePath => _currentFilePath;
 
@@ -95,25 +95,25 @@ public class MacroController
         }
     }
 
-    public int IndexOfEvent(RecordedEvent ev)
+    public int IndexOfEvent(MacroEvent ev)
     {
         return _events.IndexOf(ev);
     }
 
-    public void AddEvent(RecordedEvent ev)
+    public void AddEvent(MacroEvent ev)
     {
         _events.Add(ev);
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Add, _events.Count - 1, ev));
     }
 
-    public int InsertEventAt(int index, RecordedEvent ev)
+    public int InsertEventAt(int index, MacroEvent ev)
     {
         _events.Insert(index, ev);
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Insert, index, ev));
         return index;
     }
 
-    public int InsertEventBefore(RecordedEvent targetEvent, RecordedEvent newEvent)
+    public int InsertEventBefore(MacroEvent targetEvent, MacroEvent newEvent)
     {
         int index = _events.IndexOf(targetEvent);
         if (index == -1)
@@ -136,7 +136,7 @@ public class MacroController
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Delete, sortedIndices));
     }
 
-    public RecordedEvent ReplaceEvent(int index, RecordedEvent newEvent)
+    public MacroEvent ReplaceEvent(int index, MacroEvent newEvent)
     {
         var oldEvent = _events[index];
         _events[index] = newEvent;

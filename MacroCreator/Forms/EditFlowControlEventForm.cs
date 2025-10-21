@@ -9,15 +9,15 @@ namespace MacroCreator.Forms;
 /// </summary>
 public partial class EditFlowControlEventForm : Form
 {
-    public RecordedEvent? JumpEvent { get; private set; }
+    public MacroEvent? JumpEvent { get; private set; }
 
     private bool isSelectingTarget = false;
-    private Action<RecordedEvent>? onTargetSelected;
+    private Action<MacroEvent>? onTargetSelected;
     private bool isEditMode = false;
     private string? originalEventName = null;
 
     public event ContainsEventNameDelegate? ContainsEventName;
-    public event Action<RecordedEvent>? JumpEventCreated;
+    public event Action<MacroEvent>? JumpEventCreated;
 
     public string? EventName => string.IsNullOrWhiteSpace(textBoxEventName.Text) ? null : textBoxEventName.Text.Trim();
 
@@ -38,7 +38,7 @@ public partial class EditFlowControlEventForm : Form
     /// <summary>
     /// 编辑现有跳转事件的构造函数
     /// </summary>
-    public EditFlowControlEventForm(RecordedEvent existingEvent) : this()
+    public EditFlowControlEventForm(MacroEvent existingEvent) : this()
     {
         if (existingEvent is null)
             throw new ArgumentNullException(nameof(existingEvent));
@@ -57,7 +57,7 @@ public partial class EditFlowControlEventForm : Form
     /// <summary>
     /// 加载现有事件数据到表单
     /// </summary>
-    private void LoadEventData(RecordedEvent @event)
+    private void LoadEventData(MacroEvent @event)
     {
         textBoxEventName.Text = @event.EventName ?? string.Empty;
 
@@ -230,7 +230,7 @@ public partial class EditFlowControlEventForm : Form
         {
             // 验证目标事件名称（如果提供）
             string targetName = txtTargetLabel.Text.Trim();
-            if (!RecordedEvent.IsValidEventName(targetName))
+            if (!MacroEvent.IsValidEventName(targetName))
             {
                 MessageBox.Show(this, "目标事件不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -249,7 +249,7 @@ public partial class EditFlowControlEventForm : Form
             string tTargetEventName = txtTrueTargetEventName.Text.Trim();
             string? tTargetFilePath = rdTrueFilePath.Checked ? txtTrueFilePath.Text.Trim(): null;
 
-            if (rdTrueEventName.Checked && !RecordedEvent.IsValidEventName(tTargetEventName))
+            if (rdTrueEventName.Checked && !MacroEvent.IsValidEventName(tTargetEventName))
             {
                 txtTrueTargetEventName.ForeColor = Color.Red;
                 MessageBox.Show(this, "目标事件名称不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -272,7 +272,7 @@ public partial class EditFlowControlEventForm : Form
                 ? txtFalseFilePath.Text.Trim()
                 : null;
 
-            if (chkFalseTargetEnabled.Checked && rdFalseEventName.Checked && !RecordedEvent.IsValidEventName(fTargetEventName))
+            if (chkFalseTargetEnabled.Checked && rdFalseEventName.Checked && !MacroEvent.IsValidEventName(fTargetEventName))
             {
                 txtFalseTargetEventName.ForeColor = Color.Red;
                 MessageBox.Show(this, "目标事件不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -345,7 +345,7 @@ public partial class EditFlowControlEventForm : Form
     /// <summary>
     /// 开始从主窗口选择目标索引
     /// </summary>
-    public void StartSelectingTarget(Action<RecordedEvent> callback)
+    public void StartSelectingTarget(Action<MacroEvent> callback)
     {
         isSelectingTarget = true;
         onTargetSelected = callback;
@@ -355,7 +355,7 @@ public partial class EditFlowControlEventForm : Form
     /// <summary>
     /// 从主窗口接收选中的目标索引
     /// </summary>
-    public void SetSelectedTarget(RecordedEvent @event)
+    public void SetSelectedTarget(MacroEvent @event)
     {
         if (isSelectingTarget && onTargetSelected != null)
         {
@@ -452,4 +452,4 @@ public partial class EditFlowControlEventForm : Form
     }
 }
 
-public delegate void TargetSelectedHandler(RecordedEvent recordEvent);
+public delegate void TargetSelectedHandler(MacroEvent recordEvent);

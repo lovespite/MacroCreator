@@ -13,7 +13,7 @@ public class RecordingService : IDisposable
     private readonly HighPrecisionTimer _timer;
     private double _lastEventTime = 0;
 
-    public event Action<RecordedEvent>? OnEventRecorded;
+    public event Action<MacroEvent>? OnEventRecorded;
 
     public RecordingService()
     {
@@ -35,11 +35,12 @@ public class RecordingService : IDisposable
         InputHook.Uninstall();
     }
 
-    private void RecordEvent(RecordedEvent ev)
+    private void RecordEvent(MacroEvent ev)
     {
         var currentTime = _timer.GetPreciseMilliseconds();
         ev.TimeSinceLastEvent = currentTime - _lastEventTime;
-        ev.AbsoluteTimestamp = _timer.GetMicroseconds();
+        ev.Timestamp = currentTime;
+
         _lastEventTime = currentTime;
         OnEventRecorded?.Invoke(ev);
     }

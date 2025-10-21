@@ -9,23 +9,23 @@ namespace MacroCreator.Services;
 /// </summary>
 public static class FileService
 {
-    public static void Save(string filePath, List<RecordedEvent> events)
+    public static void Save(string filePath, List<MacroEvent> events)
     {
-        XmlSerializer serializer = new(typeof(List<RecordedEvent>));
+        XmlSerializer serializer = new(typeof(List<MacroEvent>));
         using var writer = new StreamWriter(filePath);
         serializer.Serialize(writer, events);
     }
 
-    public static List<RecordedEvent> Load(string filePath)
+    public static List<MacroEvent> Load(string filePath)
     {
         if (!File.Exists(filePath))
         {
             throw new FileNotFoundException("文件未找到。", filePath);
         }
-        XmlSerializer serializer = new(typeof(List<RecordedEvent>));
+        XmlSerializer serializer = new(typeof(List<MacroEvent>));
         using var reader = new StreamReader(filePath);
 
-        var seq = serializer.Deserialize(reader) as List<RecordedEvent>
+        var seq = serializer.Deserialize(reader) as List<MacroEvent>
             ?? throw new Exception("解析失败，文件可能已损坏");
 
         return seq;
