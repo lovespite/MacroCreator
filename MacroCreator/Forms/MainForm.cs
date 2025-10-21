@@ -82,6 +82,7 @@ public partial class MainForm : Form
         }
         catch (Exception ex)
         {
+            Controller_StatusChanged("ERR! 播放过程中发生错误：" + ex.Message);
             MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
@@ -134,6 +135,7 @@ public partial class MainForm : Form
         }
         catch (Exception ex)
         {
+            Controller_StatusChanged("ERR! 加载文件时发生错误：" + ex.Message);
             MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -153,6 +155,7 @@ public partial class MainForm : Form
         }
         catch (Exception ex)
         {
+            Controller_StatusChanged("ERR! 保存文件时发生错误：" + ex.Message);
             MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -170,6 +173,7 @@ public partial class MainForm : Form
         }
         catch (Exception ex)
         {
+            Controller_StatusChanged("ERR! 保存文件时发生错误：" + ex.Message);
             MessageBox.Show(this, ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -241,6 +245,7 @@ public partial class MainForm : Form
 
         int selectedIndex = lvEvents.SelectedItems[0].Index;
         var ev = _controller.EventSequence[selectedIndex];
+        var originalName = ev.EventName is null ? "匿名事件" : $"'{ev.EventName}'";
 
         // 创建输入对话框
         using var inputDialog = new RenameEventForm(ev.EventName ?? $"{ev.GetType().Name}_{lvEvents.Items.Count}");
@@ -248,35 +253,11 @@ public partial class MainForm : Form
 
         if (inputDialog.ShowDialog() != DialogResult.OK) return;
 
-        var newName = inputDialog.EventName;
-
-        // 验证名称
-        if (!string.IsNullOrWhiteSpace(newName))
-        {
-            if (!RecordedEvent.IsValidEventName(newName))
-            {
-                MessageBox.Show("事件名称不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // 检查名称是否已存在
-            for (int i = 0; i < _controller.EventSequence.Count; i++)
-            {
-                if (i != selectedIndex && _controller.EventSequence[i].EventName == newName)
-                {
-                    MessageBox.Show($"事件名称 '{newName}' 已被其他事件使用。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-            }
-        }
-
         // 更新事件名称
-        ev.EventName = string.IsNullOrWhiteSpace(newName) ? null : newName;
-        RefreshEventList();
+        ev.EventName = inputDialog.EventName;
 
-        Controller_StatusChanged(string.IsNullOrWhiteSpace(newName)
-            ? "事件已设为匿名。"
-            : $"事件已重命名为 '{newName}'。");
+        RefreshEventList();
+        Controller_StatusChanged(originalName + (string.IsNullOrWhiteSpace(ev.EventName) ? " 已设为匿名" : $" 已重命名为 '{ev.EventName}'"));
     }
 
     private void DeleteToolStripMenuItem5_Click(object sender, EventArgs e)
@@ -388,7 +369,7 @@ public partial class MainForm : Form
     private void UpdateTitle()
     {
         string fileName = string.IsNullOrEmpty(_controller.CurrentFilePath) ? "未命名" : Path.GetFileName(_controller.CurrentFilePath);
-        Text = $"自动化宏工具 - {fileName}";
+        Text = $"MacroCreator - {fileName}";
     }
 
     #endregion

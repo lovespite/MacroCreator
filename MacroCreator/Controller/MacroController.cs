@@ -5,8 +5,8 @@ namespace MacroCreator.Controller;
 
 /// <summary>
 /// MacroController (外观类)
-/// 作为 UI 和后端服务之间的协调者。
-/// UI 层只与这个类交互。
+/// 作为 UI 和后端服务之间的协调者
+/// UI 层只与这个类交互
 /// </summary>
 public class MacroController
 {
@@ -50,14 +50,14 @@ public class MacroController
         _eventSequence.Clear();
         _currentFilePath = null;
         EventSequenceChanged?.Invoke();
-        StatusMessageChanged?.Invoke("已创建新序列。");
+        StatusMessageChanged?.Invoke("已创建新序列");
     }
 
     public void ClearSequence()
     {
         _eventSequence.Clear();
         EventSequenceChanged?.Invoke();
-        StatusMessageChanged?.Invoke("序列已清空。");
+        StatusMessageChanged?.Invoke("序列已清空");
     }
 
     public void LoadSequence(string filePath)
@@ -80,7 +80,7 @@ public class MacroController
         var pathToSave = filePath ?? _currentFilePath;
         if (string.IsNullOrEmpty(pathToSave))
         {
-            throw new InvalidOperationException("没有可保存的文件路径。请使用“另存为”。");
+            throw new InvalidOperationException("没有可保存的文件路径请使用“另存为”");
         }
 
         try
@@ -118,7 +118,7 @@ public class MacroController
         EventSequenceChanged?.Invoke();
         _recordingService.Start();
         SetState(AppState.Recording);
-        StatusMessageChanged?.Invoke("录制中... 按 F11 停止。");
+        StatusMessageChanged?.Invoke("录制中... 按 F11 停止");
     }
 
     public async Task StartPlayback()
@@ -126,15 +126,15 @@ public class MacroController
         if (CurrentState != AppState.Idle) return;
 
         SetState(AppState.Playing);
-        StatusMessageChanged?.Invoke("播放中... 按 F11 停止。");
+        StatusMessageChanged?.Invoke("播放中... 按 F11 停止");
         try
         {
             await _playbackService.Play(_eventSequence, LoadAndPlayNewFile);
-            StatusMessageChanged?.Invoke("播放完成。");
+            StatusMessageChanged?.Invoke("播放完成");
         }
         catch (TaskCanceledException)
         {
-            StatusMessageChanged?.Invoke("播放已停止。");
+            StatusMessageChanged?.Invoke("播放已停止");
         }
         finally
         {
@@ -154,7 +154,7 @@ public class MacroController
         if (CurrentState == AppState.Recording)
         {
             _recordingService.Stop();
-            StatusMessageChanged?.Invoke("录制结束。");
+            StatusMessageChanged?.Invoke("录制结束");
         }
         else if (CurrentState == AppState.Playing)
         {
