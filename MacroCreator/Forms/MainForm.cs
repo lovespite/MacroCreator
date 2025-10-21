@@ -30,7 +30,7 @@ public partial class MainForm : Form
 
         // 订阅 Controller 事件
         _controller.StateChanged += OnAppStateChanged;
-        _controller.EventSequenceChanged += RefreshEventList;
+        _controller.EventSequenceChanged += OnEventSequenceChanged;
         _controller.StatusMessageChanged += Controller_StatusChanged;
 
         UpdateTitle();
@@ -54,7 +54,12 @@ public partial class MainForm : Form
         ev.DelayMilliseconds = (int)inputDialog.DelayMilliseconds;
         ev.EventName = inputDialog.EventName;
 
-        RefreshEventList();
+        // 直接更新显示，不需要完全刷新
+        var index = _controller.IndexOfEvent(ev);
+        if (index >= 0 && index < lvEvents.Items.Count)
+        {
+            UpdateListViewItem(lvEvents.Items[index], ev);
+        }
         Controller_StatusChanged($"'{ev.DisplayName}' 事件已更新");
     }
 
@@ -71,7 +76,7 @@ public partial class MainForm : Form
             var replaced = _controller.ReplaceEvent(_controller.IndexOfEvent(ev), updatedEvent);
             // 保持原有的时间戳
             updatedEvent.TimeSinceLastEvent = ev.TimeSinceLastEvent;
-            RefreshEventList();
+            // ReplaceEvent 会自动触发 EventSequenceChanged 事件，不需要手动刷新
             Controller_StatusChanged($"'{replaced.DisplayName}' 事件已更新");
         };
 
@@ -134,35 +139,99 @@ public partial class MainForm : Form
         }
     }
 
-    private void RefreshEventList()
+    /// <summary>
+    /// 响应事件序列变更，执行增量更新
+    /// </summary>
+    private void OnEventSequenceChanged(EventSequenceChangeArgs args)
     {
-        // BeginUpdate/EndUpdate 防止闪烁
         lvEvents.BeginUpdate();
+        try
+        {
+            switch (args.ChangeType)
+            {
+                case EventSequenceChangeType.Add:
+                    // 添加到末尾
+                    if (args.Event != null && args.Index.HasValue)
+                    {
+                        var newItem = CreateListViewItem(args.Event);
+                        lvEvents.Items.Add(newItem);
+                    }
+                    break;
+
+                case EventSequenceChangeType.Insert:
+                    // 在指定位置插入
+                    if (args.Event != null && args.Index.HasValue)
+                    {
+                        var insertItem = CreateListViewItem(args.Event);
+                        lvEvents.Items.Insert(args.Index.Value, insertItem);
+                    }
+                    break;
+
+                case EventSequenceChangeType.Delete:
+                    // 删除事件（批量）
+                    if (args.Indices != null)
+                    {
+                        // 从后往前删除，避免索引变化
+                        foreach (var idx in args.Indices.OrderByDescending(i => i))
+                        {
+                            if (idx >= 0 && idx < lvEvents.Items.Count)
+                            {
+                                lvEvents.Items.RemoveAt(idx);
+                            }
+                        }
+                    }
+                    break;
+
+                case EventSequenceChangeType.Replace:
+                    // 替换指定位置的事件
+                    if (args.Event != null && args.Index.HasValue && args.Index.Value < lvEvents.Items.Count)
+                    {
+                        var replaceItem = CreateListViewItem(args.Event);
+                        var oldSelected = lvEvents.Items[args.Index.Value].Selected;
+                        lvEvents.Items[args.Index.Value] = replaceItem;
+                        replaceItem.Selected = oldSelected;
+                    }
+                    break;
+
+                case EventSequenceChangeType.Update:
+                    // 更新指定位置的事件显示
+                    if (args.Event != null && args.Index.HasValue && args.Index.Value < lvEvents.Items.Count)
+                    {
+                        UpdateListViewItem(lvEvents.Items[args.Index.Value], args.Event);
+                    }
+                    break;
+
+                case EventSequenceChangeType.Clear:
+                    // 清空列表
+                    lvEvents.Items.Clear();
+                    break;
+
+                case EventSequenceChangeType.FullRefresh:
+                    // 完全刷新（用于加载文件等场景）
+                    RefreshEventListFull();
+                    break;
+            }
+        }
+        finally
+        {
+            lvEvents.EndUpdate();
+        }
+    }
+
+    /// <summary>
+    /// 完全刷新事件列表（用于加载文件等场景）
+    /// </summary>
+    private void RefreshEventListFull()
+    {
         var selectedIndex = lvEvents.SelectedIndices.Count > 0 ? lvEvents.SelectedIndices[0] : -1;
         lvEvents.Items.Clear();
         var eventSequence = _controller.EventSequence;
-        for (int i = 0; i < eventSequence.Count; i++)
+        
+        foreach (var ev in eventSequence)
         {
-            var ev = eventSequence[i];
-
-            // 如果事件有名称，在序号后显示名称
-            string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
-                ? "(匿名)"
-                : $"{ev.EventName}";
-
-            var item = new ListViewItem([
-                indexDisplay,
-                ev.TypeName,
-                ev.GetDescription(),
-                $"{ev.TimeSinceLastEvent:0.00}"
-            ])
-            {
-                Tag = ev,
-            };
-
+            var item = CreateListViewItem(ev);
             lvEvents.Items.Add(item);
         }
-        lvEvents.EndUpdate();
 
         if (selectedIndex >= lvEvents.Items.Count)
             selectedIndex = lvEvents.Items.Count - 1;
@@ -172,6 +241,54 @@ public partial class MainForm : Form
             lvEvents.Items[selectedIndex].Selected = true;
             lvEvents.Items[selectedIndex].EnsureVisible();
         }
+    }
+
+    /// <summary>
+    /// 为完全刷新保留的旧方法（现在调用FullRefresh）
+    /// </summary>
+    private void RefreshEventList()
+    {
+        lvEvents.BeginUpdate();
+        RefreshEventListFull();
+        lvEvents.EndUpdate();
+    }
+
+    /// <summary>
+    /// 创建ListViewItem
+    /// </summary>
+    private ListViewItem CreateListViewItem(RecordedEvent ev)
+    {
+        string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
+            ? "(匿名)"
+            : $"{ev.EventName}";
+
+        var item = new ListViewItem([
+            indexDisplay,
+            ev.TypeName,
+            ev.GetDescription(),
+            $"{ev.TimeSinceLastEvent:0.00}"
+        ])
+        {
+            Tag = ev,
+        };
+
+        return item;
+    }
+
+    /// <summary>
+    /// 更新现有ListViewItem的显示内容
+    /// </summary>
+    private void UpdateListViewItem(ListViewItem item, RecordedEvent ev)
+    {
+        string indexDisplay = string.IsNullOrWhiteSpace(ev.EventName)
+            ? "(匿名)"
+            : $"{ev.EventName}";
+
+        item.SubItems[0].Text = indexDisplay;
+        item.SubItems[1].Text = ev.TypeName;
+        item.SubItems[2].Text = ev.GetDescription();
+        item.SubItems[3].Text = $"{ev.TimeSinceLastEvent:0.00}";
+        item.Tag = ev;
     }
 
     private void OnAppStateChanged(AppState state)
@@ -415,7 +532,12 @@ public partial class MainForm : Form
         // 更新事件名称
         ev.EventName = inputDialog.EventName;
 
-        RefreshEventList();
+        // 直接更新显示，不需要完全刷新
+        var index = _controller.IndexOfEvent(ev);
+        if (index >= 0 && index < lvEvents.Items.Count)
+        {
+            UpdateListViewItem(lvEvents.Items[index], ev);
+        }
         Controller_StatusChanged(originalName + (string.IsNullOrWhiteSpace(ev.EventName) ? " 已设为匿名" : $" 已重命名为 '{ev.EventName}'"));
     }
 

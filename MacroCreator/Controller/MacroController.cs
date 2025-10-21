@@ -20,7 +20,7 @@ public class MacroController
     public string? CurrentFilePath => _currentFilePath;
 
     public event Action<AppState>? StateChanged;
-    public event Action? EventSequenceChanged;
+    public event Action<EventSequenceChangeArgs>? EventSequenceChanged;
     public event Action<string>? StatusMessageChanged;
 
     public MacroController()
@@ -29,7 +29,7 @@ public class MacroController
         _recordingService.OnEventRecorded += (ev) =>
         {
             _eventSequence.Add(ev);
-            EventSequenceChanged?.Invoke();
+            EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Add, _eventSequence.Count - 1, ev));
         };
 
         // 使用策略模式初始化回放服务
@@ -49,14 +49,14 @@ public class MacroController
     {
         _eventSequence.Clear();
         _currentFilePath = null;
-        EventSequenceChanged?.Invoke();
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Clear));
         StatusMessageChanged?.Invoke("已创建新序列");
     }
 
     public void ClearSequence()
     {
         _eventSequence.Clear();
-        EventSequenceChanged?.Invoke();
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Clear));
         StatusMessageChanged?.Invoke("序列已清空");
     }
 
@@ -66,7 +66,7 @@ public class MacroController
         {
             _eventSequence = FileService.Load(filePath);
             _currentFilePath = filePath;
-            EventSequenceChanged?.Invoke();
+            EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.FullRefresh));
             StatusMessageChanged?.Invoke($"文件已加载: {Path.GetFileName(filePath)}");
         }
         catch (Exception ex)
@@ -103,13 +103,13 @@ public class MacroController
     public void AddEvent(RecordedEvent ev)
     {
         _eventSequence.Add(ev);
-        EventSequenceChanged?.Invoke();
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Add, _eventSequence.Count - 1, ev));
     }
 
     public int InsertEventAt(int index, RecordedEvent ev)
     {
         _eventSequence.Insert(index, ev);
-        EventSequenceChanged?.Invoke();
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Insert, index, ev));
         return index;
     }
 
@@ -121,7 +121,7 @@ public class MacroController
             throw new ArgumentException("目标事件不在序列中。", nameof(targetEvent));
         }
         _eventSequence.Insert(index, newEvent);
-        EventSequenceChanged?.Invoke();
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Insert, index, newEvent));
         return index;
     }
 
@@ -133,21 +133,20 @@ public class MacroController
         {
             _eventSequence.RemoveAt(sortedIndices[i]);
         }
-        EventSequenceChanged?.Invoke();
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Delete, sortedIndices));
     }
 
     public RecordedEvent ReplaceEvent(int index, RecordedEvent newEvent)
     {
         var oldEvent = _eventSequence[index];
         _eventSequence[index] = newEvent;
-        EventSequenceChanged?.Invoke();
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Replace, index, newEvent));
         return oldEvent;
     }
 
     public void StartRecording()
     {
         if (CurrentState != AppState.Idle) return;
-        EventSequenceChanged?.Invoke();
         _recordingService.Start();
         SetState(AppState.Recording);
         StatusMessageChanged?.Invoke("录制中... 按 F11 停止");
