@@ -93,6 +93,65 @@ public partial class MainForm : Form
         Controller_StatusChanged($"'{ev.DisplayName}' 事件已更新");
     }
 
+    private void InsertMouseEvent()
+    {
+        using var inputDialog = new EditMouseEventForm($"MouseEvent_{lvEvents.Items.Count}");
+        inputDialog.ContainsEventName += ContainsEventWithName;
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+        var ev = new MouseEvent()
+        {
+            X = inputDialog.MouseX,
+            Y = inputDialog.MouseY,
+            Action = inputDialog.MouseAction,
+            WheelDelta = inputDialog.WheelDelta,
+            EventName = inputDialog.EventName,
+        };
+        if (ActiveEvent is null)
+            _controller.AddEvent(ev);
+        else
+            _controller.InsertEventBefore(ActiveEvent, ev);
+        Controller_StatusChanged($"'{ev.DisplayName}' 事件已创建");
+    }
+
+    private void EditKeyboardEvent(KeyboardEvent ev)
+    {
+        using var inputDialog = new EditKeyboardEventForm(ev);
+        inputDialog.ContainsEventName += ContainsEventWithName;
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+        ev.Key = inputDialog.Key;
+        ev.Action = inputDialog.KeyboardAction;
+        ev.EventName = inputDialog.EventName;
+        ev.TimeSinceLastEvent = inputDialog.DelayMilliseconds;
+        // 直接更新显示，不需要完全刷新
+        var index = _controller.IndexOfEvent(ev);
+        if (index >= 0 && index < lvEvents.Items.Count)
+        {
+            UpdateListViewItem(lvEvents.Items[index], ev);
+        }
+        Controller_StatusChanged($"'{ev.DisplayName}' 事件已更新");
+    }
+
+    private void InsertKeyboardEvent()
+    {
+        using var inputDialog = new EditKeyboardEventForm($"KeyboardEvent_{lvEvents.Items.Count}");
+        inputDialog.ContainsEventName += ContainsEventWithName;
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+        var ev = new KeyboardEvent()
+        {
+            Key = inputDialog.Key,
+            Action = inputDialog.KeyboardAction,
+            EventName = inputDialog.EventName,
+        };
+        if (ActiveEvent is null)
+            _controller.AddEvent(ev);
+        else
+            _controller.InsertEventBefore(ActiveEvent, ev);
+        Controller_StatusChanged($"'{ev.DisplayName}' 事件已创建");
+    }
+
     private void EditFlowControlEvent(FlowControlEvent ev)
     {
         // 打开编辑窗体
@@ -489,6 +548,12 @@ public partial class MainForm : Form
         }
     }
 
+    private void ClearStripMenuItem_Click(object sender, EventArgs e)
+    {
+        _controller.ClearSequence();
+    }
+
+
     private void InsertFcEventToolStripMenuItem_Click(object sender, EventArgs e)
     {
         // 如果窗体已经存在且未关闭，则激活它
@@ -526,16 +591,6 @@ public partial class MainForm : Form
 
         _fcEventEditForm.Show(this);
     }
-
-    private void ClearStripMenuItem_Click(object sender, EventArgs e)
-    {
-        _controller.ClearSequence();
-    }
-
-    private void LvEvents_ItemActivate(object sender, EventArgs e)
-    {
-    }
-
     private void InsertDelayToolStripMenuItem1_Click(object sender, EventArgs e)
     {
         using var inputDialog = new EditDelayEventForm(nameof(DelayEvent) + "_" + lvEvents.Items.Count);
@@ -557,6 +612,16 @@ public partial class MainForm : Form
             _controller.InsertEventBefore(ActiveEvent, ev);
 
         Controller_StatusChanged($"'{ev.DisplayName}' 事件已创建");
+    }
+
+    private void InsertMouseEventToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        InsertMouseEvent();
+    }
+
+    private void InsertKbdEventToolStripMenuItem5_Click(object sender, EventArgs e)
+    {
+        InsertKeyboardEvent();
     }
 
     private void RenameEventToolStripMenuItem_Click(object sender, EventArgs e)
@@ -636,6 +701,10 @@ public partial class MainForm : Form
         {
             EditMouseEvent(mouseEvent);
         }
+        else if (ev is KeyboardEvent keyboardEvent)
+        {
+            EditKeyboardEvent(keyboardEvent);
+        }
         else
         {
             Controller_StatusChanged($"无法编辑 {ev.TypeName} 事件");
@@ -643,4 +712,5 @@ public partial class MainForm : Form
     }
 
     #endregion
+
 }

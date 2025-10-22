@@ -50,6 +50,9 @@ namespace MacroCreator.Forms
             toolStripMenuItem1 = new ToolStripMenuItem();
             toolStripMenuItem2 = new ToolStripMenuItem();
             toolStripMenuItem3 = new ToolStripMenuItem();
+            toolStripSeparator7 = new ToolStripSeparator();
+            insertMouseEventToolStripMenuItem = new ToolStripMenuItem();
+            insertKbdEventToolStripMenuItem5 = new ToolStripMenuItem();
             DeleteToolStripMenuItem5 = new ToolStripMenuItem();
             toolStripSeparator4 = new ToolStripSeparator();
             clearStripMenuItem = new ToolStripMenuItem();
@@ -222,7 +225,7 @@ namespace MacroCreator.Forms
             // 
             // toolStripMenuItem1
             // 
-            toolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { toolStripMenuItem2, toolStripMenuItem3 });
+            toolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { toolStripMenuItem2, toolStripMenuItem3, toolStripSeparator7, insertMouseEventToolStripMenuItem, insertKbdEventToolStripMenuItem5 });
             toolStripMenuItem1.Name = "toolStripMenuItem1";
             toolStripMenuItem1.Size = new Size(197, 22);
             toolStripMenuItem1.Text = "插入(&I)";
@@ -230,16 +233,35 @@ namespace MacroCreator.Forms
             // toolStripMenuItem2
             // 
             toolStripMenuItem2.Name = "toolStripMenuItem2";
-            toolStripMenuItem2.Size = new Size(117, 22);
+            toolStripMenuItem2.Size = new Size(180, 22);
             toolStripMenuItem2.Text = "延迟(&D)";
             toolStripMenuItem2.Click += InsertDelayToolStripMenuItem1_Click;
             // 
             // toolStripMenuItem3
             // 
             toolStripMenuItem3.Name = "toolStripMenuItem3";
-            toolStripMenuItem3.Size = new Size(117, 22);
+            toolStripMenuItem3.Size = new Size(180, 22);
             toolStripMenuItem3.Text = "控制(&C)";
             toolStripMenuItem3.Click += InsertFcEventToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator7
+            // 
+            toolStripSeparator7.Name = "toolStripSeparator7";
+            toolStripSeparator7.Size = new Size(177, 6);
+            // 
+            // insertMouseEventToolStripMenuItem
+            // 
+            insertMouseEventToolStripMenuItem.Name = "insertMouseEventToolStripMenuItem";
+            insertMouseEventToolStripMenuItem.Size = new Size(180, 22);
+            insertMouseEventToolStripMenuItem.Text = "鼠标事件(&M)";
+            insertMouseEventToolStripMenuItem.Click += InsertMouseEventToolStripMenuItem_Click;
+            // 
+            // insertKbdEventToolStripMenuItem5
+            // 
+            insertKbdEventToolStripMenuItem5.Name = "insertKbdEventToolStripMenuItem5";
+            insertKbdEventToolStripMenuItem5.Size = new Size(180, 22);
+            insertKbdEventToolStripMenuItem5.Text = "键盘事件(&K)";
+            insertKbdEventToolStripMenuItem5.Click += InsertKbdEventToolStripMenuItem5_Click;
             // 
             // DeleteToolStripMenuItem5
             // 
@@ -360,32 +382,32 @@ namespace MacroCreator.Forms
             lvEventsContextMenu.Items.AddRange(new ToolStripItem[] { editEventToolStripMenuItem, renameEventToolStripMenuItem, toolStripSeparator6, 删除DToolStripMenuItem });
             lvEventsContextMenu.Name = "contextMenuStripEvents";
             lvEventsContextMenu.RenderMode = ToolStripRenderMode.System;
-            lvEventsContextMenu.Size = new Size(181, 98);
+            lvEventsContextMenu.Size = new Size(153, 76);
             lvEventsContextMenu.Opening += ContextMenuStripEvents_Opening;
             // 
             // editEventToolStripMenuItem
             // 
             editEventToolStripMenuItem.Name = "editEventToolStripMenuItem";
-            editEventToolStripMenuItem.Size = new Size(180, 22);
+            editEventToolStripMenuItem.Size = new Size(152, 22);
             editEventToolStripMenuItem.Text = "编辑(&E)";
             editEventToolStripMenuItem.Click += EditEventToolStripMenuItem_Click;
             // 
             // renameEventToolStripMenuItem
             // 
             renameEventToolStripMenuItem.Name = "renameEventToolStripMenuItem";
-            renameEventToolStripMenuItem.Size = new Size(180, 22);
+            renameEventToolStripMenuItem.Size = new Size(152, 22);
             renameEventToolStripMenuItem.Text = "重命名事件(&R)";
             renameEventToolStripMenuItem.Click += RenameEventToolStripMenuItem_Click;
             // 
             // toolStripSeparator6
             // 
             toolStripSeparator6.Name = "toolStripSeparator6";
-            toolStripSeparator6.Size = new Size(177, 6);
+            toolStripSeparator6.Size = new Size(149, 6);
             // 
             // 删除DToolStripMenuItem
             // 
             删除DToolStripMenuItem.Name = "删除DToolStripMenuItem";
-            删除DToolStripMenuItem.Size = new Size(180, 22);
+            删除DToolStripMenuItem.Size = new Size(152, 22);
             删除DToolStripMenuItem.Text = "删除(&D)";
             删除DToolStripMenuItem.Click += DeleteToolStripMenuItem5_Click;
             // 
@@ -547,5 +569,8 @@ namespace MacroCreator.Forms
         private TextBox textBoxLogger;
         private ToolStripSeparator toolStripSeparator6;
         private ToolStripMenuItem 删除DToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator7;
+        private ToolStripMenuItem insertMouseEventToolStripMenuItem;
+        private ToolStripMenuItem insertKbdEventToolStripMenuItem5;
     }
 }
