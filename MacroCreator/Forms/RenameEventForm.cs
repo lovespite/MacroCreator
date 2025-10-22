@@ -1,40 +1,34 @@
 ﻿using MacroCreator.Models;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using MacroCreator.Utils;
 
 namespace MacroCreator.Forms
 {
     public partial class RenameEventForm : Form
     {
+        private readonly MacroEvent? _editing = null;
         public string? EventName => string.IsNullOrWhiteSpace(textBox1.Text) ? null : textBox1.Text.Trim();
 
-        public event ContainsEventNameDelegate? ContainsEventNameCallback;
+        public event ContainsEventNameDelegate? ContainsEventName;
 
-        public RenameEventForm(string name)
+        private bool HasEventName(string? name)
         {
-            InitializeComponent();
-            textBox1.Text = name;
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            return ContainsEventName?.Invoke(name, _editing) ?? true;
         }
 
-        private void RenameEventForm_Load(object sender, EventArgs e)
+        public RenameEventForm(MacroEvent @event)
         {
-
+            InitializeComponent();
+            _editing = @event;
+            textBox1.Text = _editing.EventName ?? $"{_editing.TypeName}_{Rnd.GetString(4)}";
         }
 
         private void BtnOk_Click(object sender, EventArgs e)
         {
-            if (ContainsEventNameCallback is not null
-                && !string.IsNullOrWhiteSpace(EventName)
-                && ContainsEventNameCallback(EventName))
+            var eName = EventName;
+            if (HasEventName(eName))
             {
-                MessageBox.Show(this, "事件名称已存在，请使用其他名称。", "名称冲突", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, $"事件名称 '{eName}' 已存在，请使用其他名称。", "名称冲突", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 

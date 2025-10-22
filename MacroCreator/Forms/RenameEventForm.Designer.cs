@@ -85,8 +85,7 @@
             FormBorderStyle = FormBorderStyle.FixedToolWindow;
             Name = "RenameEventForm";
             StartPosition = FormStartPosition.CenterParent;
-            Text = "重命名事件";
-            Load += RenameEventForm_Load;
+            Text = "重命名事件"; 
             ResumeLayout(false);
             PerformLayout();
         }

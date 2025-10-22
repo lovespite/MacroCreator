@@ -60,4 +60,4 @@ public abstract class MacroEvent
     public abstract string GetDescription();
 }
 
-public delegate bool ContainsEventNameDelegate(string eventName);
+public delegate bool ContainsEventNameDelegate(string eventName, MacroEvent? except = null);

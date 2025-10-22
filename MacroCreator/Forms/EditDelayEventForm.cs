@@ -4,6 +4,8 @@ namespace MacroCreator.Forms;
 
 public partial class EditDelayEventForm : Form
 {
+    private readonly DelayEvent? _editing = null;
+
     public double DelayMilliseconds
     {
         get
@@ -21,7 +23,13 @@ public partial class EditDelayEventForm : Form
 
     public string? EventName => string.IsNullOrWhiteSpace(textBox1.Text) ? null : textBox1.Text.Trim();
 
-    public event ContainsEventNameDelegate? ContainsEventNameCallback;
+    public event ContainsEventNameDelegate? ContainsEventName;
+
+    private bool HasEventName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        return ContainsEventName?.Invoke(name, _editing) ?? true;
+    }
 
     public EditDelayEventForm(string? defaultEvName = null)
     {
@@ -29,9 +37,11 @@ public partial class EditDelayEventForm : Form
         textBox1.Text = defaultEvName ?? string.Empty;
     }
 
-    public EditDelayEventForm(DelayEvent delayEvent)
-        : this(delayEvent.EventName)
+    public EditDelayEventForm(DelayEvent delayEvent) : this(delayEvent.EventName)
     {
+        ArgumentNullException.ThrowIfNull(delayEvent);
+
+        _editing = delayEvent;
         double delayMs = delayEvent.DelayMilliseconds;
         if (delayMs >= 60000.0 && delayMs % 60000.0 == 0)
         {
@@ -57,11 +67,10 @@ public partial class EditDelayEventForm : Form
 
     private void BtnOk_Click(object sender, EventArgs e)
     {
-        if (ContainsEventNameCallback is not null
-            && !string.IsNullOrWhiteSpace(EventName)
-            && ContainsEventNameCallback(EventName))
+        var eName = EventName;
+        if (HasEventName(eName))
         {
-            MessageBox.Show(this, "事件名称已存在，请使用其他名称。", "名称冲突", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, $"事件名称 '{eName}' 已存在，请使用其他名称。", "名称冲突", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 

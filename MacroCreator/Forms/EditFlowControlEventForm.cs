@@ -13,8 +13,7 @@ public partial class EditFlowControlEventForm : Form
 
     private bool isSelectingTarget = false;
     private Action<MacroEvent>? onTargetSelected;
-    private bool isEditMode = false;
-    private string? originalEventName = null;
+    private readonly FlowControlEvent? _editing = null;
 
     public event ContainsEventNameDelegate? ContainsEventName;
     public event Action<MacroEvent>? JumpEventCreated;
@@ -32,26 +31,24 @@ public partial class EditFlowControlEventForm : Form
         textBoxEventName.Text = defaultEventName ?? string.Empty;
         cmbConditionType.SelectedIndex = 0;
         lblColorHex.Text = Color.Red.ExpressAsRgbColor();
-        isEditMode = false;
     }
 
     /// <summary>
     /// 编辑现有跳转事件的构造函数
     /// </summary>
-    public EditFlowControlEventForm(MacroEvent existingEvent) : this()
+    public EditFlowControlEventForm(FlowControlEvent fcEvent) : this()
     {
-        if (existingEvent is null)
-            throw new ArgumentNullException(nameof(existingEvent));
+        ArgumentNullException.ThrowIfNull(fcEvent);
+        _editing = fcEvent;
 
-        isEditMode = true;
-        originalEventName = existingEvent.EventName;
-        LoadEventData(existingEvent);
-        Text = "编辑跳转事件";
+        LoadEventData(fcEvent);
+        Text = "编辑";
     }
 
-    private bool HasEventName(string name)
+    private bool HasEventName(string? name)
     {
-        return ContainsEventName?.Invoke(name) ?? true;
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        return ContainsEventName?.Invoke(name, _editing) ?? true;
     }
 
     /// <summary>
@@ -205,18 +202,10 @@ public partial class EditFlowControlEventForm : Form
 
     private void BtnOK_Click(object sender, EventArgs e)
     {
-        // 验证事件名称：如果是编辑模式且名称未改变，或者名称为空，则跳过验证
-        if (EventName is not null)
+        if (HasEventName(EventName))
         {
-            // 如果是编辑模式且名称未改变，允许保留原名称
-            if (!(isEditMode && string.Equals(EventName, originalEventName, StringComparison.OrdinalIgnoreCase)))
-            {
-                if (HasEventName(EventName))
-                {
-                    MessageBox.Show(this, $"事件名称 '{EventName}' 已被使用，请选择一个唯一的名称。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-            }
+            MessageBox.Show(this, $"事件名称 '{EventName}' 已被使用，请选择一个唯一的名称。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
         }
 
         // 中断
@@ -247,7 +236,7 @@ public partial class EditFlowControlEventForm : Form
         {
             // 验证目标事件名称（如果提供）
             string tTargetEventName = txtTrueTargetEventName.Text.Trim();
-            string? tTargetFilePath = rdTrueFilePath.Checked ? txtTrueFilePath.Text.Trim(): null;
+            string? tTargetFilePath = rdTrueFilePath.Checked ? txtTrueFilePath.Text.Trim() : null;
 
             if (rdTrueEventName.Checked && !MacroEvent.IsValidEventName(tTargetEventName))
             {

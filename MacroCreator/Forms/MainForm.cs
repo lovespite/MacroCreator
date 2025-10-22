@@ -1,7 +1,5 @@
 ﻿using MacroCreator.Controller;
 using MacroCreator.Models;
-using System.Diagnostics;
-using System.Runtime.Intrinsics.X86;
 
 namespace MacroCreator.Forms;
 
@@ -37,9 +35,18 @@ public partial class MainForm : Form
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态
     }
 
-    public bool ContainsEventWithName(string eventName)
+    public bool ContainsEventWithName(string eventName, MacroEvent? except = null)
     {
-        return _controller.EventSequence.Any(ev => string.Equals(ev.EventName, eventName, StringComparison.OrdinalIgnoreCase));
+        foreach (var e in _controller.EventSequence)
+        {
+            if (except is not null && ReferenceEquals(e, except))
+                continue;
+
+            if (string.Equals(e.EventName, eventName, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     #region Private Methods    
@@ -47,12 +54,35 @@ public partial class MainForm : Form
     private void EditDelayEvent(DelayEvent ev)
     {
         using var inputDialog = new EditDelayEventForm(ev);
-        inputDialog.ContainsEventNameCallback += ContainsEventWithName;
+        inputDialog.ContainsEventName += ContainsEventWithName;
         var ret = inputDialog.ShowDialog(this);
         if (ret != DialogResult.OK) return;
 
         ev.DelayMilliseconds = (int)inputDialog.DelayMilliseconds;
         ev.EventName = inputDialog.EventName;
+
+        // 直接更新显示，不需要完全刷新
+        var index = _controller.IndexOfEvent(ev);
+        if (index >= 0 && index < lvEvents.Items.Count)
+        {
+            UpdateListViewItem(lvEvents.Items[index], ev);
+        }
+        Controller_StatusChanged($"'{ev.DisplayName}' 事件已更新");
+    }
+
+    private void EditMouseEvent(MouseEvent ev)
+    {
+        using var inputDialog = new EditMouseEventForm(ev);
+        inputDialog.ContainsEventName += ContainsEventWithName;
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+
+        ev.X = inputDialog.MouseX;
+        ev.Y = inputDialog.MouseY;
+        ev.Action = inputDialog.MouseAction;
+        ev.WheelDelta = inputDialog.WheelDelta;
+        ev.EventName = inputDialog.EventName;
+        ev.TimeSinceLastEvent = inputDialog.DelayMilliseconds;
 
         // 直接更新显示，不需要完全刷新
         var index = _controller.IndexOfEvent(ev);
@@ -359,7 +389,7 @@ public partial class MainForm : Form
             await _controller.StartPlayback();
         }
         catch (EventFlowControlException ex)
-        { 
+        {
             Controller_StatusChanged($"ERR! 播放在 {ex.EventIndex} ({ex.Event.DisplayName}) 中断：{ex.Message}");
         }
         catch (EventPlayerException ex)
@@ -510,7 +540,7 @@ public partial class MainForm : Form
     {
         using var inputDialog = new EditDelayEventForm(nameof(DelayEvent) + "_" + lvEvents.Items.Count);
 
-        inputDialog.ContainsEventNameCallback += ContainsEventWithName;
+        inputDialog.ContainsEventName += ContainsEventWithName;
 
         var ret = inputDialog.ShowDialog(this);
         if (ret != DialogResult.OK) return;
@@ -536,8 +566,8 @@ public partial class MainForm : Form
         var originalName = ev.EventName is null ? "匿名事件" : $"'{ev.EventName}'";
 
         // 创建输入对话框
-        using var inputDialog = new RenameEventForm(ev.EventName ?? $"{ev.GetType().Name}_{_controller.IndexOfEvent(ev)}");
-        inputDialog.ContainsEventNameCallback += ContainsEventWithName;
+        using var inputDialog = new RenameEventForm(ev);
+        inputDialog.ContainsEventName += ContainsEventWithName;
 
         if (inputDialog.ShowDialog() != DialogResult.OK) return;
 
@@ -598,9 +628,13 @@ public partial class MainForm : Form
         {
             EditFlowControlEvent(fcEvent);
         }
-        if (ev is DelayEvent delayEvent)
+        else if (ev is DelayEvent delayEvent)
         {
             EditDelayEvent(delayEvent);
+        }
+        else if (ev is MouseEvent mouseEvent)
+        {
+            EditMouseEvent(mouseEvent);
         }
         else
         {
