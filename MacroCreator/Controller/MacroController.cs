@@ -32,6 +32,7 @@ public class MacroController
         // 使用策略模式初始化回放服务
         var playerStrategies = new Dictionary<Type, IEventPlayer>
         {
+            { typeof(NopPlayer), new NopPlayer() },
             { typeof(MouseEvent), new MouseEventPlayer() },
             { typeof(KeyboardEvent), new KeyboardEventPlayer() },
             { typeof(DelayEvent), new DelayEventPlayer() },

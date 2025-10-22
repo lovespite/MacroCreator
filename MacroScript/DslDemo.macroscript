@@ -1,0 +1,50 @@
+﻿// 这是注释
+
+// 1. 原子事件
+// 格式: Action(参数...) [延迟ms]
+// 最后的数字是可选的 "TimeSinceLastEvent" (执行前延迟)
+
+Mouse(LeftDown, 100, 200, 50) // 延迟50ms, 然后在 (100, 200) 按下左键
+Mouse(LeftUp, 100, 200, 20)
+Mouse(Move, 500, 500, 100)
+Mouse(Wheel, 500, 500, 120, 10) // Wheel事件有4个参数 (x, y, delta, delay)
+
+Key(KeyDown, LControlKey, 100) // 延迟100ms, 然后按下左Ctrl
+Key(KeyUp, LControlKey, 50)
+
+// 2. 显式延迟
+// (这会创建一个 DelayEvent)
+Delay(1000) // 暂停 1000ms
+
+// 3. 流程控制：IF / ELSE / ENDIF
+
+// 3a. 简单 IF
+if (PixelColor(10, 20) == RGB(255, 0, 0, 5)) // x, y, r, g, b, [tolerance]
+    Mouse(LeftDown, 10, 20)
+    Mouse(LeftUp, 10, 20)
+endif
+
+// 3b. IF / ELSE
+if (Custom("hour > 9")) // 支持您现有的自定义表达式
+    Delay(1000)
+else
+    Delay(500)
+endif
+
+// 3c. 支持 != (不等于)
+if (PixelColor(0, 0) != RGB(0, 0, 0))
+    Break // Break 关键字用于停止宏
+endif
+
+// 4. 流程控制：WHILE / ENDWHILE
+while (PixelColor(100, 100) == RGB(255, 255, 255))
+    // 只要 (100,100) 处的像素是白色，就一直点击
+    Mouse(LeftDown, 50, 50)
+    Mouse(LeftUp, 50, 50, 100)
+    Delay(500)
+endwhile
+
+// 5. 传统标签和 GOTO (仍然支持)
+Label(MyStartPoint)
+Mouse(Move, 0, 0, 100)
+Goto(MyStartPoint) // 跳转回 MyStartPoint

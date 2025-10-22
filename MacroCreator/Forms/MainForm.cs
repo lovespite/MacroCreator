@@ -17,7 +17,11 @@ public partial class MainForm : Form
         private set
         {
             _activeEvent = value;
+
             playFromCursorToolStripMenuItem.Enabled = _activeEvent is not null;
+            playFromCursorToolStripMenuItem2.Enabled = _activeEvent is not null;
+            playToCursorToolStripMenuItem.Enabled = _activeEvent is not null;
+            playToCursorToolStripMenuItem2.Enabled = _activeEvent is not null;
         }
     }
 
@@ -35,6 +39,14 @@ public partial class MainForm : Form
 
         UpdateTitle();
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态
+    }
+
+    public MainForm(string? openFile) : this()
+    {
+        if (openFile is not null)
+            _controller.LoadSequence(openFile);
+
+        UpdateTitle();
     }
 
     public bool ContainsEventWithName(string eventName, MacroEvent? except = null)
@@ -529,9 +541,9 @@ public partial class MainForm : Form
 
 
         if (lvEvents.SelectedItems[0].Tag is not MacroEvent startFrom ||
-            lvEvents.SelectedItems[lvEvents.SelectedItems.Count - 1].Tag is not MacroEvent endTo) 
+            lvEvents.SelectedItems[lvEvents.SelectedItems.Count - 1].Tag is not MacroEvent endTo)
             return;
-        
+
         StartPlay(startFrom, endTo);
     }
 

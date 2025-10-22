@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MacroScript": {
+      "commandName": "Project",
+      "commandLineArgs": "compile DslDemo.macroscript --open"
+    }
+  }
+}

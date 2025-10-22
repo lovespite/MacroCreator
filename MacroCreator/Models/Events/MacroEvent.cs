@@ -12,6 +12,8 @@ namespace MacroCreator.Models.Events;
 [XmlInclude(typeof(DelayEvent))]
 [XmlInclude(typeof(JumpEvent))]
 [XmlInclude(typeof(ConditionalJumpEvent))]
+[XmlInclude(typeof(BreakEvent))]
+[XmlInclude(typeof(Nop))]
 [Serializable]
 public abstract class MacroEvent
 {
