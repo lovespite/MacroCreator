@@ -26,11 +26,7 @@ public class MacroController
     public MacroController()
     {
         _recordingService = new RecordingService();
-        _recordingService.OnEventRecorded += (ev) =>
-        {
-            _events.Add(ev);
-            EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Add, _events.Count - 1, ev));
-        };
+        _recordingService.OnEventRecorded += _events.Add;
 
         // 使用策略模式初始化回放服务
         var playerStrategies = new Dictionary<Type, IEventPlayer>
@@ -208,6 +204,7 @@ public class MacroController
         if (CurrentState == AppState.Recording)
         {
             _recordingService.Stop();
+            EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.FullRefresh, 0, null));
             StatusMessageChanged?.Invoke("录制结束");
         }
         else if (CurrentState == AppState.Playing)
