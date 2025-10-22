@@ -1,5 +1,5 @@
 // 命名空间定义了应用程序的入口点
-namespace MacroCreator.Models;
+namespace MacroCreator.Models.Events;
 
 /// <summary>
 /// 中断事件 - 用于终止宏的执行
@@ -10,4 +10,6 @@ public class BreakEvent : FlowControlEvent
     {
         return "中断执行";
     }
+
+    public override string TypeName => "Break";
 }

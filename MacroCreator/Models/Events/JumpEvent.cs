@@ -1,5 +1,5 @@
 // 命名空间定义了应用程序的入口点
-namespace MacroCreator.Models;
+namespace MacroCreator.Models.Events;
 
 /// <summary>
 /// 无条件跳转事件 - 跳转到指定的事件索引或名称
@@ -15,4 +15,6 @@ public class JumpEvent : FlowControlEvent
     {
         return $"跳转事件: {TargetEventName}";
     }
+
+    public override string TypeName => "Goto";
 }

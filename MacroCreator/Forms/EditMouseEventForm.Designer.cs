@@ -46,6 +46,7 @@ namespace MacroCreator.Forms
             labelDelay = new Label();
             btnOk = new Button();
             btnCancel = new Button();
+            chkPairedEvents = new CheckBox();
             ((System.ComponentModel.ISupportInitialize)numericUpDownX).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDownY).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDownWheelDelta).BeginInit();
@@ -95,7 +96,7 @@ namespace MacroCreator.Forms
             labelX.AutoSize = true;
             labelX.Location = new Point(15, 25);
             labelX.Name = "labelX";
-            labelX.Size = new Size(47, 17);
+            labelX.Size = new Size(44, 17);
             labelX.TabIndex = 0;
             labelX.Text = "X 坐标";
             // 
@@ -113,7 +114,7 @@ namespace MacroCreator.Forms
             labelY.AutoSize = true;
             labelY.Location = new Point(188, 25);
             labelY.Name = "labelY";
-            labelY.Size = new Size(46, 17);
+            labelY.Size = new Size(43, 17);
             labelY.TabIndex = 0;
             labelY.Text = "Y 坐标";
             // 
@@ -131,7 +132,7 @@ namespace MacroCreator.Forms
             labelWheelDelta.AutoSize = true;
             labelWheelDelta.Location = new Point(15, 81);
             labelWheelDelta.Name = "labelWheelDelta";
-            labelWheelDelta.Size = new Size(56, 17);
+            labelWheelDelta.Size = new Size(44, 17);
             labelWheelDelta.TabIndex = 0;
             labelWheelDelta.Text = "滚动量";
             labelWheelDelta.Visible = false;
@@ -232,6 +233,18 @@ namespace MacroCreator.Forms
             btnCancel.UseVisualStyleBackColor = true;
             btnCancel.Click += BtnCancel_Click;
             // 
+            // chkPairedEvents
+            // 
+            chkPairedEvents.AutoSize = true;
+            chkPairedEvents.Checked = true;
+            chkPairedEvents.CheckState = CheckState.Checked;
+            chkPairedEvents.Location = new Point(100, 406);
+            chkPairedEvents.Name = "chkPairedEvents";
+            chkPairedEvents.Size = new Size(102, 21);
+            chkPairedEvents.TabIndex = 12;
+            chkPairedEvents.Text = "创建事件对(&P)";
+            chkPairedEvents.UseVisualStyleBackColor = true;
+            // 
             // EditMouseEventForm
             // 
             AcceptButton = btnOk;
@@ -239,6 +252,7 @@ namespace MacroCreator.Forms
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = btnCancel;
             ClientSize = new Size(384, 441);
+            Controls.Add(chkPairedEvents);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
             Controls.Add(groupBoxDelay);
@@ -284,5 +298,6 @@ namespace MacroCreator.Forms
         private Label labelDelay;
         private Button btnOk;
         private Button btnCancel;
+        private CheckBox chkPairedEvents;
     }
 }

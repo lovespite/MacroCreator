@@ -1,4 +1,6 @@
-﻿namespace MacroCreator.Models;
+﻿using MacroCreator.Models.Events;
+
+namespace MacroCreator.Models;
 
 public class EventPlayerException(string message, MacroEvent @event, int index) : Exception(message)
 {

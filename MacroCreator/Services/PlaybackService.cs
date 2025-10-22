@@ -1,5 +1,6 @@
 ﻿// 命名空间定义了应用程序的入口点
 using MacroCreator.Models;
+using MacroCreator.Models.Events;
 
 namespace MacroCreator.Services;
 
@@ -19,7 +20,7 @@ public class PlaybackService(Dictionary<Type, IEventPlayer> players) : IDisposab
     /// </summary>
     public PlaybackPerformanceMonitor PerformanceMonitor => _performanceMonitor;
 
-    public async Task Play(List<MacroEvent> events, CallExternalFileDelegate? loadAndPlayNewFileCallback)
+    public async Task Play(IReadOnlyList<MacroEvent> events, CallExternalFileDelegate? loadAndPlayNewFileCallback)
     {
         using var context = _context = new PlaybackContext(events, loadAndPlayNewFileCallback);
 

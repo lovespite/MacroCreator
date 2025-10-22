@@ -1,4 +1,4 @@
-﻿namespace MacroCreator.Models;
+﻿namespace MacroCreator.Models.Events;
 
 public class KeyboardEvent : MacroEvent
 {
@@ -7,7 +7,9 @@ public class KeyboardEvent : MacroEvent
 
     public override string GetDescription()
     {
-        return $"键盘 {Action}: {(Keys)Key}";
+        return $"键盘 {Action}: {Key}";
     }
+
+    public override string TypeName => $"Kbd_{Action}";
 }
 

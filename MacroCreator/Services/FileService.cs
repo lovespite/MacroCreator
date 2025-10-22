@@ -1,4 +1,4 @@
-﻿using MacroCreator.Models;
+﻿using MacroCreator.Models.Events;
 using System.Xml.Serialization;
 
 // 命名空间定义了应用程序的入口点

@@ -1,4 +1,5 @@
 using MacroCreator.Models;
+using MacroCreator.Models.Events;
 using MacroCreator.Utils;
 
 namespace MacroCreator.Forms;
@@ -8,8 +9,10 @@ public partial class EditMouseEventForm : Form
     public int MouseX => (int)numericUpDownX.Value;
     public int MouseY => (int)numericUpDownY.Value;
     public int WheelDelta => (int)numericUpDownWheelDelta.Value;
-    public MouseAction MouseAction => (MouseAction)comboBoxAction.SelectedIndex;
+    public MouseAction Action => (MouseAction)comboBoxAction.SelectedIndex;
     public string? EventName => string.IsNullOrWhiteSpace(textBoxEventName.Text) ? null : textBoxEventName.Text.Trim();
+
+    public bool CreatePairedEvent => Action.IsDownAction() && chkPairedEvents.Checked;
 
     private readonly MouseEvent? _editing = null;
 
@@ -41,7 +44,7 @@ public partial class EditMouseEventForm : Form
         ArgumentNullException.ThrowIfNull(mouseEvent);
         _editing = mouseEvent;
 
-        textBoxEventName.Text = mouseEvent.EventName ?? $"{mouseEvent.Action}_{Rnd.GetString(4)}";
+        textBoxEventName.Text = mouseEvent.EventName ?? $"{mouseEvent.TypeName}_{Rnd.GetString(5)}";
 
         numericUpDownX.Value = mouseEvent.X;
         numericUpDownY.Value = mouseEvent.Y;
@@ -93,9 +96,10 @@ public partial class EditMouseEventForm : Form
 
     private void UpdateWheelDeltaVisibility()
     {
-        bool isWheelScroll = comboBoxAction.SelectedIndex == (int)MouseAction.WheelScroll;
+        bool isWheelScroll = comboBoxAction.SelectedIndex == (int)MouseAction.Wheel;
         labelWheelDelta.Visible = isWheelScroll;
         numericUpDownWheelDelta.Visible = isWheelScroll;
+        chkPairedEvents.Visible = Action.IsDownAction();
     }
 
     private void BtnOk_Click(object sender, EventArgs e)

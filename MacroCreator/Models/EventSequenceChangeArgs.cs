@@ -1,3 +1,5 @@
+using MacroCreator.Models.Events;
+
 namespace MacroCreator.Models;
 
 /// <summary>

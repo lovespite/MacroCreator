@@ -1,5 +1,6 @@
 ﻿using MacroCreator.Services;
 using MacroCreator.Models;
+using MacroCreator.Models.Events;
 
 namespace MacroCreator.Controller;
 
@@ -140,6 +141,32 @@ public class MacroController
         return oldEvent;
     }
 
+    public int MoveEventUp(int index)
+    {
+        if (index <= 0 || index >= _events.Count) return index;
+        var targetEvent = _events[index];
+        var aboveEvent = ReplaceEvent(index - 1, targetEvent);
+        _events[index] = aboveEvent;
+
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Update, index, aboveEvent));
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Update, index - 1, targetEvent));
+
+        return index - 1;
+    }
+
+    public int MoveEventDown(int index)
+    {
+        if (index < 0 || index >= _events.Count - 1) return index;
+        var targetEvent = _events[index];
+        var belowEvent = ReplaceEvent(index + 1, targetEvent);
+        _events[index] = belowEvent;
+
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Update, index, belowEvent));
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.Update, index + 1, targetEvent));
+
+        return index + 1;
+    }
+
     public void StartRecording()
     {
         if (CurrentState != AppState.Idle) return;
@@ -148,15 +175,25 @@ public class MacroController
         StatusMessageChanged?.Invoke("录制中... 按 F11 停止");
     }
 
-    public async Task StartPlayback()
+    public async Task StartPlayback(MacroEvent? startFrom = null, MacroEvent? endTo = null)
     {
         if (CurrentState != AppState.Idle) return;
+        var startFromIndex = startFrom is not null ? IndexOfEvent(startFrom) : 0;
+        ArgumentOutOfRangeException.ThrowIfLessThan(startFromIndex, 0, nameof(startFrom));
+
+        var endToIndex = endTo is not null ? IndexOfEvent(endTo) : _events.Count - 1;
+        ArgumentOutOfRangeException.ThrowIfLessThan(endToIndex, 0, nameof(endTo));
+        if (endToIndex < startFromIndex)
+        {
+            throw new ArgumentException("结束事件必须在起始事件之后。", nameof(endTo));
+        }
+        var sequenceToPlay = _events[startFromIndex..(endToIndex + 1)];
 
         SetState(AppState.Playing);
         StatusMessageChanged?.Invoke("播放中... 按 F11 停止");
         try
         {
-            await Playback();
+            await Playback(sequenceToPlay);
             StatusMessageChanged?.Invoke("播放完成");
         }
         catch (TaskCanceledException)
@@ -169,14 +206,14 @@ public class MacroController
         }
     }
 
-    private async Task Playback()
+    private async Task Playback(IReadOnlyList<MacroEvent> sequence)
     {
         var tcs = new TaskCompletionSource();
         Thread playbackThread = new(() =>
         {
             try
             {
-                _playbackService.Play(_events, LoadAndPlayNewFile).GetAwaiter().GetResult();
+                _playbackService.Play(sequence, LoadAndPlayNewFile).GetAwaiter().GetResult();
                 tcs.SetResult();
             }
             catch (Exception ex)

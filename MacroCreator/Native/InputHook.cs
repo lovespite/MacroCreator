@@ -64,12 +64,12 @@ public static class InputHook
                 case NativeMethods.WM_MBUTTONDOWN: action = MouseAction.MiddleDown; break;
                 case NativeMethods.WM_MBUTTONUP: action = MouseAction.MiddleUp; break;
                 case NativeMethods.WM_MOUSEWHEEL:
-                    action = MouseAction.WheelScroll;
+                    action = MouseAction.Wheel;
                     delta = (short)((hookStruct.mouseData >> 16) & 0xffff);
                     break;
                 case NativeMethods.WM_MOUSEMOVE:
                 default:
-                    action = MouseAction.MouseMove;
+                    action = MouseAction.Move;
                     break;
             }
             OnMouseEvent?.Invoke(action, x, y, delta);

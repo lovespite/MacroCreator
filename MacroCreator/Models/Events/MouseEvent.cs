@@ -1,4 +1,4 @@
-﻿namespace MacroCreator.Models;
+﻿namespace MacroCreator.Models.Events;
 
 public class MouseEvent : MacroEvent
 {
@@ -9,11 +9,13 @@ public class MouseEvent : MacroEvent
 
     public override string GetDescription()
     {
-        if (Action == MouseAction.WheelScroll)
+        if (Action == MouseAction.Wheel)
         {
             return $"鼠标滚轮: 滚动量 {WheelDelta} 在 ({X}, {Y})";
         }
         return $"鼠标 {Action} 在 ({X}, {Y})";
     }
+
+    public override string TypeName => $"Mouse_{Action}";
 }
 

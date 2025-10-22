@@ -1,5 +1,5 @@
 // 命名空间定义了应用程序的入口点
-using MacroCreator.Models;
+using MacroCreator.Models.Events;
 using MacroCreator.Utils;
 
 namespace MacroCreator.Forms;

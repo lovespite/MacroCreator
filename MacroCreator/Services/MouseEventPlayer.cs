@@ -1,5 +1,6 @@
 ﻿// 命名空间定义了应用程序的入口点
 using MacroCreator.Models;
+using MacroCreator.Models.Events;
 using MacroCreator.Native;
 using System.Runtime.InteropServices;
 
@@ -37,7 +38,7 @@ public class MouseEventPlayer : IEventPlayer
             case MouseAction.MiddleUp:
                 flags = NativeMethods.MOUSEEVENTF_MIDDLEUP;
                 break;
-            case MouseAction.WheelScroll:
+            case MouseAction.Wheel:
                 flags = NativeMethods.MOUSEEVENTF_WHEEL;
                 mouseData = (uint)me.WheelDelta;
                 break;

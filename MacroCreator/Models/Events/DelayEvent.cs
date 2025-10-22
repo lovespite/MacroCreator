@@ -1,4 +1,6 @@
-﻿namespace MacroCreator.Models;
+﻿using MacroCreator.Models.Events;
+
+namespace MacroCreator.Models;
 
 public class DelayEvent : MacroEvent
 {
@@ -7,5 +9,7 @@ public class DelayEvent : MacroEvent
     {
         return $"延迟 {DelayMilliseconds} 毫秒";
     }
+
+    public override string TypeName => "Delay";
 }
 

@@ -1,7 +1,7 @@
 ﻿using System.Xml.Serialization;
 
 // 命名空间定义了应用程序的入口点
-namespace MacroCreator.Models;
+namespace MacroCreator.Models.Events;
 
 /// <summary>
 /// 所有录制事件的基类

@@ -1,4 +1,4 @@
-﻿using MacroCreator.Models;
+﻿using MacroCreator.Models.Events;
 using MacroCreator.Utils;
 
 namespace MacroCreator.Forms
@@ -20,7 +20,7 @@ namespace MacroCreator.Forms
         {
             InitializeComponent();
             _editing = @event;
-            textBox1.Text = _editing.EventName ?? $"{_editing.TypeName}_{Rnd.GetString(4)}";
+            textBox1.Text = _editing.EventName ?? $"{_editing.TypeName}_{Rnd.GetString(5)}";
         }
 
         private void BtnOk_Click(object sender, EventArgs e)

@@ -1,4 +1,5 @@
 ﻿using MacroCreator.Models;
+using MacroCreator.Models.Events;
 
 namespace MacroCreator.Forms;
 

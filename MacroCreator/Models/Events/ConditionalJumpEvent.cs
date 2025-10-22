@@ -1,7 +1,7 @@
 // 命名空间定义了应用程序的入口点
 using MacroCreator.Utils;
 
-namespace MacroCreator.Models;
+namespace MacroCreator.Models.Events;
 
 /// <summary>
 /// 条件跳转事件 - 基于指定条件决定是否跳转
@@ -12,6 +12,8 @@ public class ConditionalJumpEvent : FlowControlEvent
     /// 条件类型
     /// </summary>
     public ConditionType ConditionType { get; set; }
+
+    public override string TypeName => "Branch";
 
     /// <summary>
     /// 像素检查的X坐标（当ConditionType为PixelColor时使用）
@@ -73,9 +75,9 @@ public class ConditionalJumpEvent : FlowControlEvent
 
         var falseBranch = !string.IsNullOrEmpty(FalseTargetFilePath)
             ? $"执行文件: {Path.GetFileName(FalseTargetFilePath)}"
-            : (!string.IsNullOrEmpty(FalseTargetEventName)
+            : !string.IsNullOrEmpty(FalseTargetEventName)
                 ? $"跳转事件: {FalseTargetEventName}"
-                : "继续执行");
+                : "继续执行";
 
         return $"条件跳转: {conditionDesc} → 真:{trueBranch}, 假:{falseBranch}";
     }

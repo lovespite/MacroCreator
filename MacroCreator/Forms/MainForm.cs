@@ -1,5 +1,7 @@
 ﻿using MacroCreator.Controller;
 using MacroCreator.Models;
+using MacroCreator.Models.Events;
+using MacroCreator.Utils;
 
 namespace MacroCreator.Forms;
 
@@ -79,7 +81,7 @@ public partial class MainForm : Form
 
         ev.X = inputDialog.MouseX;
         ev.Y = inputDialog.MouseY;
-        ev.Action = inputDialog.MouseAction;
+        ev.Action = inputDialog.Action;
         ev.WheelDelta = inputDialog.WheelDelta;
         ev.EventName = inputDialog.EventName;
         ev.TimeSinceLastEvent = inputDialog.DelayMilliseconds;
@@ -103,15 +105,33 @@ public partial class MainForm : Form
         {
             X = inputDialog.MouseX,
             Y = inputDialog.MouseY,
-            Action = inputDialog.MouseAction,
+            Action = inputDialog.Action,
             WheelDelta = inputDialog.WheelDelta,
             EventName = inputDialog.EventName,
+            TimeSinceLastEvent = inputDialog.DelayMilliseconds,
         };
         if (ActiveEvent is null)
             _controller.AddEvent(ev);
         else
             _controller.InsertEventBefore(ActiveEvent, ev);
         Controller_StatusChanged($"'{ev.DisplayName}' 事件已创建");
+
+        if (!inputDialog.CreatePairedEvent) return;
+
+        var pairedEvent = new MouseEvent()
+        {
+            X = inputDialog.MouseX,
+            Y = inputDialog.MouseY,
+            Action = inputDialog.Action.GetPairedAction(),
+            WheelDelta = inputDialog.WheelDelta,
+            EventName = inputDialog.EventName is null ? null : inputDialog.EventName + "_Up",
+            TimeSinceLastEvent = inputDialog.DelayMilliseconds,
+        };
+        if (ActiveEvent is null)
+            _controller.AddEvent(pairedEvent);
+        else
+            _controller.InsertEventBefore(ActiveEvent, pairedEvent);
+        Controller_StatusChanged($"'{pairedEvent.DisplayName}' 事件已创建");
     }
 
     private void EditKeyboardEvent(KeyboardEvent ev)
@@ -121,7 +141,7 @@ public partial class MainForm : Form
         var ret = inputDialog.ShowDialog(this);
         if (ret != DialogResult.OK) return;
         ev.Key = inputDialog.Key;
-        ev.Action = inputDialog.KeyboardAction;
+        ev.Action = inputDialog.KeyAction;
         ev.EventName = inputDialog.EventName;
         ev.TimeSinceLastEvent = inputDialog.DelayMilliseconds;
         // 直接更新显示，不需要完全刷新
@@ -135,21 +155,42 @@ public partial class MainForm : Form
 
     private void InsertKeyboardEvent()
     {
-        using var inputDialog = new EditKeyboardEventForm($"KeyboardEvent_{lvEvents.Items.Count}");
+        using var inputDialog = new EditKeyboardEventForm($"Kbd_{lvEvents.Items.Count}");
         inputDialog.ContainsEventName += ContainsEventWithName;
         var ret = inputDialog.ShowDialog(this);
         if (ret != DialogResult.OK) return;
         var ev = new KeyboardEvent()
         {
             Key = inputDialog.Key,
-            Action = inputDialog.KeyboardAction,
+            Action = inputDialog.KeyAction,
             EventName = inputDialog.EventName,
+            TimeSinceLastEvent = inputDialog.DelayMilliseconds,
         };
+
         if (ActiveEvent is null)
             _controller.AddEvent(ev);
         else
             _controller.InsertEventBefore(ActiveEvent, ev);
+
         Controller_StatusChanged($"'{ev.DisplayName}' 事件已创建");
+
+        if (!inputDialog.CreatePairedEvent) return;
+
+        var pairedEvent = new KeyboardEvent()
+        {
+            Key = inputDialog.Key,
+            Action = KeyboardAction.KeyUp,
+            EventName = inputDialog.EventName is null ? null : inputDialog.EventName + "_Up",
+            TimeSinceLastEvent = inputDialog.DelayMilliseconds,
+        };
+
+
+        if (ActiveEvent is null)
+            _controller.AddEvent(pairedEvent);
+        else
+            _controller.InsertEventBefore(ActiveEvent, pairedEvent);
+
+        Controller_StatusChanged($"'{pairedEvent.DisplayName}' 事件已创建");
     }
 
     private void EditFlowControlEvent(FlowControlEvent ev)
@@ -352,8 +393,8 @@ public partial class MainForm : Form
             : $"{ev.EventName}";
 
         var item = new ListViewItem([
-            indexDisplay,
             ev.TypeName,
+            indexDisplay,
             ev.GetDescription(),
             $"{ev.TimeSinceLastEvent:0.00}"
         ])
@@ -373,8 +414,8 @@ public partial class MainForm : Form
             ? "(匿名)"
             : $"{ev.EventName}";
 
-        item.SubItems[0].Text = indexDisplay;
-        item.SubItems[1].Text = ev.TypeName;
+        item.SubItems[0].Text = ev.TypeName;
+        item.SubItems[1].Text = indexDisplay;
         item.SubItems[2].Text = ev.GetDescription();
         item.SubItems[3].Text = $"{ev.TimeSinceLastEvent:0.00}";
         item.Tag = ev;
@@ -398,6 +439,31 @@ public partial class MainForm : Form
     {
         string fileName = string.IsNullOrEmpty(_controller.CurrentFilePath) ? "未命名" : Path.GetFileName(_controller.CurrentFilePath);
         Text = $"MacroCreator - {fileName}";
+    }
+
+    private async void StartPlay(MacroEvent? startFrom = null, MacroEvent? endTo = null)
+    {
+        try
+        {
+            if (cbHideForm.Checked) Hide();
+            await _controller.StartPlayback(startFrom, endTo);
+        }
+        catch (EventFlowControlException ex)
+        {
+            Controller_StatusChanged($"ERR! 播放在 {ex.EventIndex} ({ex.Event.DisplayName}) 中断：{ex.Message}");
+        }
+        catch (EventPlayerException ex)
+        {
+            Controller_StatusChanged($"ERR! 播放在 {ex.EventIndex} ({ex.Event.DisplayName}) 中断：{ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Controller_StatusChanged($"ERR! 未知错误：{ex.Message}");
+        }
+        finally
+        {
+            Show();
+        }
     }
 
     #endregion
@@ -440,34 +506,33 @@ public partial class MainForm : Form
         _controller.StartRecording();
     }
 
-    private async void BtnPlay_Click(object sender, EventArgs e)
+    private void BtnPlay_Click(object sender, EventArgs e)
     {
-        try
-        {
-            if (cbHideForm.Checked) Hide();
-            await _controller.StartPlayback();
-        }
-        catch (EventFlowControlException ex)
-        {
-            Controller_StatusChanged($"ERR! 播放在 {ex.EventIndex} ({ex.Event.DisplayName}) 中断：{ex.Message}");
-        }
-        catch (EventPlayerException ex)
-        {
-            Controller_StatusChanged($"ERR! 播放在 {ex.EventIndex} ({ex.Event.DisplayName}) 中断：{ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            Controller_StatusChanged($"ERR! 未知错误：{ex.Message}");
-        }
-        finally
-        {
-            Show();
-        }
+        StartPlay();
     }
 
     private void PlayFromCursorToolStripMenuItem_Click(object sender, EventArgs e)
     {
         if (ActiveEvent is null) return;
+        StartPlay(startFrom: ActiveEvent);
+    }
+
+    private void PlayToCursorToolStripMenuItem5_Click(object sender, EventArgs e)
+    {
+        if (ActiveEvent is null) return;
+        StartPlay(endTo: ActiveEvent);
+    }
+
+    private void playSelectedSeqToolStripMenuItem5_Click(object sender, EventArgs e)
+    {
+        if (lvEvents.SelectedItems.Count < 2) return;
+
+
+        if (lvEvents.SelectedItems[0].Tag is not MacroEvent startFrom ||
+            lvEvents.SelectedItems[lvEvents.SelectedItems.Count - 1].Tag is not MacroEvent endTo) 
+            return;
+        
+        StartPlay(startFrom, endTo);
     }
 
     private void BtnStop_Click(object sender, EventArgs e)
@@ -593,7 +658,7 @@ public partial class MainForm : Form
     }
     private void InsertDelayToolStripMenuItem1_Click(object sender, EventArgs e)
     {
-        using var inputDialog = new EditDelayEventForm(nameof(DelayEvent) + "_" + lvEvents.Items.Count);
+        using var inputDialog = new EditDelayEventForm($"Delay_{Rnd.GetString(5)}");
 
         inputDialog.ContainsEventName += ContainsEventWithName;
 
@@ -711,6 +776,33 @@ public partial class MainForm : Form
         }
     }
 
-    #endregion
+    private void MvEventUpToolStripMenuItem5_Click(object sender, EventArgs e)
+    {
+        if (ActiveEvent is null) return;
+        var index = _controller.IndexOfEvent(ActiveEvent);
+        if (index < 0) return;
 
+        var newIndex = _controller.MoveEventUp(index);
+        if (newIndex == index) return;
+
+        lvEvents.SelectedItems.Clear();
+        lvEvents.Items[newIndex].Selected = true;
+        lvEvents.Items[newIndex].EnsureVisible();
+    }
+
+    private void MvEventDownToolStripMenuItem6_Click(object sender, EventArgs e)
+    {
+        if (ActiveEvent is null) return;
+        var index = _controller.IndexOfEvent(ActiveEvent);
+        if (index < 0) return;
+
+        var newIndex = _controller.MoveEventDown(index);
+        if (newIndex == index) return;
+
+        lvEvents.SelectedItems.Clear();
+        lvEvents.Items[newIndex].Selected = true;
+        lvEvents.Items[newIndex].EnsureVisible();
+    }
+
+    #endregion
 }
