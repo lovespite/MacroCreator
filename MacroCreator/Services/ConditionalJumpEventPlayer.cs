@@ -98,7 +98,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
     private static bool Evaluate(PlaybackContext context, ConditionalJumpEvent @event)
     {
         if (string.IsNullOrWhiteSpace(@event.CustomCondition)) return false;
-        var evaluator = context.GetEvaluator(@event);
+        var evaluator = context.GetConditionEvaluator(@event);
 
         if (evaluator == null) return false;
         return evaluator();

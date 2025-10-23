@@ -1,7 +1,5 @@
 ﻿// 命名空间定义了应用程序的入口点
 using MacroCreator.Models.Events;
-using System.Data;
-using System.Reflection.Metadata.Ecma335;
 
 namespace MacroCreator.Services;
 
@@ -11,11 +9,13 @@ namespace MacroCreator.Services;
 public class PlaybackContext : IDisposable
 {
     private readonly Dictionary<string, int> _indexCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, object?> _variables = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<MacroEvent, ConditionEvaluator> _exprCache = [];
     private readonly DynamicExpresso.Interpreter _interpreter = new();
     private readonly CancellationTokenSource _cts = new();
 
     public int CurrentEventIndex { get; private set; } = 0;
+
     public MacroEvent CurrentEvent => Events[CurrentEventIndex];
 
     public bool IsDisposed { get; private set; } = false;
@@ -42,6 +42,11 @@ public class PlaybackContext : IDisposable
 
         _interpreter.SetVariable("runtime", this);
         _interpreter.SetFunction("Now", () => DateTime.Now);
+        _interpreter.SetFunction("UtcNow", () => DateTime.UtcNow);
+        _interpreter.SetFunction("Print", (object? msg) => Console.Write(msg));
+        _interpreter.SetFunction("Set", this.Set);
+        _interpreter.SetFunction("Get", this.Get);
+        _interpreter.SetFunction("Unset", this.Unset);
 
         BuildEventNameIndexCache();
     }
@@ -109,7 +114,7 @@ public class PlaybackContext : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    public ConditionEvaluator GetEvaluator(ConditionalJumpEvent @event)
+    public ConditionEvaluator GetConditionEvaluator(ConditionalJumpEvent @event)
     {
         if (_exprCache.TryGetValue(@event, out var func))
             return func;
@@ -118,6 +123,27 @@ public class PlaybackContext : IDisposable
             ?? throw new InvalidOperationException($"无法编译条件表达式: `{@event.CustomCondition}`");
 
         return (_exprCache[@event] = expr);
+    }
+
+    public object Execute(string expression)
+    {
+        return _interpreter.Eval(expression);
+    }
+
+    public void Set(string name, object? value)
+    {
+        _variables[name] = value;
+    }
+
+    public void Unset(string name)
+    {
+        _variables.Remove(name);
+    }
+
+    public object? Get(string name)
+    {
+        _variables.TryGetValue(name, out var value);
+        return value;
     }
 }
 

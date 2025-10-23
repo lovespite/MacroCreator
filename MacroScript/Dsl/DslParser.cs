@@ -456,7 +456,7 @@ public partial class DslParser
     [GeneratedRegex(@"Custom\s*\(\s*""(?<expr>[^""]*)""\s*\)")]
     private static partial Regex Regex_Custom();
 
-    [GeneratedRegex(@"(if|while)\s*\((.+)\)", RegexOptions.IgnoreCase, "zh-CN")]
+    [GeneratedRegex(@"(if|while)\s*\((.+)\)", RegexOptions.IgnoreCase)]
     private static partial Regex Regex_IfWhile();
 
     [GeneratedRegex(@"Delay\s*\((\s*[\d.]+)\s*\)")]

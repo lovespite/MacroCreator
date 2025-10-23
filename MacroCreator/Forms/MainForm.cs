@@ -816,5 +816,11 @@ public partial class MainForm : Form
         lvEvents.Items[newIndex].EnsureVisible();
     }
 
+    private void OpenConsoleToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+
+    }
+
     #endregion
+
 }

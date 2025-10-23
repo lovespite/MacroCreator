@@ -89,6 +89,8 @@ namespace MacroCreator.Forms
             btnPlay = new Button();
             btnStop = new Button();
             cbHideForm = new CheckBox();
+            helpToolStripMenuItem = new ToolStripMenuItem();
+            openConsoleToolStripMenuItem = new ToolStripMenuItem();
             menuStrip.SuspendLayout();
             statusStrip.SuspendLayout();
             toolStripContainer.BottomToolStripPanel.SuspendLayout();
@@ -107,7 +109,7 @@ namespace MacroCreator.Forms
             // 
             menuStrip.Dock = DockStyle.None;
             menuStrip.ImageScalingSize = new Size(20, 20);
-            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, ctrlToolStripMenuItem1, editToolStripMenuItem });
+            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, ctrlToolStripMenuItem1, editToolStripMenuItem, helpToolStripMenuItem });
             menuStrip.Location = new Point(0, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.RenderMode = ToolStripRenderMode.System;
@@ -178,20 +180,20 @@ namespace MacroCreator.Forms
             // 
             toolStripMenuItem4.Name = "toolStripMenuItem4";
             toolStripMenuItem4.ShortcutKeys = Keys.F9;
-            toolStripMenuItem4.Size = new Size(255, 22);
+            toolStripMenuItem4.Size = new Size(180, 22);
             toolStripMenuItem4.Text = "录制(&R)";
             toolStripMenuItem4.Click += BtnRecord_Click;
             // 
             // toolStripSeparator5
             // 
             toolStripSeparator5.Name = "toolStripSeparator5";
-            toolStripSeparator5.Size = new Size(252, 6);
+            toolStripSeparator5.Size = new Size(177, 6);
             // 
             // playToolStripMenuItem
             // 
             playToolStripMenuItem.Name = "playToolStripMenuItem";
             playToolStripMenuItem.ShortcutKeys = Keys.F10;
-            playToolStripMenuItem.Size = new Size(255, 22);
+            playToolStripMenuItem.Size = new Size(180, 22);
             playToolStripMenuItem.Text = "回放(&P)";
             playToolStripMenuItem.Click += BtnPlay_Click;
             // 
@@ -199,36 +201,33 @@ namespace MacroCreator.Forms
             // 
             stopToolStripMenuItem.Name = "stopToolStripMenuItem";
             stopToolStripMenuItem.ShortcutKeys = Keys.F11;
-            stopToolStripMenuItem.Size = new Size(255, 22);
+            stopToolStripMenuItem.Size = new Size(180, 22);
             stopToolStripMenuItem.Text = "停止(&S)";
             stopToolStripMenuItem.Click += BtnStop_Click;
             // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new Size(252, 6);
+            toolStripSeparator2.Size = new Size(177, 6);
             // 
             // playFromCursorToolStripMenuItem
             // 
             playFromCursorToolStripMenuItem.Name = "playFromCursorToolStripMenuItem";
-            playFromCursorToolStripMenuItem.ShortcutKeys = Keys.F12;
-            playFromCursorToolStripMenuItem.Size = new Size(255, 22);
+            playFromCursorToolStripMenuItem.Size = new Size(180, 22);
             playFromCursorToolStripMenuItem.Text = "从活动事件回放(&L)";
             playFromCursorToolStripMenuItem.Click += PlayFromCursorToolStripMenuItem_Click;
             // 
             // playToCursorToolStripMenuItem
             // 
             playToCursorToolStripMenuItem.Name = "playToCursorToolStripMenuItem";
-            playToCursorToolStripMenuItem.ShortcutKeys = Keys.Shift | Keys.F12;
-            playToCursorToolStripMenuItem.Size = new Size(255, 22);
+            playToCursorToolStripMenuItem.Size = new Size(180, 22);
             playToCursorToolStripMenuItem.Text = "回放到活动事件(&E)";
             playToCursorToolStripMenuItem.Click += PlayToCursorToolStripMenuItem5_Click;
             // 
             // playSelectedSeqToolStripMenuItem
             // 
             playSelectedSeqToolStripMenuItem.Name = "playSelectedSeqToolStripMenuItem";
-            playSelectedSeqToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.Shift | Keys.F12;
-            playSelectedSeqToolStripMenuItem.Size = new Size(255, 22);
+            playSelectedSeqToolStripMenuItem.Size = new Size(180, 22);
             playSelectedSeqToolStripMenuItem.Text = "回放选中片段(&C)";
             playSelectedSeqToolStripMenuItem.Click += playSelectedSeqToolStripMenuItem5_Click;
             // 
@@ -443,14 +442,14 @@ namespace MacroCreator.Forms
             lvEventsContextMenu.Items.AddRange(new ToolStripItem[] { editEventToolStripMenuItem, renameEventToolStripMenuItem, toolStripSeparator9, playFromCursorToolStripMenuItem2, playToCursorToolStripMenuItem2, playSelectedSeqToolStripMenuItem2, toolStripSeparator10, mvEventUpToolStripMenuItem6, mvEventUpToolStripMenuItem7, toolStripSeparator6, 删除DToolStripMenuItem });
             lvEventsContextMenu.Name = "contextMenuStripEvents";
             lvEventsContextMenu.RenderMode = ToolStripRenderMode.System;
-            lvEventsContextMenu.Size = new Size(272, 198);
+            lvEventsContextMenu.Size = new Size(206, 198);
             lvEventsContextMenu.Opening += ContextMenuStripEvents_Opening;
             // 
             // editEventToolStripMenuItem
             // 
             editEventToolStripMenuItem.Name = "editEventToolStripMenuItem";
             editEventToolStripMenuItem.ShortcutKeyDisplayString = "Ctrl + E";
-            editEventToolStripMenuItem.Size = new Size(271, 22);
+            editEventToolStripMenuItem.Size = new Size(205, 22);
             editEventToolStripMenuItem.Text = "编辑(&E)";
             editEventToolStripMenuItem.Click += EditEventToolStripMenuItem_Click;
             // 
@@ -458,49 +457,49 @@ namespace MacroCreator.Forms
             // 
             renameEventToolStripMenuItem.Name = "renameEventToolStripMenuItem";
             renameEventToolStripMenuItem.ShortcutKeyDisplayString = "Ctrl + R";
-            renameEventToolStripMenuItem.Size = new Size(271, 22);
+            renameEventToolStripMenuItem.Size = new Size(205, 22);
             renameEventToolStripMenuItem.Text = "重命名事件(&R)";
             renameEventToolStripMenuItem.Click += RenameEventToolStripMenuItem_Click;
             // 
             // toolStripSeparator9
             // 
             toolStripSeparator9.Name = "toolStripSeparator9";
-            toolStripSeparator9.Size = new Size(268, 6);
+            toolStripSeparator9.Size = new Size(202, 6);
             // 
             // playFromCursorToolStripMenuItem2
             // 
             playFromCursorToolStripMenuItem2.Name = "playFromCursorToolStripMenuItem2";
-            playFromCursorToolStripMenuItem2.ShortcutKeyDisplayString = "F12";
-            playFromCursorToolStripMenuItem2.Size = new Size(271, 22);
+            playFromCursorToolStripMenuItem2.ShortcutKeyDisplayString = "";
+            playFromCursorToolStripMenuItem2.Size = new Size(205, 22);
             playFromCursorToolStripMenuItem2.Text = "从此处开始回放(&P)";
             playFromCursorToolStripMenuItem2.Click += PlayFromCursorToolStripMenuItem_Click;
             // 
             // playToCursorToolStripMenuItem2
             // 
             playToCursorToolStripMenuItem2.Name = "playToCursorToolStripMenuItem2";
-            playToCursorToolStripMenuItem2.ShortcutKeyDisplayString = "Shift + F12";
-            playToCursorToolStripMenuItem2.Size = new Size(271, 22);
+            playToCursorToolStripMenuItem2.ShortcutKeyDisplayString = "";
+            playToCursorToolStripMenuItem2.Size = new Size(205, 22);
             playToCursorToolStripMenuItem2.Text = "回放到活动事件(&N)";
             playToCursorToolStripMenuItem2.Click += PlayToCursorToolStripMenuItem5_Click;
             // 
             // playSelectedSeqToolStripMenuItem2
             // 
             playSelectedSeqToolStripMenuItem2.Name = "playSelectedSeqToolStripMenuItem2";
-            playSelectedSeqToolStripMenuItem2.ShortcutKeyDisplayString = "Ctrl + Shift + F12";
-            playSelectedSeqToolStripMenuItem2.Size = new Size(271, 22);
+            playSelectedSeqToolStripMenuItem2.ShortcutKeyDisplayString = "";
+            playSelectedSeqToolStripMenuItem2.Size = new Size(205, 22);
             playSelectedSeqToolStripMenuItem2.Text = "回放选中片段(&C)";
             playSelectedSeqToolStripMenuItem2.Click += playSelectedSeqToolStripMenuItem5_Click;
             // 
             // toolStripSeparator10
             // 
             toolStripSeparator10.Name = "toolStripSeparator10";
-            toolStripSeparator10.Size = new Size(268, 6);
+            toolStripSeparator10.Size = new Size(202, 6);
             // 
             // mvEventUpToolStripMenuItem6
             // 
             mvEventUpToolStripMenuItem6.Name = "mvEventUpToolStripMenuItem6";
             mvEventUpToolStripMenuItem6.ShortcutKeyDisplayString = "Ctrl + ↑";
-            mvEventUpToolStripMenuItem6.Size = new Size(271, 22);
+            mvEventUpToolStripMenuItem6.Size = new Size(205, 22);
             mvEventUpToolStripMenuItem6.Text = "上移(&U)";
             mvEventUpToolStripMenuItem6.Click += MvEventUpToolStripMenuItem5_Click;
             // 
@@ -508,20 +507,20 @@ namespace MacroCreator.Forms
             // 
             mvEventUpToolStripMenuItem7.Name = "mvEventUpToolStripMenuItem7";
             mvEventUpToolStripMenuItem7.ShortcutKeyDisplayString = "Ctrl + ↓";
-            mvEventUpToolStripMenuItem7.Size = new Size(271, 22);
+            mvEventUpToolStripMenuItem7.Size = new Size(205, 22);
             mvEventUpToolStripMenuItem7.Text = "下移(&W)";
             mvEventUpToolStripMenuItem7.Click += MvEventDownToolStripMenuItem6_Click;
             // 
             // toolStripSeparator6
             // 
             toolStripSeparator6.Name = "toolStripSeparator6";
-            toolStripSeparator6.Size = new Size(268, 6);
+            toolStripSeparator6.Size = new Size(202, 6);
             // 
             // 删除DToolStripMenuItem
             // 
             删除DToolStripMenuItem.Name = "删除DToolStripMenuItem";
             删除DToolStripMenuItem.ShortcutKeyDisplayString = "Delete";
-            删除DToolStripMenuItem.Size = new Size(271, 22);
+            删除DToolStripMenuItem.Size = new Size(205, 22);
             删除DToolStripMenuItem.Text = "删除(&D)";
             删除DToolStripMenuItem.Click += DeleteToolStripMenuItem5_Click;
             // 
@@ -598,6 +597,21 @@ namespace MacroCreator.Forms
             cbHideForm.TabIndex = 3;
             cbHideForm.Text = "播放时隐藏窗体(&H)";
             cbHideForm.UseVisualStyleBackColor = true;
+            // 
+            // helpToolStripMenuItem
+            // 
+            helpToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { openConsoleToolStripMenuItem });
+            helpToolStripMenuItem.Name = "helpToolStripMenuItem";
+            helpToolStripMenuItem.Size = new Size(61, 21);
+            helpToolStripMenuItem.Text = "帮助(&H)";
+            // 
+            // openConsoleToolStripMenuItem
+            // 
+            openConsoleToolStripMenuItem.Name = "openConsoleToolStripMenuItem";
+            openConsoleToolStripMenuItem.ShortcutKeys = Keys.F12;
+            openConsoleToolStripMenuItem.Size = new Size(180, 22);
+            openConsoleToolStripMenuItem.Text = "打开控制台(&C)";
+            openConsoleToolStripMenuItem.Click += OpenConsoleToolStripMenuItem_Click;
             // 
             // MainForm
             // 
@@ -699,5 +713,7 @@ namespace MacroCreator.Forms
         private ToolStripMenuItem playSelectedSeqToolStripMenuItem;
         private ToolStripMenuItem playToCursorToolStripMenuItem2;
         private ToolStripMenuItem playSelectedSeqToolStripMenuItem2;
+        private ToolStripMenuItem helpToolStripMenuItem;
+        private ToolStripMenuItem openConsoleToolStripMenuItem;
     }
 }
