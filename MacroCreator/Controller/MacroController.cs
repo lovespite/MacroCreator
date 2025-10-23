@@ -32,7 +32,7 @@ public class MacroController
         // 使用策略模式初始化回放服务
         var playerStrategies = new Dictionary<Type, IEventPlayer>
         {
-            { typeof(NopPlayer), new NopPlayer() },
+            { typeof(Nop), new NopPlayer() },
             { typeof(MouseEvent), new MouseEventPlayer() },
             { typeof(KeyboardEvent), new KeyboardEventPlayer() },
             { typeof(DelayEvent), new DelayEventPlayer() },
@@ -41,6 +41,11 @@ public class MacroController
             { typeof(BreakEvent), new BreakEventPlayer() }
         };
         _playbackService = new PlaybackService(playerStrategies);
+    }
+
+    public MacroController(IReadOnlyList<MacroEvent> sequence) : this()
+    {
+        _events = [.. sequence];
     }
 
     public void NewSequence()
@@ -62,6 +67,7 @@ public class MacroController
     {
         try
         {
+            _events.Clear();
             _events = FileService.Load(filePath);
             _currentFilePath = filePath;
             EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.FullRefresh));
@@ -210,11 +216,11 @@ public class MacroController
     private async Task Playback(IReadOnlyList<MacroEvent> sequence)
     {
         var tcs = new TaskCompletionSource();
-        Thread playbackThread = new(() =>
+        Thread playbackThread = new(async () =>
         {
             try
             {
-                _playbackService.Play(sequence, LoadAndPlayNewFile).GetAwaiter().GetResult();
+                await _playbackService.Play(sequence, LoadAndPlayNewFile);
                 tcs.SetResult();
             }
             catch (Exception ex)

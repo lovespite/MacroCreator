@@ -45,6 +45,6 @@ while (PixelColor(100, 100) == RGB(255, 255, 255))
 endwhile
 
 // 5. 传统标签和 GOTO (仍然支持)
-Label(MyStartPoint)
-Mouse(Move, 0, 0, 100)
-Goto(MyStartPoint) // 跳转回 MyStartPoint
+// Label(MyStartPoint)
+// Mouse(Move, 0, 0, 100)
+// Goto(MyStartPoint) // 跳转回 MyStartPoint

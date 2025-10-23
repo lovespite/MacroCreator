@@ -90,12 +90,19 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ShowWindow(IntPtr hWnd, uint nCmdShow);
+
     public const uint WM_HOTKEY = 0x0312;
 
     public const uint MOD_ALT = 0x0001;
     public const uint MOD_CONTROL = 0x0002;
     public const uint MOD_SHIFT = 0x0004;
     public const uint MOD_NOREPEAT = 0x4000;
+
+    public const uint SW_HIDE = 0;
+    public const uint SW_SHOW = 5;
 
     [Flags]
     public enum ModifierKeys : uint

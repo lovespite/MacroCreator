@@ -1,0 +1,24 @@
+﻿// 这是注释
+
+// 1. 原子事件
+// 格式: Action(参数...) [延迟ms]
+// 最后的数字是可选的 "TimeSinceLastEvent" (执行前延迟)
+
+Delay(1000) // 暂停 1000ms
+
+Mouse(Move, 0, 0, 500) // 延迟50ms, 然后在 (100, 200) 按下左键
+Mouse(Move, 400, 0, 500)
+Mouse(Move, 400, 400, 500)
+Mouse(Move, 0, 400, 500)  
+
+Delay(1000)
+
+if (PixelColor(0, 0) == RGB(255, 255, 255, 1)) // 如果 (0,0) 处的像素颜色是白色
+    Mouse(LeftDown, 1, 1, 100) // 延迟100ms, 然后按下左键
+    Mouse(LeftUp, 1, 1, 50)   // 延迟50ms, 然后释放左键
+else
+    Break
+endif
+
+Key(KeyDown, LWin, 100) // 延迟100ms, 然后按下左Win
+Key(KeyUp, LWin, 50)

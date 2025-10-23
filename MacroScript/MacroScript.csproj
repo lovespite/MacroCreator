@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="DslDemo2.macroscript">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="DslDemo.macroscript">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

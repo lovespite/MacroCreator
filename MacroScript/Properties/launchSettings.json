@@ -1,8 +1,12 @@
 {
   "profiles": {
-    "MacroScript": {
+    "MacroScript Compile": {
       "commandName": "Project",
       "commandLineArgs": "compile DslDemo.macroscript --open"
+    },
+    "MacroScript Run": {
+      "commandName": "Project",
+      "commandLineArgs": "run DslDemo2.macroscript"
     }
   }
 }
