@@ -10,6 +10,7 @@ namespace MacroCreator.Services;
 /// </summary>
 public class ConditionalJumpEventPlayer : IEventPlayer
 {
+
     public Task<PlaybackResult> ExecuteAsync(PlaybackContext context)
     {
         var position = context.CurrentEventIndex;
@@ -20,7 +21,7 @@ public class ConditionalJumpEventPlayer : IEventPlayer
             return Task.FromResult(PlaybackResult.Continue());
         }
 
-        bool conditionMet = EvaluateCondition(conditionalJump);
+        bool conditionMet = EvaluateCondition(context, conditionalJump);
 
         // 检查是否需要执行外部文件
         string? filePath = conditionMet ? conditionalJump.TrueTargetFilePath : conditionalJump.FalseTargetFilePath;
@@ -66,12 +67,12 @@ public class ConditionalJumpEventPlayer : IEventPlayer
         }
     }
 
-    private static bool EvaluateCondition(ConditionalJumpEvent conditionalJump)
+    private static bool EvaluateCondition(PlaybackContext context, ConditionalJumpEvent conditionalJump)
     {
         return conditionalJump.ConditionType switch
         {
             ConditionType.PixelColor => CheckPixelColor(conditionalJump.X, conditionalJump.Y, conditionalJump.ExpectedColor, conditionalJump.PixelTolerance),
-            ConditionType.CustomExpression => EvaluateCustomCondition(conditionalJump.CustomCondition),
+            ConditionType.CustomExpression => Evaluate(context, conditionalJump),
             _ => false
         };
     }
@@ -94,62 +95,12 @@ public class ConditionalJumpEventPlayer : IEventPlayer
         }
     }
 
-    private static bool EvaluateCustomCondition(string? condition)
+    private static bool Evaluate(PlaybackContext context, ConditionalJumpEvent @event)
     {
-        // 简单的自定义条件评估
-        // 这里可以扩展为更复杂的表达式评估器
-        if (string.IsNullOrEmpty(condition))
-            return false;
+        if (string.IsNullOrWhiteSpace(@event.CustomCondition)) return false;
+        var evaluator = context.GetEvaluator(@event);
 
-        try
-        {
-            // 支持简单的条件表达式，如时间、随机数等
-            condition = condition.ToLower().Trim();
-
-            if (condition == "true")
-                return true;
-            if (condition == "false")
-                return false;
-
-            // 支持时间条件，如 "hour >= 9 && hour <= 17"
-            if (condition.Contains("hour"))
-            {
-                var hour = DateTime.Now.Hour;
-                condition = condition.Replace("hour", hour.ToString());
-                return EvaluateSimpleExpression(condition);
-            }
-
-            // 支持随机条件，如 "random > 0.5"
-            if (condition.Contains("random"))
-            {
-                var random = new Random().NextDouble();
-                condition = condition.Replace("random", random.ToString("F2"));
-                return EvaluateSimpleExpression(condition);
-            }
-
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool EvaluateSimpleExpression(string expression)
-    {
-        // 非常简单的表达式评估器，仅支持基本的比较运算
-        // 在实际应用中，可以使用更强大的表达式评估库
-        try
-        {
-            // 这里简化处理，实际应用中建议使用专门的表达式评估库
-            // 如 System.Data.DataTable.Compute 或第三方库
-            var table = new System.Data.DataTable();
-            var result = table.Compute(expression, null);
-            return Convert.ToBoolean(result);
-        }
-        catch
-        {
-            return false;
-        }
+        if (evaluator == null) return false;
+        return evaluator();
     }
 }

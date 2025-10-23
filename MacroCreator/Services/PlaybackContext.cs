@@ -1,5 +1,7 @@
 ﻿// 命名空间定义了应用程序的入口点
 using MacroCreator.Models.Events;
+using System.Data;
+using System.Reflection.Metadata.Ecma335;
 
 namespace MacroCreator.Services;
 
@@ -8,10 +10,13 @@ namespace MacroCreator.Services;
 /// </summary>
 public class PlaybackContext : IDisposable
 {
+    private readonly Dictionary<string, int> _indexCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<MacroEvent, ConditionEvaluator> _exprCache = [];
+    private readonly DynamicExpresso.Interpreter _interpreter = new();
+    private readonly CancellationTokenSource _cts = new();
+
     public int CurrentEventIndex { get; private set; } = 0;
     public MacroEvent CurrentEvent => Events[CurrentEventIndex];
-
-    private readonly CancellationTokenSource _cts = new();
 
     public bool IsDisposed { get; private set; } = false;
 
@@ -26,18 +31,32 @@ public class PlaybackContext : IDisposable
     public CallExternalFileDelegate? LoadAndPlayNewFileCallback { get; }
 
     /// <summary>
-    /// 事件序列的只读列表，用于按名称查找事件
+    /// 事件序列的只读列表
     /// </summary>
     public IReadOnlyList<MacroEvent> Events { get; }
-
-    private readonly Dictionary<string, int> _eventNameToIndexCache = new(StringComparer.OrdinalIgnoreCase);
 
     public PlaybackContext(IReadOnlyList<MacroEvent> events, CallExternalFileDelegate? callback)
     {
         Events = events;
         LoadAndPlayNewFileCallback = callback;
 
+        _interpreter.SetVariable("runtime", this);
+        _interpreter.SetFunction("Now", () => DateTime.Now);
+
         BuildEventNameIndexCache();
+    }
+
+    private void BuildEventNameIndexCache()
+    {
+        _indexCache.Clear();
+        for (int i = 0; i < Events.Count; i++)
+        {
+            var eventName = Events[i].EventName;
+            if (!string.IsNullOrWhiteSpace(eventName) && !_indexCache.ContainsKey(eventName))
+            {
+                _indexCache[eventName] = i;
+            }
+        }
     }
 
     public bool MoveNext()
@@ -47,11 +66,8 @@ public class PlaybackContext : IDisposable
             CurrentEventIndex++;
             return true;
         }
-        else
-        {
-            return false;
-        }
 
+        return false;
     }
 
     public int MoveTo(int index)
@@ -60,21 +76,9 @@ public class PlaybackContext : IDisposable
         {
             throw new ArgumentOutOfRangeException(nameof(index), "事件索引超出序列范围");
         }
+
         CurrentEventIndex = index;
         return CurrentEventIndex;
-    }
-
-    private void BuildEventNameIndexCache()
-    {
-        _eventNameToIndexCache.Clear();
-        for (int i = 0; i < Events.Count; i++)
-        {
-            var eventName = Events[i].EventName;
-            if (!string.IsNullOrWhiteSpace(eventName) && !_eventNameToIndexCache.ContainsKey(eventName))
-            {
-                _eventNameToIndexCache[eventName] = i;
-            }
-        }
     }
 
     /// <summary>
@@ -84,14 +88,8 @@ public class PlaybackContext : IDisposable
     /// <returns>事件索引（从0开始），如果未找到返回-1</returns>
     public int FindEventIndexByName(string? eventName)
     {
-        if (string.IsNullOrWhiteSpace(eventName))
-        {
-            return -1;
-        }
-        if (_eventNameToIndexCache.TryGetValue(eventName, out int index))
-        {
-            return index;
-        }
+        if (string.IsNullOrWhiteSpace(eventName)) return -1;
+        if (_indexCache.TryGetValue(eventName, out int index)) return index;
         return -1;
     }
 
@@ -107,8 +105,21 @@ public class PlaybackContext : IDisposable
 
         IsDisposed = true;
         _cts.Dispose();
+
         GC.SuppressFinalize(this);
+    }
+
+    public ConditionEvaluator GetEvaluator(ConditionalJumpEvent @event)
+    {
+        if (_exprCache.TryGetValue(@event, out var func))
+            return func;
+
+        var expr = _interpreter.ParseAsDelegate<ConditionEvaluator>(@event.CustomCondition)
+            ?? throw new InvalidOperationException($"无法编译条件表达式: `{@event.CustomCondition}`");
+
+        return (_exprCache[@event] = expr);
     }
 }
 
 public delegate Task CallExternalFileDelegate(string filePath);
+public delegate bool ConditionEvaluator();

@@ -9,4 +9,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="DynamicExpresso.Core" Version="2.19.3" />
+  </ItemGroup>
+
 </Project>
