@@ -9,7 +9,7 @@ internal static class Program
     ///  The main entry point for the application.
     /// </summary>
     [STAThread]
-    static async Task Main(string[] args)
+    static void Main(string[] args)
     {
         var cmd = args.Length > 1 ? args[0] : null;
         var filePath = args.LastOrDefault();
@@ -25,7 +25,7 @@ internal static class Program
         else if (cmd == "run")
         {
             mForm = null;
-            if (filePath is not null) await RunMacroFile(filePath);
+            if (filePath is not null) RunMacroFile(filePath).GetAwaiter().GetResult();
         }
         else
         {

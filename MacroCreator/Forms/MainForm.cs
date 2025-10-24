@@ -1,6 +1,7 @@
 ﻿using MacroCreator.Controller;
 using MacroCreator.Models;
 using MacroCreator.Models.Events;
+using MacroCreator.Native;
 using MacroCreator.Utils;
 
 namespace MacroCreator.Forms;
@@ -33,6 +34,8 @@ public partial class MainForm : Form
         ActiveEvent = null;
 
         // 订阅 Controller 事件
+        _controller.OnPrint += Print;
+        _controller.OnPrintLine += PrintLine;
         _controller.StateChanged += OnAppStateChanged;
         _controller.EventSequenceChanged += OnEventSequenceChanged;
         _controller.StatusMessageChanged += Controller_StatusChanged;
@@ -47,6 +50,24 @@ public partial class MainForm : Form
             _controller.LoadSequence(openFile);
 
         UpdateTitle();
+    }
+
+    public void Print(object? message)
+    {
+        _ = InvokeAsync(delegate
+        {
+            textBoxLogger.Text += message;
+        });
+    }
+
+    public void PrintLine(object? message)
+    {
+        _ = InvokeAsync(delegate
+        {
+            textBoxLogger.Text += message + Environment.NewLine;
+            textBoxLogger.SelectionStart = textBoxLogger.Text.Length;
+            textBoxLogger.ScrollToCaret();
+        });
     }
 
     public bool ContainsEventWithName(string eventName, MacroEvent? except = null)
@@ -235,6 +256,26 @@ public partial class MainForm : Form
         );
 
         _fcEventEditForm.Show(this);
+    }
+
+    private void EditScriptEvent(ScriptEvent scriptEvent)
+    {
+        using var inputDialog = new EditScriptEventForm(scriptEvent);
+        inputDialog.ContainsEventName += ContainsEventWithName;
+
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+
+        scriptEvent.ScriptLines = inputDialog.ScriptLines;
+        scriptEvent.EventName = inputDialog.EventName;
+
+        // 直接更新显示，不需要完全刷新
+        var index = _controller.IndexOfEvent(scriptEvent);
+
+        if (index >= 0 && index < lvEvents.Items.Count)
+            UpdateListViewItem(lvEvents.Items[index], scriptEvent);
+
+        Controller_StatusChanged($"'{scriptEvent.DisplayName}' 事件已更新");
     }
 
     private void InstallGlobalHotkeys()
@@ -535,7 +576,7 @@ public partial class MainForm : Form
         StartPlay(endTo: ActiveEvent);
     }
 
-    private void playSelectedSeqToolStripMenuItem5_Click(object sender, EventArgs e)
+    private void PlaySelectedSeqToolStripMenuItem5_Click(object sender, EventArgs e)
     {
         if (lvEvents.SelectedItems.Count < 2) return;
 
@@ -611,7 +652,7 @@ public partial class MainForm : Form
     {
         using var sfd = new SaveFileDialog { Filter = "XML 文件 (*.xml)|*.xml|所有文件 (*.*)|*.*" };
 
-        if (sfd.ShowDialog() != DialogResult.OK) return;
+        if (sfd.ShowDialog(this) != DialogResult.OK) return;
 
         try
         {
@@ -630,6 +671,25 @@ public partial class MainForm : Form
         _controller.ClearSequence();
     }
 
+    private void InsertScriptToolStripMenuItem5_Click(object sender, EventArgs e)
+    {
+        using var inputDialog = new EditScriptEventForm($"Script_{Rnd.GetString(5)}");
+        inputDialog.ContainsEventName += ContainsEventWithName;
+        var ret = inputDialog.ShowDialog(this);
+        if (ret != DialogResult.OK) return;
+        var ev = new ScriptEvent()
+        {
+            EventName = inputDialog.EventName,
+            ScriptLines = inputDialog.ScriptLines
+        };
+
+        if (ActiveEvent is null)
+            _controller.AddEvent(ev);
+        else
+            _controller.InsertEventBefore(ActiveEvent, ev);
+
+        Controller_StatusChanged($"'{ev.DisplayName}' 事件已创建");
+    }
 
     private void InsertFcEventToolStripMenuItem_Click(object sender, EventArgs e)
     {
@@ -668,6 +728,7 @@ public partial class MainForm : Form
 
         _fcEventEditForm.Show(this);
     }
+
     private void InsertDelayToolStripMenuItem1_Click(object sender, EventArgs e)
     {
         using var inputDialog = new EditDelayEventForm($"Delay_{Rnd.GetString(5)}");
@@ -782,6 +843,10 @@ public partial class MainForm : Form
         {
             EditKeyboardEvent(keyboardEvent);
         }
+        else if (ev is ScriptEvent scriptEvent)
+        {
+            EditScriptEvent(scriptEvent);
+        }
         else
         {
             Controller_StatusChanged($"无法编辑 {ev.TypeName} 事件");
@@ -818,9 +883,13 @@ public partial class MainForm : Form
 
     private void OpenConsoleToolStripMenuItem_Click(object sender, EventArgs e)
     {
+        openConsoleToolStripMenuItem.Enabled = !NativeMethods.AllocConsole();
+    }
 
+    private void LvEvents_DoubleClick(object sender, EventArgs e)
+    {
+        editEventToolStripMenuItem.PerformClick();
     }
 
     #endregion
-
 }

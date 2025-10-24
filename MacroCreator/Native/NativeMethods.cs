@@ -50,6 +50,14 @@ internal static partial class NativeMethods
     public const uint MOUSEEVENTF_HWHEEL = 0x1000;
     public const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
 
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool AllocConsole();
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FreeConsole();
+
     [LibraryImport("user32.dll", SetLastError = true)]
     public static partial IntPtr SetWindowsHookExA(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);
 

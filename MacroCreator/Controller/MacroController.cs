@@ -1,6 +1,7 @@
 ﻿using MacroCreator.Services;
 using MacroCreator.Models;
 using MacroCreator.Models.Events;
+using System.Diagnostics;
 
 namespace MacroCreator.Controller;
 
@@ -9,7 +10,7 @@ namespace MacroCreator.Controller;
 /// 作为 UI 和后端服务之间的协调者
 /// UI 层只与这个类交互
 /// </summary>
-public class MacroController
+public class MacroController : IPrintService
 {
     private List<MacroEvent> _events = [];
     private readonly RecordingService _recordingService;
@@ -23,6 +24,8 @@ public class MacroController
     public event Action<AppState>? StateChanged;
     public event Action<EventSequenceChangeArgs>? EventSequenceChanged;
     public event Action<string>? StatusMessageChanged;
+    public event Action<object?>? OnPrint;
+    public event Action<object?>? OnPrintLine;
 
     public MacroController()
     {
@@ -33,6 +36,7 @@ public class MacroController
         var playerStrategies = new Dictionary<Type, IEventPlayer>
         {
             { typeof(Nop), new NopPlayer() },
+            { typeof(ScriptEvent), new ScriptEventPlayer() },
             { typeof(MouseEvent), new MouseEventPlayer() },
             { typeof(KeyboardEvent), new KeyboardEventPlayer() },
             { typeof(DelayEvent), new DelayEventPlayer() },
@@ -40,12 +44,22 @@ public class MacroController
             { typeof(ConditionalJumpEvent), new ConditionalJumpEventPlayer() },
             { typeof(BreakEvent), new BreakEventPlayer() }
         };
-        _playbackService = new PlaybackService(playerStrategies);
+        _playbackService = new PlaybackService(playerStrategies, this);
     }
 
     public MacroController(IReadOnlyList<MacroEvent> sequence) : this()
     {
         _events = [.. sequence];
+    }
+
+    public void Print(object? message)
+    {
+        OnPrint?.Invoke(message);
+    }
+
+    public void PrintLine(object? message)
+    {
+        OnPrintLine?.Invoke(message);
     }
 
     public void NewSequence()
@@ -185,6 +199,9 @@ public class MacroController
     public async Task StartPlayback(MacroEvent? startFrom = null, MacroEvent? endTo = null)
     {
         if (CurrentState != AppState.Idle) return;
+
+        if (_events.Count == 0) return;
+
         var startFromIndex = startFrom is not null ? IndexOfEvent(startFrom) : 0;
         ArgumentOutOfRangeException.ThrowIfLessThan(startFromIndex, 0, nameof(startFrom));
 

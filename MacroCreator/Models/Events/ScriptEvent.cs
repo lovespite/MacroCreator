@@ -5,11 +5,14 @@ namespace MacroCreator.Models.Events;
 
 public class ScriptEvent : MacroEvent
 {
-    public string Expression { get; set; } = string.Empty;
-    
+    public string[] ScriptLines { get; set; } = [];
+
     public override string GetDescription()
     {
-        return $"Script: {Expression.Ellipsize(25)}";
+        if (ScriptLines is null || ScriptLines.Length == 0)
+            return "Script: (empty)";
+
+        return $"Script: {ScriptLines[0].Ellipsize(25)}";
     }
 
     public override string TypeName => "Script";

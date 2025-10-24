@@ -14,6 +14,8 @@ public class PlaybackContext : IDisposable
     private readonly DynamicExpresso.Interpreter _interpreter = new();
     private readonly CancellationTokenSource _cts = new();
 
+    private readonly IPrintService? _printer;
+
     public int CurrentEventIndex { get; private set; } = 0;
 
     public MacroEvent CurrentEvent => Events[CurrentEventIndex];
@@ -35,20 +37,47 @@ public class PlaybackContext : IDisposable
     /// </summary>
     public IReadOnlyList<MacroEvent> Events { get; }
 
-    public PlaybackContext(IReadOnlyList<MacroEvent> events, CallExternalFileDelegate? callback)
+    public PlaybackContext(IReadOnlyList<MacroEvent> events, CallExternalFileDelegate? callback = null, IPrintService? printer = null)
     {
         Events = events;
         LoadAndPlayNewFileCallback = callback;
 
-        _interpreter.SetVariable("runtime", this);
-        _interpreter.SetFunction("Now", () => DateTime.Now);
-        _interpreter.SetFunction("UtcNow", () => DateTime.UtcNow);
-        _interpreter.SetFunction("Print", (object? msg) => Console.Write(msg));
-        _interpreter.SetFunction("Set", this.Set);
-        _interpreter.SetFunction("Get", this.Get);
-        _interpreter.SetFunction("Unset", this.Unset);
+        _interpreter = CreateInterpreter();
+        _printer = printer;
 
         BuildEventNameIndexCache();
+    }
+
+    public PlaybackContext() : this([], null, null)
+    {
+    }
+
+    public DynamicExpresso.Interpreter CreateInterpreter()
+    {
+        PlaybackContext context = this;
+        var interpreter = new DynamicExpresso.Interpreter();
+
+        interpreter.SetVariable("runtime", context);
+
+        interpreter.SetFunction("set", context.Set);
+        interpreter.SetFunction("get", context.Get);
+        interpreter.SetFunction("unset", context.Unset);
+        interpreter.SetFunction("now", () => DateTime.Now);
+        interpreter.SetFunction("utcnow", () => DateTime.UtcNow);
+        interpreter.SetFunction("print", Print);
+        interpreter.SetFunction("println", PrintLine);
+
+        return interpreter;
+    }
+
+    private void Print(object? message)
+    {
+        _printer?.Print(message);
+    }
+
+    private void PrintLine(object? message)
+    {
+        _printer?.PrintLine(message);
     }
 
     private void BuildEventNameIndexCache()

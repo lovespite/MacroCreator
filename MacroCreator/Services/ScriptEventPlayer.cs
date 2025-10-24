@@ -9,9 +9,27 @@ public class ScriptEventPlayer : IEventPlayer
     public Task<PlaybackResult> ExecuteAsync(PlaybackContext context)
     {
         var scriptEvent = (ScriptEvent)context.CurrentEvent;
-        var script = scriptEvent.Expression;
+        var scripts = scriptEvent.ScriptLines;
 
-        _ = context.Execute(script);
+        int lIndex = -1;
+        try
+        {
+            for (lIndex = 0; lIndex < scripts.Length; lIndex++)
+            {
+                var script = scripts[lIndex];
+
+                if (string.IsNullOrWhiteSpace(script))
+                    continue;
+                if (script.StartsWith("//"))
+                    continue;
+
+                _ = context.Execute(script);
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new EventPlayerException($"脚本执行出错在 {lIndex}: {ex.Message}", scriptEvent, context.CurrentEventIndex);
+        }
 
         return Task.FromResult(PlaybackResult.Continue());
     }
