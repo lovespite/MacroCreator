@@ -6,6 +6,7 @@
 
 // Delay(1000) // 暂停 1000ms
 
+
 Mouse(Move, 0, 0, 200) // 延迟50ms, 然后在 (100, 200) 按下左键
 Mouse(Move, 400, 0, 200)
 Mouse(Move, 400, 400, 200)
@@ -17,14 +18,33 @@ if (PixelColor(0, 0) == RGB(255, 255, 255, 1)) // 如果 (0,0) 处的像素颜�
     Mouse(LeftDown, 1, 1, 100) // 延迟100ms, 然后按下左键
     Mouse(LeftUp, 1, 1, 50)   // 延迟50ms, 然后释放左键
 else
-    if (Custom("Now().Hour == 13")) 
+    if (Custom(`now().Hour == 13`)) 
         Key(KeyDown, LWin, 100) // 延迟100ms, 然后按下左Win
         Key(KeyUp, LWin, 50)
-    else
-        Key(KeyDown, LWin, 100) // 延迟100ms, 然后按下左Win
-        Key(KeyDown, R, 100) // 延迟100ms, 然后按下左Win
-        Key(KeyUp, R, 50)
-        Key(KeyUp, LWin, 50)
+    else 
+        goto start0
     endif
 endif
 
+exit
+
+label start0
+
+while(Custom(`true`))
+    Mouse(Move, 200, 200, 500)
+    Delay(1000)
+    
+    if (Custom(`true`))
+        break
+    endif
+
+    Mouse(Move, 0, 0, 200) // 延迟50ms, 然后在 (100, 200) 按下左键
+    Mouse(Move, 400, 0, 200)
+    Mouse(Move, 400, 400, 200)
+    Mouse(Move, 0, 400, 200)
+endwhile        
+
+Key(KeyDown, LWin, 100) // 延迟100ms, 然后按下左Win
+Key(KeyDown, R, 100) // 延迟100ms, 然后按下R
+Key(KeyUp, R, 50)
+Key(KeyUp, LWin, 50)

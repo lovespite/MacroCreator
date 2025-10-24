@@ -48,7 +48,7 @@ public partial class DslParser
         _gotoFixups.Clear();
         _labelCounter = 0;
 
-        var lines = dslScript.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        var lines = dslScript.Split(['\n']);
 
         for (int i = 0; i < lines.Length; i++)
         {
@@ -140,13 +140,16 @@ public partial class DslParser
                 HandleEndWhile(lineNumber);
                 break;
             case "break":
-                _events.Add(new BreakEvent { TimeSinceLastEvent = 0 });
+                HandleBreak(lineNumber);
                 break;
             case "label":
                 HandleLabel(line, lineNumber);
                 break;
             case "goto":
                 HandleGoto(line, lineNumber);
+                break;
+            case "exit":
+                _events.Add(new BreakEvent { TimeSinceLastEvent = 0 });
                 break;
 
             // --- 原子事件 ---
@@ -266,6 +269,15 @@ public partial class DslParser
 
         // 2. 添加循环结束标签
         _events.Add(new Nop(whileBlock.EndLabel));
+    }
+
+    private void HandleBreak(int lineNumber)
+    {
+        if (_blockStack.Count == 0 || _blockStack.Peek().Type != "while")
+            throw new DslParserException($"行 {lineNumber}: 'break' 只能在 'while' 循环内使用", lineNumber);
+        var whileBlock = _blockStack.Peek();
+        // 添加跳转到循环结束的 JumpEvent
+        _events.Add(new JumpEvent { TargetEventName = whileBlock.EndLabel, TimeSinceLastEvent = 0 });
     }
 
     private void HandleLabel(string line, int lineNumber)
@@ -423,7 +435,7 @@ public partial class DslParser
             isNotEquals = pixelMatch.Groups["op"].Value == "!=";
         }
         // 2. 尝试解析 Custom
-        // 示例: Custom("hour > 9")
+        // 示例: Custom(`hour > 9`)
         else
         {
             var customMatch = Regex_Custom().Match(conditionBody);
@@ -435,7 +447,7 @@ public partial class DslParser
             }
             else
             {
-                throw new DslParserException($"行 {lineNumber}: 无法解析条件 '{conditionBody}'。请使用 PixelColor(...) == RGB(...) 或 Custom(\"...\")。", lineNumber);
+                throw new DslParserException($"行 {lineNumber}: 无法解析条件 '{conditionBody}'。请使用 PixelColor(...) == RGB(...) 或 Custom(`...`)。", lineNumber);
             }
         }
 
@@ -453,10 +465,10 @@ public partial class DslParser
     [GeneratedRegex(@"PixelColor\s*\(\s*(?<x>\d+)\s*,\s*(?<y>\d+)\s*\)\s*(?<op>==|!=)\s*RGB\s*\(\s*(?<r>\d+)\s*,\s*(?<g>\d+)\s*,\s*(?<b>\d+)\s*(?:,\s*(?<t>\d+)\s*)?\)")]
     private static partial Regex Regex_PixelColor();
 
-    [GeneratedRegex(@"Custom\s*\(\s*""(?<expr>[^""]*)""\s*\)")]
+    [GeneratedRegex(@"Custom\s*\(\s*`(?<expr>[^`]*)`\s*\)")]
     private static partial Regex Regex_Custom();
 
-    [GeneratedRegex(@"(if|while)\s*\((.+)\)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(if|while)\s*\((.+)\)")]
     private static partial Regex Regex_IfWhile();
 
     [GeneratedRegex(@"Delay\s*\((\s*[\d.]+)\s*\)")]
@@ -468,10 +480,10 @@ public partial class DslParser
     [GeneratedRegex(@"Mouse\s*\(([^)]+)\)")]
     private static partial Regex Regex_Mouse();
 
-    [GeneratedRegex(@"Goto\s*\(([^)]+)\)")]
+    [GeneratedRegex(@"goto\s+([a-zA-Z0-9_]+)")]
     private static partial Regex Regex_Goto();
 
-    [GeneratedRegex(@"Label\s*\(([^)]+)\)")]
+    [GeneratedRegex(@"label\s+([a-zA-Z0-9_]+)")]
     private static partial Regex Regex_Label();
 
     #endregion

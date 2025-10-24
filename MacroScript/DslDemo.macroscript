@@ -25,7 +25,7 @@ if (PixelColor(10, 20) == RGB(255, 0, 0, 5)) // x, y, r, g, b, [tolerance]
 endif
 
 // 3b. IF / ELSE
-if (Custom("hour > 9")) // 支持您现有的自定义表达式
+if (Custom(`hour > 9`)) // 支持您现有的自定义表达式
     Delay(1000)
 else
     Delay(500)
@@ -33,7 +33,7 @@ endif
 
 // 3c. 支持 != (不等于)
 if (PixelColor(0, 0) != RGB(0, 0, 0))
-    Break // Break 关键字用于停止宏
+    exit // exit 关键字用于停止宏
 endif
 
 // 4. 流程控制：WHILE / ENDWHILE
@@ -45,6 +45,6 @@ while (PixelColor(100, 100) == RGB(255, 255, 255))
 endwhile
 
 // 5. 传统标签和 GOTO (仍然支持)
-// Label(MyStartPoint)
+// label MyStartPoint
 // Mouse(Move, 0, 0, 100)
-// Goto(MyStartPoint) // 跳转回 MyStartPoint
+// goto MyStartPoint // 跳转回 MyStartPoint

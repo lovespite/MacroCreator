@@ -15,11 +15,7 @@ internal static class Program
     private static string[] _args = null!;
     public static string ConsoleTitle = null!;
 
-    /// <summary>
-    ///  The main entry point for the application.
-    /// </summary>
-    [STAThread]
-    static async Task Main(string[] args)
+    static void Main(string[] args)
     {
         Console.Title = ConsoleTitle = "MacroScript_v1_" + Rnd.GetString(8);
         _args = args;
@@ -27,7 +23,7 @@ internal static class Program
 
         try
         {
-            await ProcessCommand();
+            ProcessCommand().GetAwaiter().GetResult();
             Console.WriteLine("Success");
         }
         catch (FileNotFoundException ex)
@@ -38,10 +34,12 @@ internal static class Program
         {
             Console.WriteLine($"DSL 解析错误 (行 {ex.LineNumber}): {ex.Message}");
         }
-        catch
+        catch (Exception ex)
         {
-            throw;
+            Console.WriteLine($"未知错误: {ex.Message}");
         }
+
+        Console.ReadKey();
     }
 
     private static async Task ProcessCommand()
