@@ -273,9 +273,20 @@ public partial class DslParser
 
     private void HandleBreak(int lineNumber)
     {
-        if (_blockStack.Count == 0 || _blockStack.Peek().Type != "while")
+        // 在栈中查找最近的 while 循环块
+        FlowControlBlock? whileBlock = null;
+        foreach (var block in _blockStack)
+        {
+            if (block.Type == "while")
+            {
+                whileBlock = block;
+                break;
+            }
+        }
+
+        if (whileBlock == null)
             throw new DslParserException($"行 {lineNumber}: 'break' 只能在 'while' 循环内使用", lineNumber);
-        var whileBlock = _blockStack.Peek();
+
         // 添加跳转到循环结束的 JumpEvent
         _events.Add(new JumpEvent { TargetEventName = whileBlock.EndLabel, TimeSinceLastEvent = 0 });
     }
