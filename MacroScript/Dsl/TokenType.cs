@@ -12,8 +12,12 @@ public enum TokenType
     KeywordLabel, KeywordGoto, KeywordExit,
     KeywordDelay, KeywordMouse, KeywordKey,
     KeywordPixelColor, KeywordRGB, KeywordARGB, KeywordCustom, // 条件相关关键字
+    KeywordScript, KeywordEndScript, // Script block keywords
     Identifier, // 标签名, 事件名, 枚举值等
+    Variable, // $variable
     Number,
+    OperatorAssign, // =
+    OperatorPlus, OperatorMinus, OperatorMultiply, OperatorDivide, // Basic operators for expressions
     OperatorEquals, OperatorNotEquals,
     ParenOpen, ParenClose,
     Comma,

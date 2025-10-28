@@ -1,6 +1,7 @@
 ﻿using MacroCreator.Models.Events;
 using MacroCreator.Services;
 using MacroCreator.Utils;
+using MacroScript.Dsl;
 using System.Diagnostics;
 using System.Drawing.Printing;
 using System.Runtime.InteropServices;
@@ -39,7 +40,8 @@ internal static class Program
             Console.WriteLine($"未知错误: {ex.Message}");
         }
 
-        Console.ReadKey();
+        if (HasArg("pause", "p"))
+            Console.ReadKey();
     }
 
     private static async Task ProcessCommand()
@@ -50,7 +52,7 @@ internal static class Program
             case "compile":
                 {
                     var outputFile = CompileToFile(_args[1], GetArg("output", "o"));
-                    if (HasArg("open")) _ = OpenMacroFile(outputFile);
+                    if (HasArg("view", "v")) _ = OpenMacroFile(outputFile);
                 }
                 break;
             case "run":
@@ -95,17 +97,9 @@ internal static class Program
         var outputFile = outputPath ?? Path.ChangeExtension(inputPath, ".xml");
 
         var utf8Text = File.ReadAllText(inputPath);
-        FileService.Save(outputFile, CompileToSequence(utf8Text));
+        FileService.Save(outputFile, Scripting.Compile(utf8Text));
 
         return outputFile;
-    }
-
-    private static List<MacroEvent> CompileToSequence(string inputText)
-    {
-        // var outList = new Dsl.DslParser().Parse(inputText);
-        var lexer = new Dsl.Lexer(inputText);
-        var outList = new Dsl.NewDslParser().Parse(lexer.Tokenize());
-        return outList;
     }
 
     private static async Task<List<MacroEvent>> CompileAsync(string inputFile)
@@ -117,7 +111,7 @@ internal static class Program
             try
             {
                 var utf8Text = File.ReadAllText(inputFile);
-                var collection = CompileToSequence(utf8Text);
+                var collection = Scripting.Compile(utf8Text);
 
                 if (collection.Count <= 0)
                     tcs.SetException(new InvalidDataException("事件序列为空"));

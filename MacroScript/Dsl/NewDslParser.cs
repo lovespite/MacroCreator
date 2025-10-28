@@ -5,16 +5,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MacroScript.Dsl;
 
 
 // --- 语法分析 (Parser) ---
-
-/// <summary>
-/// 语法分析器，将 Token 序列转换为 MacroEvent 列表
-/// </summary>
-public class NewDslParser
+public partial class NewDslParser
 {
     private List<Token> _tokens = null!;
     private int _currentTokenIndex;
@@ -23,14 +21,15 @@ public class NewDslParser
     private readonly Stack<FlowControlBlock> _blockStack = new();
     private readonly Dictionary<string, bool> _labelsDefined = new(System.StringComparer.OrdinalIgnoreCase);
     private readonly List<(JumpEvent Event, string TargetName, int LineNumber)> _gotoFixups = new();
-    private readonly List<(ConditionalJumpEvent Event, string? TrueTargetName, string? FalseTargetName, int LineNumber)> _conditionalJumpFixups = new();
+    // Conditional jump fixups might not be strictly needed if targets are resolved immediately
+    // private readonly List<(ConditionalJumpEvent Event, string? TrueTargetName, string? FalseTargetName, int LineNumber)> _conditionalJumpFixups = new();
 
     private class FlowControlBlock
     {
         public TokenType Type { get; }
-        public string? StartLabel { get; }
-        public string? ElseLabel { get; }
-        public string EndLabel { get; }
+        public string? StartLabel { get; } // For while loops
+        public string? ElseLabel { get; }  // For if's false branch or while start
+        public string EndLabel { get; }   // Exit point of the block
         public int LineNumber { get; }
 
         public FlowControlBlock(TokenType type, string? startLabel, string? elseLabel, string endLabel, int lineNumber)
@@ -45,20 +44,28 @@ public class NewDslParser
 
     public List<MacroEvent> Parse(List<Token> tokens)
     {
-        _tokens = tokens;
+        // Filter out EndOfLine tokens that are not significant (e.g., multiple blank lines)
+        // We keep one EndOfLine after each statement to mark its end.
+        _tokens = FilterMeaningfulTokens(tokens);
         _currentTokenIndex = 0;
         _events.Clear();
         _labelCounter = 0;
         _blockStack.Clear();
         _labelsDefined.Clear();
         _gotoFixups.Clear();
-        _conditionalJumpFixups.Clear();
+        //_conditionalJumpFixups.Clear();
 
         while (!IsAtEnd())
         {
             ParseStatement();
-            // 跳过语句后的换行符
-            while (CurrentToken().Type == TokenType.EndOfLine)
+            // Expect EndOfLine or EndOfFile after a statement
+            if (!IsAtEnd() && CurrentToken().Type != TokenType.EndOfLine)
+            {
+                // This indicates an issue with statement parsing or lexing if it occurs
+                throw CreateException($"Expected end of line or end of file after statement, but got {CurrentToken().Type}");
+            }
+            // Consume the EndOfLine token after a statement
+            if (!IsAtEnd() && CurrentToken().Type == TokenType.EndOfLine)
             {
                 Consume();
             }
@@ -67,7 +74,7 @@ public class NewDslParser
         if (_blockStack.Count > 0)
         {
             var block = _blockStack.Peek();
-            throw CreateException($"文件末尾找到未结束的 '{block.Type}' 块，在行 {block.LineNumber} 定义", block.LineNumber);
+            throw CreateException($"Found unclosed '{block.Type}' block defined on line {block.LineNumber} at end of file", block.LineNumber);
         }
 
         ResolveJumps();
@@ -75,14 +82,50 @@ public class NewDslParser
         return _events;
     }
 
+    // Filters out consecutive EndOfLine tokens and leading/trailing EndOfLines if necessary
+    private List<Token> FilterMeaningfulTokens(List<Token> rawTokens)
+    {
+        var filtered = new List<Token>();
+        bool lastWasEndOfLine = true; // Treat start as if preceded by newline
+
+        foreach (var token in rawTokens)
+        {
+            if (token.Type == TokenType.EndOfLine)
+            {
+                if (!lastWasEndOfLine) // Keep only the first EndOfLine after other tokens
+                {
+                    filtered.Add(token);
+                    lastWasEndOfLine = true;
+                }
+                // Skip consecutive EndOfLines (blank lines)
+            }
+            else if (token.Type == TokenType.EndOfFile)
+            {
+                filtered.Add(token); // Always keep EndOfFile
+                lastWasEndOfLine = false;
+            }
+            else
+            {
+                filtered.Add(token);
+                lastWasEndOfLine = false;
+            }
+        }
+        // Ensure EOF exists, even if the input was empty or only whitespace/comments
+        if (filtered.Count == 0 || filtered.Last().Type != TokenType.EndOfFile)
+        {
+            // Add EOF based on the last token's position or default if empty
+            int line = rawTokens.LastOrDefault()?.LineNumber ?? 1;
+            int col = rawTokens.LastOrDefault()?.Column ?? 1;
+            filtered.Add(new Token(TokenType.EndOfFile, string.Empty, line, col));
+        }
+
+
+        return filtered;
+    }
+
     private void ParseStatement()
     {
         var token = CurrentToken();
-        if (token.Type == TokenType.EndOfLine) // 跳过空行
-        {
-            Consume();
-            return;
-        }
 
         switch (token.Type)
         {
@@ -98,41 +141,36 @@ public class NewDslParser
             case TokenType.KeywordDelay: ParseDelayStatement(); break;
             case TokenType.KeywordMouse: ParseMouseStatement(); break;
             case TokenType.KeywordKey: ParseKeyStatement(); break;
-            // EndOfFile 是合法的结束，不应视为错误
+            case TokenType.KeywordScript: ParseScriptStatement(); break; // <-- Add Script parsing
+                                                                         // EndOfFile is handled by the main loop
             case TokenType.EndOfFile: break;
+            // Ignore leading EndOfLine tokens if any survived filtering
+            case TokenType.EndOfLine: Consume(); ParseStatement(); break; // Skip and parse next
             default:
-                throw CreateException($"意外的 Token '{token.Value}' ({token.Type})，期望一个语句的开始");
+                throw CreateException($"Unexpected token '{token.Value}' ({token.Type}), expected start of a statement");
         }
-        // 确保语句结束（换行或文件尾）
-        //if (CurrentToken().Type != TokenType.EndOfLine && CurrentToken().Type != TokenType.EndOfFile)
-        //{
-        //      throw CreateException($"语句后缺少换行符或文件结束");
-        //}
     }
 
-    // --- 语句解析方法 ---
+    // --- Statement Parsing Methods ---
 
     private void ParseIfStatement()
     {
         int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordIf); // if
-        Expect(TokenType.ParenOpen, "'if' 后面需要 '('");
+        Expect(TokenType.ParenOpen, "'if' requires '(' after it");
         var (conditionEvent, jumpTargets) = ParseCondition(); // (condition)
-        Expect(TokenType.ParenClose, "条件后需要 ')'");
-        // 语句结束检查
-        ExpectEndOfStatement("'if' 语句后");
+        Expect(TokenType.ParenClose, "Condition requires ')' after it");
 
         string trueLabel = NewLabel("if_true");
         string elseLabel = NewLabel("if_else");
         string endLabel = NewLabel("if_end");
 
-        // 设置跳转目标，需要考虑 != 操作符
+        // Setup jump targets considering the operator (== or !=)
         conditionEvent.TrueTargetEventName = jumpTargets.IsNotEquals ? elseLabel : trueLabel;
         conditionEvent.FalseTargetEventName = jumpTargets.IsNotEquals ? trueLabel : elseLabel;
         _events.Add(conditionEvent);
 
-        // 添加用于解析跳转目标的 Nop 事件
-        AddLabelEvent(trueLabel);
+        AddLabelEvent(trueLabel); // Mark the start of the 'true' block
 
         _blockStack.Push(new FlowControlBlock(TokenType.KeywordIf, null, elseLabel, endLabel, line));
     }
@@ -141,22 +179,22 @@ public class NewDslParser
     {
         int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordElse);
-        ExpectEndOfStatement("'else' 关键字后");
 
         if (_blockStack.Count == 0 || _blockStack.Peek().Type != TokenType.KeywordIf)
-            throw CreateException($"意外的 'else'，没有匹配的 'if'");
+            throw CreateException($"Unexpected 'else' without a matching 'if'");
 
         var ifBlock = _blockStack.Pop();
 
-        // 1. 添加跳转到 endif 的 GOTO
+        // 1. Add GOTO to jump over the else block from the end of the if block
         var jumpToEnd = new JumpEvent { TimeSinceLastEvent = 0 };
-        _gotoFixups.Add((jumpToEnd, ifBlock.EndLabel, line));
+        _gotoFixups.Add((jumpToEnd, ifBlock.EndLabel, line)); // Resolve target later
         _events.Add(jumpToEnd);
 
-        // 2. 添加 else 标签
-        if (string.IsNullOrEmpty(ifBlock.ElseLabel)) throw CreateException($"内部错误: If 块缺少 else 标签", line);
+        // 2. Add the else label (start of the else block)
+        if (string.IsNullOrEmpty(ifBlock.ElseLabel)) throw CreateException($"Internal error: If block missing else label", line);
         AddLabelEvent(ifBlock.ElseLabel);
 
+        // 3. Push an "else" block onto the stack
         _blockStack.Push(new FlowControlBlock(TokenType.KeywordElse, null, null, ifBlock.EndLabel, line));
     }
 
@@ -164,20 +202,20 @@ public class NewDslParser
     {
         int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordEndIf);
-        ExpectEndOfStatement("'endif' 关键字后");
 
         if (_blockStack.Count == 0 || (CurrentBlockType() != TokenType.KeywordIf && CurrentBlockType() != TokenType.KeywordElse))
-            throw CreateException($"意外的 'endif'，没有匹配的 'if' 或 'else'");
+            throw CreateException($"Unexpected 'endif' without a matching 'if' or 'else'");
 
         var block = _blockStack.Pop();
 
-        // 如果是 if 块（没有 else），需要添加 else 标签占位符
+        // If it was an 'if' block (no else), we still need the else label as the jump target for false condition
         if (block.Type == TokenType.KeywordIf)
         {
-            if (string.IsNullOrEmpty(block.ElseLabel)) throw CreateException($"内部错误: If 块缺少 else 标签", line);
+            if (string.IsNullOrEmpty(block.ElseLabel)) throw CreateException($"Internal error: If block missing else label", line);
             AddLabelEvent(block.ElseLabel);
         }
 
+        // Add the endif label (the exit point)
         AddLabelEvent(block.EndLabel);
     }
 
@@ -185,23 +223,22 @@ public class NewDslParser
     {
         int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordWhile);
-        Expect(TokenType.ParenOpen, "'while' 后面需要 '('");
+        Expect(TokenType.ParenOpen, "'while' requires '(' after it");
         var (conditionEvent, jumpTargets) = ParseCondition();
-        Expect(TokenType.ParenClose, "条件后需要 ')'");
-        ExpectEndOfStatement("'while' 语句后");
+        Expect(TokenType.ParenClose, "Condition requires ')' after it");
 
-        string startLabel = NewLabel("while_start");
-        string bodyLabel = NewLabel("while_body");
-        string endLabel = NewLabel("while_end");
+        string startLabel = NewLabel("while_start"); // Label before condition check
+        string bodyLabel = NewLabel("while_body");   // Label for the loop body start
+        string endLabel = NewLabel("while_end");     // Label after the loop
 
-        AddLabelEvent(startLabel);
+        AddLabelEvent(startLabel); // Mark the start (condition check)
 
-        // 设置跳转目标，考虑 !=
-        conditionEvent.TrueTargetEventName = jumpTargets.IsNotEquals ? endLabel : bodyLabel;
-        conditionEvent.FalseTargetEventName = jumpTargets.IsNotEquals ? bodyLabel : endLabel;
+        // Setup jump targets considering the operator (== or !=)
+        conditionEvent.TrueTargetEventName = jumpTargets.IsNotEquals ? endLabel : bodyLabel;   // If true (or not false), jump to body or end
+        conditionEvent.FalseTargetEventName = jumpTargets.IsNotEquals ? bodyLabel : endLabel; // If false (or not true), jump to end or body
         _events.Add(conditionEvent);
 
-        AddLabelEvent(bodyLabel);
+        AddLabelEvent(bodyLabel); // Mark the start of the loop body
 
         _blockStack.Push(new FlowControlBlock(TokenType.KeywordWhile, startLabel, null, endLabel, line));
     }
@@ -210,19 +247,19 @@ public class NewDslParser
     {
         int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordEndWhile);
-        ExpectEndOfStatement("'endwhile' 关键字后");
 
         if (_blockStack.Count == 0 || CurrentBlockType() != TokenType.KeywordWhile)
-            throw CreateException($"意外的 'endwhile'，没有匹配的 'while'");
+            throw CreateException($"Unexpected 'endwhile' without a matching 'while'");
 
         var block = _blockStack.Pop();
-        if (string.IsNullOrEmpty(block.StartLabel)) throw CreateException($"内部错误: While 块缺少 start 标签", line);
+        if (string.IsNullOrEmpty(block.StartLabel)) throw CreateException($"Internal error: While block missing start label", line);
 
-        // 添加跳回循环开始的 GOTO
+        // Add GOTO to jump back to the start (condition check)
         var jumpToStart = new JumpEvent { TimeSinceLastEvent = 0 };
-        _gotoFixups.Add((jumpToStart, block.StartLabel, line));
+        _gotoFixups.Add((jumpToStart, block.StartLabel, line)); // Resolve target later
         _events.Add(jumpToStart);
 
+        // Add the end label (exit point)
         AddLabelEvent(block.EndLabel);
     }
 
@@ -230,14 +267,15 @@ public class NewDslParser
     {
         int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordBreak);
-        ExpectEndOfStatement("'break' 关键字后");
 
+        // Find the innermost 'while' block
         var whileBlock = _blockStack.FirstOrDefault(b => b.Type == TokenType.KeywordWhile);
         if (whileBlock == null)
-            throw CreateException($"'break' 只能在 'while' 循环内使用");
+            throw CreateException($"'break' can only be used inside a 'while' loop");
 
+        // Add GOTO to jump to the end of that 'while' loop
         var jumpToEnd = new JumpEvent { TimeSinceLastEvent = 0 };
-        _gotoFixups.Add((jumpToEnd, whileBlock.EndLabel, line));
+        _gotoFixups.Add((jumpToEnd, whileBlock.EndLabel, line)); // Resolve target later
         _events.Add(jumpToEnd);
     }
 
@@ -245,97 +283,90 @@ public class NewDslParser
     {
         int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordLabel);
-        // Expect(TokenType.ParenOpen, "'label' 后面需要 '('");
-        var labelToken = Expect(TokenType.Identifier, "需要标签名称");
-        // Expect(TokenType.ParenClose, "标签名称后需要 ')'");
-        ExpectEndOfStatement("'label' 语句后");
+        // Expect(TokenType.ParenOpen, "'label' requires '(' after it");
+        var labelToken = Expect(TokenType.Identifier, "Requires a label name");
+        // Expect(TokenType.ParenClose, "Label name requires ')' after it");
 
         string labelName = labelToken.Value;
         if (labelName.StartsWith("__dsl_"))
-            throw CreateException($"无效的标签名称 '{labelName}'。不能使用 '__dsl_' 前缀。", line);
+            throw CreateException($"Invalid label name '{labelName}'. Cannot use the '__dsl_' prefix.", line);
         if (_labelsDefined.ContainsKey(labelName))
-            throw CreateException($"标签 '{labelName}' 已定义。", line);
+            throw CreateException($"Label '{labelName}' is already defined.", line);
 
-        _labelsDefined.Add(labelName, true);
-        _events.Add(new Nop(labelName));
+        _labelsDefined.Add(labelName, true); // Mark as defined
+        _events.Add(new Nop(labelName));     // Add the Nop event representing the label
     }
 
     private void ParseGotoStatement()
     {
         int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordGoto);
-        // Expect(TokenType.ParenOpen, "'goto' 后面需要 '('");
-        var labelToken = Expect(TokenType.Identifier, "需要目标标签名称");
-        // Expect(TokenType.ParenClose, "标签名称后需要 ')'");
-        ExpectEndOfStatement("'goto' 语句后");
+        // Expect(TokenType.ParenOpen, "'goto' requires '(' after it");
+        var labelToken = Expect(TokenType.Identifier, "Requires a target label name");
+        // Expect(TokenType.ParenClose, "Label name requires ')' after it");
 
         var jumpEvent = new JumpEvent { TimeSinceLastEvent = 0 };
+        // Add to fixup list, target name will be set during ResolveJumps
         _gotoFixups.Add((jumpEvent, labelToken.Value, line));
         _events.Add(jumpEvent);
     }
 
     private void ParseExitStatement()
     {
-        int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordExit);
-        ExpectEndOfStatement("'exit' 关键字后");
         _events.Add(new BreakEvent { TimeSinceLastEvent = 0 });
     }
 
     private void ParseDelayStatement()
     {
-        int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordDelay);
-        Expect(TokenType.ParenOpen, "'Delay' 后面需要 '('");
-        var numberToken = Expect(TokenType.Number, "需要延迟的毫秒数");
-        Expect(TokenType.ParenClose, "毫秒数后需要 ')'");
-        ExpectEndOfStatement("'Delay' 语句后");
+        Expect(TokenType.ParenOpen, "'Delay' requires '(' after it");
+        var numberToken = Expect(TokenType.Number, "Requires delay milliseconds");
+        Expect(TokenType.ParenClose, "Milliseconds requires ')' after it");
 
         if (!double.TryParse(numberToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double delay))
-            throw CreateException($"无效的延迟毫秒数 '{numberToken.Value}'");
+            throw CreateException($"Invalid delay milliseconds '{numberToken.Value}'");
 
         _events.Add(new DelayEvent { DelayMilliseconds = (int)delay, TimeSinceLastEvent = 0 });
     }
 
     private void ParseMouseStatement()
     {
-        int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordMouse);
-        Expect(TokenType.ParenOpen, "'Mouse' 后面需要 '('");
+        Expect(TokenType.ParenOpen, "'Mouse' requires '(' after it");
 
-        var actionToken = Expect(TokenType.Identifier, "需要 MouseAction (如 LeftDown, Move)");
+        var actionToken = Expect(TokenType.Identifier, "Requires MouseAction (e.g., LeftDown, Move)");
         if (!System.Enum.TryParse<MouseAction>(actionToken.Value, true, out var action))
-            throw CreateException($"未知的 MouseAction '{actionToken.Value}'");
+            throw CreateException($"Unknown MouseAction '{actionToken.Value}'");
 
-        Expect(TokenType.Comma, "MouseAction 后需要 ','");
-        var xToken = Expect(TokenType.Number, "需要 X 坐标");
-        if (!int.TryParse(xToken.Value, out int x)) throw CreateException($"无效的 X 坐标 '{xToken.Value}'");
+        Expect(TokenType.Comma, "MouseAction requires ',' after it");
+        var xToken = Expect(TokenType.Number, "Requires X coordinate");
+        if (!int.TryParse(xToken.Value, out int x)) throw CreateException($"Invalid X coordinate '{xToken.Value}'");
 
-        Expect(TokenType.Comma, "X 坐标后需要 ','");
-        var yToken = Expect(TokenType.Number, "需要 Y 坐标");
-        if (!int.TryParse(yToken.Value, out int y)) throw CreateException($"无效的 Y 坐标 '{yToken.Value}'");
+        Expect(TokenType.Comma, "X coordinate requires ',' after it");
+        var yToken = Expect(TokenType.Number, "Requires Y coordinate");
+        if (!int.TryParse(yToken.Value, out int y)) throw CreateException($"Invalid Y coordinate '{yToken.Value}'");
 
         int wheelDelta = 0;
         double delayMs = 0;
 
         if (action == MouseAction.Wheel)
         {
-            Expect(TokenType.Comma, "Y 坐标后需要 ',' (对于 Wheel)");
-            var deltaToken = Expect(TokenType.Number, "需要 WheelDelta");
-            if (!int.TryParse(deltaToken.Value, out wheelDelta)) throw CreateException($"无效的 WheelDelta '{deltaToken.Value}'");
+            Expect(TokenType.Comma, "Y coordinate requires ',' after it (for Wheel)");
+            var deltaToken = Expect(TokenType.Number, "Requires WheelDelta");
+            if (!int.TryParse(deltaToken.Value, out wheelDelta)) throw CreateException($"Invalid WheelDelta '{deltaToken.Value}'");
         }
 
-        // 可选的延迟参数
+        // Optional delay parameter
         if (CurrentToken().Type == TokenType.Comma)
         {
-            Consume(); // ,
-            var delayToken = Expect(TokenType.Number, "需要延迟毫秒数");
+            Consume(); // Consume ','
+            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
             if (!double.TryParse(delayToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out delayMs))
-                throw CreateException($"无效的延迟毫秒数 '{delayToken.Value}'");
+                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
         }
 
-        Expect(TokenType.ParenClose, "参数列表后需要 ')'");
-        ExpectEndOfStatement("'Mouse' 语句后");
+        Expect(TokenType.ParenClose, "Parameter list requires ')' after it");
 
         _events.Add(new MouseEvent
         {
@@ -349,31 +380,48 @@ public class NewDslParser
 
     private void ParseKeyStatement()
     {
-        int line = CurrentToken().LineNumber;
         Consume(TokenType.KeywordKey);
-        Expect(TokenType.ParenOpen, "'Key' 后面需要 '('");
+        Expect(TokenType.ParenOpen, "'Key' requires '(' after it");
 
-        var actionToken = Expect(TokenType.Identifier, "需要 KeyboardAction (如 KeyDown, KeyUp)");
+        var actionToken = Expect(TokenType.Identifier, "Requires KeyboardAction (e.g., KeyDown, KeyUp)");
         if (!System.Enum.TryParse<KeyboardAction>(actionToken.Value, true, out var action))
-            throw CreateException($"未知的 KeyboardAction '{actionToken.Value}'");
+            throw CreateException($"Unknown KeyboardAction '{actionToken.Value}'");
 
-        Expect(TokenType.Comma, "KeyboardAction 后需要 ','");
-        var keyToken = Expect(TokenType.Identifier, "需要 Keys 枚举值 (如 LControlKey, A)");
-        if (!System.Enum.TryParse<System.Windows.Forms.Keys>(keyToken.Value, true, out var key))
-            throw CreateException($"未知的 Keys 枚举值 '{keyToken.Value}'");
-
-        double delayMs = 0;
-        // 可选的延迟参数
-        if (CurrentToken().Type == TokenType.Comma)
+        Expect(TokenType.Comma, "KeyboardAction requires ',' after it");
+        var keyToken = Expect(TokenType.Identifier, "Requires Keys enum value (e.g., LControlKey, A)");
+        // Special case for comma key name itself
+        string keyValue = keyToken.Value;
+        if (keyValue.Equals("Comma", StringComparison.OrdinalIgnoreCase))
         {
-            Consume(); // ,
-            var delayToken = Expect(TokenType.Number, "需要延迟毫秒数");
-            if (!double.TryParse(delayToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out delayMs))
-                throw CreateException($"无效的延迟毫秒数 '{delayToken.Value}'");
+            keyValue = "Oemcomma"; // Map to the correct Keys enum member name
         }
 
-        Expect(TokenType.ParenClose, "参数列表后需要 ')'");
-        ExpectEndOfStatement("'Key' 语句后");
+        if (!System.Enum.TryParse<System.Windows.Forms.Keys>(keyValue, true, out var key))
+        {
+            // Try parsing potentially problematic names like ',' directly if needed,
+            // but preferring explicit names like Oemcomma is better.
+            if (keyToken.Value == "," && System.Enum.TryParse<System.Windows.Forms.Keys>("Oemcomma", true, out key))
+            {
+                // Parsed successfully as Oemcomma
+            }
+            else
+            {
+                throw CreateException($"Unknown Keys enum value '{keyToken.Value}'");
+            }
+        }
+
+
+        double delayMs = 0;
+        // Optional delay parameter
+        if (CurrentToken().Type == TokenType.Comma)
+        {
+            Consume(); // Consume ','
+            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
+            if (!double.TryParse(delayToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out delayMs))
+                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
+        }
+
+        Expect(TokenType.ParenClose, "Parameter list requires ')' after it");
 
         _events.Add(new KeyboardEvent
         {
@@ -383,7 +431,78 @@ public class NewDslParser
         });
     }
 
-    // --- 条件解析 ---
+    // --- Script Block Parsing ---
+    private void ParseScriptStatement()
+    {
+        int startLine = CurrentToken().LineNumber;
+        Consume(TokenType.KeywordScript);
+        string? scriptName = null;
+        if (CurrentToken().Type == TokenType.Identifier)
+        {
+            scriptName = Consume().Value; // Optional script name
+        }
+        Expect(TokenType.EndOfLine, "Need newline after 'script [name]'");
+
+        var scriptLines = new List<string>();
+        var transformedLines = new List<string>();
+
+        // Read lines until endscript
+        while (!IsAtEnd() && CurrentToken().Type != TokenType.KeywordEndScript)
+        {
+            int currentLineNum = CurrentToken().LineNumber;
+            StringBuilder lineBuilder = new StringBuilder();
+            // Reconstruct the original line from tokens until EndOfLine
+            while (!IsAtEnd() && CurrentToken().Type != TokenType.EndOfLine && CurrentToken().Type != TokenType.KeywordEndScript)
+            {
+                // Append raw token value (handle spacing appropriately if needed, but often not necessary for execution)
+                lineBuilder.Append(CurrentToken().Value).Append(" "); // Simple space separation
+                Consume();
+            }
+            string originalLine = lineBuilder.ToString().Trim();
+            scriptLines.Add(originalLine); // Store original line if needed for debugging?
+
+            // Transform the line
+            if (!string.IsNullOrWhiteSpace(originalLine))
+            {
+                try
+                {
+                    transformedLines.Add(TransformScriptLine(originalLine, currentLineNum));
+                }
+                catch (Exception ex) when (ex is not DslParserException)
+                {
+                    // Catch transformation errors
+                    throw CreateException($"Error transforming script line: '{originalLine}'. Reason: {ex.Message}", currentLineNum);
+                }
+            }
+
+
+            // Consume the EndOfLine token separating script lines
+            if (!IsAtEnd() && CurrentToken().Type == TokenType.EndOfLine)
+            {
+                Consume();
+            }
+            else if (!IsAtEnd() && CurrentToken().Type != TokenType.KeywordEndScript)
+            {
+                // Should not happen if lexer includes EndOfLine correctly
+                throw CreateException("Expected newline within script block", CurrentToken().LineNumber);
+            }
+        }
+
+        Expect(TokenType.KeywordEndScript, "Script block must end with 'endscript'");
+        // Optional: Expect EndOfLine after endscript, consistent with other blocks
+        // ExpectEndOfStatement("'endscript' keyword requires end of line or file");
+
+
+        _events.Add(new ScriptEvent
+        {
+            EventName = scriptName, // Use the parsed script name
+            ScriptLines = transformedLines.ToArray(),
+            TimeSinceLastEvent = 0 // Script blocks execute instantly relative to the sequence
+        });
+    }
+
+
+    // --- Condition Parsing ---
     private (ConditionalJumpEvent conditionEvent, JumpTargets jumpTargets) ParseCondition()
     {
         var conditionEvent = new ConditionalJumpEvent { TimeSinceLastEvent = 0 };
@@ -396,67 +515,69 @@ public class NewDslParser
         else if (CurrentToken().Type == TokenType.KeywordCustom)
         {
             ParseCustomCondition(conditionEvent);
-            isNotEquals = false; // Custom 条件默认为 == true
+            isNotEquals = false; // Custom condition implies '== true'
         }
         else
         {
-            throw CreateException($"期望条件（PixelColor 或 Custom），但得到 '{CurrentToken().Value}'");
+            throw CreateException($"Expected condition (PixelColor or Custom), but got '{CurrentToken().Value}'");
         }
 
         return (conditionEvent, new JumpTargets(isNotEquals));
     }
 
-    // 用于传递 isNotEquals 标志
+    // Helper struct for ParseCondition return value
     private record struct JumpTargets(bool IsNotEquals);
 
 
     private void ParsePixelColorCondition(ConditionalJumpEvent conditionEvent, out bool isNotEquals)
     {
         Consume(TokenType.KeywordPixelColor);
-        Expect(TokenType.ParenOpen, "'PixelColor' 后面需要 '('");
-        var xToken = Expect(TokenType.Number, "需要 X 坐标");
-        if (!int.TryParse(xToken.Value, out int x)) throw CreateException($"无效的 X 坐标 '{xToken.Value}'");
-        Expect(TokenType.Comma, "X 坐标后需要 ','");
-        var yToken = Expect(TokenType.Number, "需要 Y 坐标");
-        if (!int.TryParse(yToken.Value, out int y)) throw CreateException($"无效的 Y 坐标 '{yToken.Value}'");
-        Expect(TokenType.ParenClose, "Y 坐标后需要 ')'");
+        Expect(TokenType.ParenOpen, "'PixelColor' requires '(' after it");
+        var xToken = Expect(TokenType.Number, "Requires X coordinate");
+        if (!int.TryParse(xToken.Value, out int x)) throw CreateException($"Invalid X coordinate '{xToken.Value}'");
+        Expect(TokenType.Comma, "X coordinate requires ',' after it");
+        var yToken = Expect(TokenType.Number, "Requires Y coordinate");
+        if (!int.TryParse(yToken.Value, out int y)) throw CreateException($"Invalid Y coordinate '{yToken.Value}'");
+        Expect(TokenType.ParenClose, "Y coordinate requires ')' after it");
 
         var operatorToken = Consume();
         if (operatorToken.Type == TokenType.OperatorEquals) isNotEquals = false;
         else if (operatorToken.Type == TokenType.OperatorNotEquals) isNotEquals = true;
-        else throw CreateException($"PixelColor 条件需要 '==' 或 '!=' 操作符");
+        else throw CreateException($"PixelColor condition requires '==' or '!=' operator");
 
         Color color;
         byte tolerance = 0;
         if (CurrentToken().Type == TokenType.KeywordRGB)
         {
             Consume(); // RGB
-            Expect(TokenType.ParenOpen, "'RGB' 后面需要 '('");
-            var rToken = Expect(TokenType.Number, "需要 R 值");
-            Expect(TokenType.Comma, "R 值后需要 ','");
-            var gToken = Expect(TokenType.Number, "需要 G 值");
-            Expect(TokenType.Comma, "G 值后需要 ','");
-            var bToken = Expect(TokenType.Number, "需要 B 值");
+            Expect(TokenType.ParenOpen, "'RGB' requires '(' after it");
+            var rToken = Expect(TokenType.Number, "Requires R value");
+            Expect(TokenType.Comma, "R value requires ',' after it");
+            var gToken = Expect(TokenType.Number, "Requires G value");
+            Expect(TokenType.Comma, "G value requires ',' after it");
+            var bToken = Expect(TokenType.Number, "Requires B value");
 
-            // 可选的容差
+            // Optional tolerance
             if (CurrentToken().Type == TokenType.Comma)
             {
-                Consume(); // ,
-                var toleranceToken = Expect(TokenType.Number, "需要容差值 (0-255)");
-                if (!byte.TryParse(toleranceToken.Value, out tolerance)) throw CreateException($"无效的容差值 '{toleranceToken.Value}'");
+                Consume(); // Consume ','
+                var toleranceToken = Expect(TokenType.Number, "Requires tolerance value (0-255)");
+                if (!byte.TryParse(toleranceToken.Value, out tolerance)) throw CreateException($"Invalid tolerance value '{toleranceToken.Value}'");
             }
 
-            Expect(TokenType.ParenClose, "RGB 参数后需要 ')'");
+            Expect(TokenType.ParenClose, "RGB parameters require ')' after it");
 
-            if (!int.TryParse(rToken.Value, out int r) || !int.TryParse(gToken.Value, out int g) || !int.TryParse(bToken.Value, out int b))
-                throw CreateException("无效的 RGB 颜色值");
+            if (!int.TryParse(rToken.Value, out int r) || r < 0 || r > 255 ||
+                !int.TryParse(gToken.Value, out int g) || g < 0 || g > 255 ||
+                !int.TryParse(bToken.Value, out int b) || b < 0 || b > 255)
+                throw CreateException("Invalid RGB color value(s) (must be 0-255)");
             color = System.Drawing.Color.FromArgb(r, g, b);
 
         }
-        // else if (CurrentToken().Type == TokenType.KeywordARGB) ... // 类似地处理 ARGB
+        // else if (CurrentToken().Type == TokenType.KeywordARGB) ... // Handle ARGB similarly if needed
         else
         {
-            throw CreateException($"期望 'RGB(...)'"); // 或 ARGB
+            throw CreateException($"Expected 'RGB(...)' after PixelColor operator");
         }
 
         conditionEvent.ConditionType = ConditionType.PixelColor;
@@ -469,19 +590,81 @@ public class NewDslParser
     private void ParseCustomCondition(ConditionalJumpEvent conditionEvent)
     {
         Consume(TokenType.KeywordCustom);
-        Expect(TokenType.ParenOpen, "'Custom' 后面需要 '('");
-        // Lexer 已经将 `...` 内的内容提取为 Identifier Token
-        var expressionToken = Expect(TokenType.Identifier, "需要 Custom 条件表达式字符串 (用反引号 `` 包裹)");
-        Expect(TokenType.ParenClose, "Custom 表达式后需要 ')'");
+        Expect(TokenType.ParenOpen, "'Custom' requires '(' after it");
+        // Lexer extracts content between backticks as an Identifier token
+        var expressionToken = Expect(TokenType.Identifier, "Requires Custom condition expression string (in backticks ` `)");
+        Expect(TokenType.ParenClose, "Custom expression requires ')' after it");
 
         conditionEvent.ConditionType = ConditionType.CustomExpression;
         conditionEvent.CustomCondition = expressionToken.Value;
     }
 
-    // --- 辅助方法 ---
+    // --- Script Transformation ---
 
-    private Token CurrentToken() => _tokens[_currentTokenIndex];
-    private Token PreviousToken() => _tokens[_currentTokenIndex - 1];
+    // Basic transformation for simple assignments and variable reads
+    private string TransformScriptLine(string line, int lineNumber)
+    {
+        line = line.Trim();
+        if (string.IsNullOrEmpty(line)) return string.Empty;
+
+        // Match assignment: $variable = expression
+        var assignmentMatch = Regex.Match(line, @"^\s*\$(?<var>[a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?<expr>.*)$");
+        if (assignmentMatch.Success)
+        {
+            string varName = assignmentMatch.Groups["var"].Value;
+            string expression = assignmentMatch.Groups["expr"].Value.Trim();
+            string transformedExpression = TransformScriptExpression(expression, lineNumber);
+            return $"set(\"{varName}\", {transformedExpression})";
+        }
+        else
+        {
+            // If not an assignment, assume it's an expression to be evaluated (potentially with side effects)
+            // Transform any variable reads within it
+            return TransformScriptExpression(line, lineNumber);
+        }
+    }
+
+    // Simple recursive expression transformer (handles basic arithmetic and variable reads)
+    // This needs to be significantly more robust for complex expressions.
+    private string TransformScriptExpression(string expression, int lineNumber)
+    {
+        // Replace $variable with (type)get("variable")
+        // Need a simple way to infer type or make assumptions. Let's assume int for arithmetic.
+        // This regex is basic and might have issues with nested structures or strings.
+        string transformed = Regex.Replace(expression, @"\$(?<var>[a-zA-Z_][a-zA-Z0-9_]*)",
+            match =>
+            {
+                string varName = match.Groups["var"].Value;
+                // Determine context - crude check for arithmetic operators nearby
+                // A proper parser is needed for robust type inference.
+                bool seemsArithmetic = expression.Contains('+') || expression.Contains('-') || expression.Contains('*') || expression.Contains('/');
+                string cast = seemsArithmetic ? "(int)" : "(object)"; // Assume int for arithmetic, else object
+                return $"{cast}get(\"{varName}\")";
+            });
+
+        // Potentially add more transformations here for function calls etc. if needed
+
+        return transformed;
+    }
+
+    // --- Helper Methods ---
+
+    private Token CurrentToken()
+    {
+        if (_currentTokenIndex < 0 || _currentTokenIndex >= _tokens.Count)
+        {
+            // Should ideally not happen if IsAtEnd is checked, but return EOF as safeguard
+            return _tokens.LastOrDefault(t => t.Type == TokenType.EndOfFile)
+                   ?? new Token(TokenType.EndOfFile, string.Empty, _tokens.LastOrDefault()?.LineNumber ?? 1, _tokens.LastOrDefault()?.Column ?? 1);
+        }
+        return _tokens[_currentTokenIndex];
+    }
+
+    private Token PreviousToken()
+    {
+        if (_currentTokenIndex <= 0) return new Token(TokenType.Unknown, "", 0, 0); // Or handle error
+        return _tokens[_currentTokenIndex - 1];
+    }
 
     private bool IsAtEnd() => _currentTokenIndex >= _tokens.Count || CurrentToken().Type == TokenType.EndOfFile;
 
@@ -491,6 +674,7 @@ public class NewDslParser
         return PreviousToken();
     }
 
+    // Consumes the current token if it matches the expected type, otherwise throws.
     private Token Consume(TokenType expectedType, string? errorMessage = null)
     {
         var token = CurrentToken();
@@ -498,84 +682,72 @@ public class NewDslParser
         {
             return Consume();
         }
-        throw CreateException(errorMessage ?? $"期望 Token 类型 '{expectedType}'，但得到 '{token.Type}' ('{token.Value}')");
+        throw CreateException(errorMessage ?? $"Expected token type '{expectedType}' but got '{token.Type}' ('{token.Value}')");
     }
 
+    // Checks if the current token matches the expected type, consumes it, and returns it. Throws otherwise.
     private Token Expect(TokenType expectedType, string errorMessage)
     {
         var token = CurrentToken();
         if (token.Type != expectedType)
         {
-            throw CreateException(errorMessage + $". 得到 '{token.Type}' ('{token.Value}')");
+            throw CreateException(errorMessage + $". Got '{token.Type}' ('{token.Value}') instead.");
         }
-        return Consume(); // 消耗并返回预期的 Token
+        return Consume(); // Consume and return the expected token
     }
 
+    // Checks that the current token signifies the end of a statement (EndOfLine or EndOfFile)
+    // Does NOT consume the token.
     private void ExpectEndOfStatement(string contextMessage)
     {
+        if (IsAtEnd()) return; // EndOfFile is a valid end of statement
+
         var token = CurrentToken();
-        if (token.Type != TokenType.EndOfLine && token.Type != TokenType.EndOfFile)
+        if (token.Type != TokenType.EndOfLine)
         {
-            throw CreateException($"{contextMessage}需要换行符或文件结束，但得到 '{token.Value}' ({token.Type})");
+            throw CreateException($"{contextMessage} requires a newline or end of file, but got '{token.Value}' ({token.Type})");
         }
-        // 不消耗 EndOfLine 或 EndOfFile，留给 ParseStatement 循环处理
+        // Do not consume EndOfLine here, let the main loop handle it.
     }
 
     private string NewLabel(string prefix = "auto") => $"__dsl_{prefix}_{_labelCounter++}";
 
-    // 添加用于跳转目标的 Nop 事件，并记录标签定义
+    // Adds a Nop event for a label and marks it as defined
     private void AddLabelEvent(string labelName)
     {
-        if (!_labelsDefined.ContainsKey(labelName)) // 防止重复添加内部标签
+        if (!_labelsDefined.ContainsKey(labelName)) // Avoid duplicate internal labels
         {
             _labelsDefined.Add(labelName, true);
             _events.Add(new Nop(labelName));
         }
-        else if (!labelName.StartsWith("__dsl_")) // 如果是用户定义的标签重复，则报错
-        {
-            // 注意：这里可能需要更精确的行号，但这需要 Lexer/Parser 更紧密地协作
-            // 或在 ResolveJumps 阶段再次检查
-            // 为了简化，我们暂时允许内部标签逻辑“覆盖”用户标签定义点
-            // 但在 ResolveJumps 会检查用户标签是否明确定义
-            System.Diagnostics.Debug.WriteLine($"警告: 内部标签 '{labelName}' 可能覆盖了用户定义的标签");
-        }
+        // Allow internal labels to potentially "reuse" a definition point
+        // The final check happens in ResolveJumps for user-defined labels
     }
 
     private TokenType CurrentBlockType()
     {
-        if (_blockStack.Count == 0) return TokenType.Unknown; // 或者抛出异常
+        if (_blockStack.Count == 0) return TokenType.Unknown; // Or throw
         return _blockStack.Peek().Type;
     }
 
+    // Final pass to resolve all goto targets
     private void ResolveJumps()
     {
         foreach (var (jumpEvent, targetName, lineNumber) in _gotoFixups)
         {
             if (!_labelsDefined.ContainsKey(targetName))
             {
-                throw CreateException($"未找到 'Goto' 语句的目标标签 '{targetName}'", lineNumber);
+                throw CreateException($"Target label '{targetName}' for 'Goto' on line {lineNumber} is not defined", lineNumber);
             }
-            jumpEvent.TargetEventName = targetName; // 设置跳转目标
+            jumpEvent.TargetEventName = targetName; // Set the resolved target name
         }
 
-        // 注意：ConditionalJump 的目标已经在解析时设置了名称，这里可以添加验证
-        foreach (var (condEvent, trueTarget, falseTarget, line) in _conditionalJumpFixups)
-        {
-            if (!string.IsNullOrEmpty(trueTarget) && !_labelsDefined.ContainsKey(trueTarget))
-            {
-                throw CreateException($"未找到条件跳转的 True 目标标签 '{trueTarget}'", line);
-            }
-            if (!string.IsNullOrEmpty(falseTarget) && !_labelsDefined.ContainsKey(falseTarget))
-            {
-                throw CreateException($"未找到条件跳转的 False 目标标签 '{falseTarget}'", line);
-            }
-            // 实际的目标名称已经在解析 IF/WHILE 时设置好了
-        }
+        // Could add validation for conditional jumps here if needed, but targets should be set during parsing
     }
 
     private DslParserException CreateException(string message, int? lineNumber = null)
     {
-        // 尝试获取当前 Token 的行号，如果 lineNumber 未提供
+        // Use provided line number or get from current/last token
         int line = lineNumber ?? CurrentToken()?.LineNumber ?? _tokens.LastOrDefault()?.LineNumber ?? 0;
         return new DslParserException(message, line);
     }

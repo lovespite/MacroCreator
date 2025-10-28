@@ -49,7 +49,7 @@ Key(KeyDown, R, 100) // 延迟100ms, 然后按下R
 Key(KeyUp, R, 50)
 Key(KeyUp, LWin, 50)
 
-// script MyScript
-//     $a = 1
-//     $b = $a + 2
-// endscript
+script MyScript
+    $a = 1
+    $b = $a + 2
+endscript
