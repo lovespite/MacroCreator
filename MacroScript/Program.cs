@@ -102,7 +102,9 @@ internal static class Program
 
     private static List<MacroEvent> CompileToSequence(string inputText)
     {
-        var outList = new Dsl.DslParser().Parse(inputText);
+        // var outList = new Dsl.DslParser().Parse(inputText);
+        var lexer = new Dsl.Lexer(inputText);
+        var outList = new Dsl.NewDslParser().Parse(lexer.Tokenize());
         return outList;
     }
 

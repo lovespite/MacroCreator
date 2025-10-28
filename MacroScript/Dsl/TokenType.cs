@@ -1,0 +1,27 @@
+﻿namespace MacroScript.Dsl;
+
+// --- 词法分析 (Lexer) ---
+
+/// <summary>
+/// 定义 DSL 中的 Token 类型
+/// </summary>
+public enum TokenType
+{
+    KeywordIf, KeywordElse, KeywordEndIf,
+    KeywordWhile, KeywordEndWhile, KeywordBreak,
+    KeywordLabel, KeywordGoto, KeywordExit,
+    KeywordDelay, KeywordMouse, KeywordKey,
+    KeywordPixelColor, KeywordRGB, KeywordARGB, KeywordCustom, // 条件相关关键字
+    Identifier, // 标签名, 事件名, 枚举值等
+    Number,
+    OperatorEquals, OperatorNotEquals,
+    ParenOpen, ParenClose,
+    Comma,
+    Backtick, // 用于 Custom 条件表达式
+    StringLiteral, // 暂未使用，但为未来准备
+    Comment,
+    Whitespace,
+    EndOfLine,
+    EndOfFile,
+    Unknown // 无法识别的 Token
+}

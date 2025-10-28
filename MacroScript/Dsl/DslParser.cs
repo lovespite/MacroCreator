@@ -8,6 +8,7 @@ namespace MacroScript.Dsl;
 /// <summary>
 /// 负责将 DSL 脚本字符串解析为 MacroEvent 列表。
 /// </summary>
+[Obsolete("此类已过时，请使用 NewDslParser 代替。")]
 public partial class DslParser
 {
     private int _labelCounter = 0;
