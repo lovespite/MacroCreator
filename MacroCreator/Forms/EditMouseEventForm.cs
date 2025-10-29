@@ -6,8 +6,8 @@ namespace MacroCreator.Forms;
 
 public partial class EditMouseEventForm : Form
 {
-    public int MouseX => (int)numericUpDownX.Value;
-    public int MouseY => (int)numericUpDownY.Value;
+    public int MouseX => Action.IsMoveAction() ? (int)numericUpDownX.Value : 0;
+    public int MouseY => Action.IsMoveAction() ? (int)numericUpDownY.Value : 0;
     public int WheelDelta => (int)numericUpDownWheelDelta.Value;
     public MouseAction Action => (MouseAction)comboBoxAction.SelectedIndex;
     public string? EventName => string.IsNullOrWhiteSpace(textBoxEventName.Text) ? null : textBoxEventName.Text.Trim();
@@ -100,6 +100,8 @@ public partial class EditMouseEventForm : Form
         labelWheelDelta.Visible = isWheelScroll;
         numericUpDownWheelDelta.Visible = isWheelScroll;
         chkPairedEvents.Visible = Action.IsDownAction();
+        numericUpDownX.Enabled = Action.IsMoveAction();
+        numericUpDownY.Enabled = Action.IsMoveAction();
     }
 
     private void BtnOk_Click(object sender, EventArgs e)

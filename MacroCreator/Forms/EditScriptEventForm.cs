@@ -33,7 +33,7 @@ namespace MacroCreator.Forms
 
             for (lnIndex = 0; lnIndex < ScriptLines.Length; lnIndex++)
             {
-                var line = ScriptLines[lnIndex];
+                var line = ScriptLines[lnIndex].Trim();
 
                 if (string.IsNullOrWhiteSpace(line))
                     continue;

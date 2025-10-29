@@ -50,8 +50,7 @@ public static class InputHook
         if (nCode >= 0)
         {
             var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-            int x = hookStruct.pt.x;
-            int y = hookStruct.pt.y;
+            int x = 0, y = 0;
             int delta = 0;
 
             MouseAction action;
@@ -69,7 +68,9 @@ public static class InputHook
                     break;
                 case NativeMethods.WM_MOUSEMOVE:
                 default:
-                    action = MouseAction.Move;
+                    action = MouseAction.MoveTo;
+                    x = hookStruct.pt.x;
+                    y = hookStruct.pt.y;
                     break;
             }
             OnMouseEvent?.Invoke(action, x, y, delta);

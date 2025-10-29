@@ -1,5 +1,11 @@
-﻿Script(`
-set("a", 1)
-set("b", (int)get("a") + 1)
-println("b = " + get("b"))
+﻿Script(`set("a", 1)`)
+
+Script(`
+set("a", (int)get("a") + 1)
+println("a = " + get("a"))
 `, "sc1")
+
+if(Custom(`(int)get("a") <= 10`))
+    // Do something
+    goto sc1
+endif

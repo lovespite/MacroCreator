@@ -12,14 +12,19 @@ public class MouseEventPlayer : IEventPlayer
     {
         var me = (MouseEvent)context.CurrentEvent;
 
-        // Set cursor position first
-        NativeMethods.SetCursorPos(me.X, me.Y);
-
-        uint flags = 0;
-        uint mouseData = 0;
+        uint flags = 0, mouseData = 0;
+        int dx = 0, dy = 0;
 
         switch (me.Action)
         {
+            case MouseAction.Move:
+                flags = NativeMethods.MOUSEEVENTF_MOVE;
+                dx = me.X;
+                dy = me.Y;
+                break;
+            case MouseAction.MoveTo:
+                NativeMethods.SetCursorPos(me.X, me.Y);
+                break;
             case MouseAction.LeftDown:
                 flags = NativeMethods.MOUSEEVENTF_LEFTDOWN;
                 break;
@@ -53,8 +58,8 @@ public class MouseEventPlayer : IEventPlayer
             {
                 mi = new NativeMethods.MOUSEINPUT
                 {
-                    dx = 0,
-                    dy = 0,
+                    dx = dx,
+                    dy = dy,
                     mouseData = mouseData,
                     dwFlags = flags,
                     time = 0,

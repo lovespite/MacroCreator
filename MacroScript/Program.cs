@@ -19,7 +19,7 @@ internal static class Program
     {
         Console.Title = ConsoleTitle = "MacroScript_v1_" + Rnd.GetString(8);
         _args = args;
-        if (args.Length < 2) return;
+        if (args.Length == 0) return;
 
         try
         {
@@ -43,11 +43,37 @@ internal static class Program
             Console.ReadKey();
     }
 
+    private static void PrintAllKeyNames(int columns = 10)
+    {
+        var names = Enum.GetNames<Keys>();
+        Console.WriteLine("[");
+
+        int colIndex = 0;
+
+        for (var i = 0; i < names.Length; ++i)
+        {
+            Console.Write($"\"{names[i]}\", ");
+            ++colIndex;
+            if ((i + 1) % columns == 0)
+            {
+                Console.WriteLine();
+                colIndex = 0;
+            }
+        }
+
+        Console.WriteLine("\n]");
+    }
+
     private static async Task ProcessCommand()
     {
         var cmd = _args[0];
         switch (cmd)
         {
+            case "showkeys":
+                {
+                    PrintAllKeyNames();
+                }
+                break;
             case "compile":
                 {
                     var outputFile = CompileToFile(_args[1], GetArg("output", "o"));
@@ -157,11 +183,11 @@ internal static class Program
             var controller = new MacroCreator.Controller.MacroController(eSeq);
             controller.OnPrint += ConsolePrinter.Instance.Print;
             controller.OnPrintLine += ConsolePrinter.Instance.PrintLine;
-            
+
             sw.Restart();
             await controller.StartPlayback();
             sw.Stop();
-            
+
             t = sw.Elapsed;
             Console.WriteLine($"执行完成, 用时 {t.TotalSeconds:0.00} s");
         }

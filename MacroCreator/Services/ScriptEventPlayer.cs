@@ -16,7 +16,7 @@ public class ScriptEventPlayer : IEventPlayer
         {
             for (lIndex = 0; lIndex < scripts.Length; lIndex++)
             {
-                var script = scripts[lIndex];
+                var script = scripts[lIndex].Trim();
 
                 if (string.IsNullOrWhiteSpace(script))
                     continue;

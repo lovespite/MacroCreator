@@ -32,8 +32,15 @@ public class Lexer : IDisposable
         { "goto", TokenType.KeywordGoto },
         { "exit", TokenType.KeywordExit },
         { "delay", TokenType.KeywordDelay },
-        { "mouse", TokenType.KeywordMouse },
-        { "key", TokenType.KeywordKey },
+        { "mousedown", TokenType.KeywordMouseDown },
+        { "mouseup", TokenType.KeywordMouseUp },
+        { "mouseclick", TokenType.KeywordMouseClick },
+        { "mousemove", TokenType.KeywordMouseMove },
+        { "mousemoveto", TokenType.KeywordMouseMoveTo },
+        { "mousewheel", TokenType.KeywordMouseWheel },
+        { "keydown", TokenType.KeywordKeyDown },
+        { "keyup", TokenType.KeywordKeyUp },
+        { "keypress", TokenType.KeywordKeyPress },
         { "pixelcolor", TokenType.KeywordPixelColor },
         { "rgb", TokenType.KeywordRGB },
         { "argb", TokenType.KeywordARGB },
@@ -200,7 +207,8 @@ public class Lexer : IDisposable
             {
                 // Handle single '/' (like division operator) later if needed
                 // For now, treat single '/' as potential start of Unknown or OperatorDivide
-                if (peekChar == '/') { return new Token(TokenType.OperatorDivide, "/", startLine, startColumn); }
+                // if (peekChar == '/') { return new Token(TokenType.OperatorDivide, "/", startLine, startColumn); }
+                throw new DslParserException($"行 {startLine}: Unexpected character '/'", startLine);
             }
         }
 
@@ -293,7 +301,8 @@ public class Lexer : IDisposable
             }
             else // Single '=' is assignment
             {
-                return new Token(TokenType.OperatorAssign, "=", startLine, startColumn);
+                throw new DslParserException($"行 {startLine}: Unexpected character '='", startLine);
+                // return new Token(TokenType.OperatorAssign, "=", startLine, startColumn);
             }
         }
         if (currentChar == '!')
@@ -308,10 +317,17 @@ public class Lexer : IDisposable
         }
 
         // Basic arithmetic operators
-        if (currentChar == '+') { return new Token(TokenType.OperatorPlus, "+", startLine, startColumn); }
-        if (currentChar == '-') { return new Token(TokenType.OperatorMinus, "-", startLine, startColumn); }
-        if (currentChar == '*') { return new Token(TokenType.OperatorMultiply, "*", startLine, startColumn); }
-        // Division '/' was handled earlier with comments check
+        //if (currentChar == '+') { return new Token(TokenType.OperatorPlus, "+", startLine, startColumn); }
+        //if (currentChar == '-') { return new Token(TokenType.OperatorMinus, "-", startLine, startColumn); }
+        //if (currentChar == '*') { return new Token(TokenType.OperatorMultiply, "*", startLine, startColumn); } 
+
+        if (currentChar == '+' ||
+            currentChar == '*' ||
+            currentChar == '/')
+        {
+            // For now, treat them as Unknown or extend TokenType if needed
+            return new Token(TokenType.Unknown, currentChar.ToString(), startLine, startColumn);
+        }
 
 
         // 5. 括号, 逗号
@@ -357,7 +373,7 @@ public class Lexer : IDisposable
         }
 
         // 7. 数字 (integer or decimal)
-        if (char.IsDigit(currentChar) || (currentChar == '.' && !_reader.EndOfStream && char.IsDigit((char)_reader.Peek())))
+        if (currentChar == '-' || char.IsDigit(currentChar) || (currentChar == '.' && !_reader.EndOfStream && char.IsDigit((char)_reader.Peek())))
         {
             var sb = new StringBuilder();
             sb.Append(currentChar);

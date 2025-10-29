@@ -3,6 +3,7 @@
 public enum MouseAction
 {
     Move,
+    MoveTo,
     LeftDown,
     LeftUp,
     RightDown,
@@ -20,6 +21,7 @@ public static class MouseActionExtensions
         return action switch
         {
             MouseAction.Move => "鼠标移动",
+            MouseAction.MoveTo => "鼠标移动到",
             MouseAction.LeftDown => "左键按下",
             MouseAction.LeftUp => "左键抬起",
             MouseAction.RightDown => "右键按下",
@@ -47,5 +49,10 @@ public static class MouseActionExtensions
         return action == MouseAction.LeftDown ||
                action == MouseAction.RightDown ||
                action == MouseAction.MiddleDown;
+    }
+
+    public static bool IsMoveAction(this MouseAction action)
+    {
+        return action == MouseAction.Move || action == MouseAction.MoveTo;
     }
 }

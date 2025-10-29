@@ -84,7 +84,7 @@ namespace MacroCreator.Forms
             // 
             comboBoxAction.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxAction.FormattingEnabled = true;
-            comboBoxAction.Items.AddRange(new object[] { "移动(MouseMove)", "左键按下(LeftDown)", "左键释放(LeftUp)", "右键按下(RightDown)", "右键释放(RightUp)", "中键按下(MiddleDown)", "中键释放(MiddleUp)", "滚轮滚动(WheelScroll)" });
+            comboBoxAction.Items.AddRange(new object[] { "移动(MouseMove)", "移动到位置(MouseMoveTo)", "左键按下(LeftDown)", "左键释放(LeftUp)", "右键按下(RightDown)", "右键释放(RightUp)", "中键按下(MiddleDown)", "中键释放(MiddleUp)", "滚轮滚动(WheelScroll)" });
             comboBoxAction.Location = new Point(12, 85);
             comboBoxAction.Name = "comboBoxAction";
             comboBoxAction.Size = new Size(360, 25);

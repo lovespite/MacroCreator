@@ -3,6 +3,7 @@
 public enum KeyboardAction
 {
     KeyDown,
-    KeyUp
+    KeyUp,
+    KeyPress,
 }
 

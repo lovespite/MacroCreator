@@ -1,6 +1,7 @@
 ﻿using MacroCreator.Models;
 using MacroCreator.Models.Events;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -215,8 +216,15 @@ public partial class NewDslParser
             case TokenType.KeywordGoto: ParseGotoStatement(); break;
             case TokenType.KeywordExit: ParseExitStatement(); break;
             case TokenType.KeywordDelay: ParseDelayStatement(); break;
-            case TokenType.KeywordMouse: ParseMouseStatement(); break;
-            case TokenType.KeywordKey: ParseKeyStatement(); break;
+            case TokenType.KeywordMouseMove: ParseMouseMoveStatement(); break;
+            case TokenType.KeywordMouseMoveTo: ParseMouseMoveToStatement(); break;
+            case TokenType.KeywordMouseDown: ParseMouseDownStatement(); break;
+            case TokenType.KeywordMouseUp: ParseMouseUpStatement(); break;
+            case TokenType.KeywordMouseClick: ParseMouseClickStatement(); break;
+            case TokenType.KeywordMouseWheel: ParseMouseWheelStatement(); break;
+            case TokenType.KeywordKeyUp: ParseKeyUpStatement(); break;
+            case TokenType.KeywordKeyDown: ParseKeyDownStatement(); break;
+            case TokenType.KeywordKeyPress: ParseKeyPressStatement(); break;
             case TokenType.KeywordScript: ParseScriptStatement(); break;
             // EndOfFile is handled by the main loop
             case TokenType.EndOfFile: break;
@@ -226,6 +234,8 @@ public partial class NewDslParser
                 throw CreateException($"Unexpected token '{token.Value}' ({token.Type}), expected start of a statement");
         }
     }
+
+    #region Flow Control Statement Parsers
 
     // --- Specific Statement Parsers ---
 
@@ -379,6 +389,10 @@ public partial class NewDslParser
         _events.Add(new BreakEvent { TimeSinceLastEvent = 0 });
     }
 
+    #endregion
+
+    #region Functional Statement Parsers
+
     private void ParseDelayStatement()
     {
         Consume(TokenType.KeywordDelay);
@@ -390,96 +404,6 @@ public partial class NewDslParser
             throw CreateException($"Invalid delay milliseconds '{numberToken.Value}'");
 
         _events.Add(new DelayEvent { DelayMilliseconds = (int)Math.Round(delay), TimeSinceLastEvent = 0 }); // Use Math.Round for double -> int
-    }
-
-    private void ParseMouseStatement()
-    {
-        Consume(TokenType.KeywordMouse);
-        Expect(TokenType.ParenOpen, "'Mouse' requires '(' after it");
-
-        var actionToken = Expect(TokenType.Identifier, "Requires MouseAction (e.g., LeftDown, Move)");
-        if (!Enum.TryParse<MouseAction>(actionToken.Value, true, out var action))
-            throw CreateException($"Unknown MouseAction '{actionToken.Value}'");
-
-        Expect(TokenType.Comma, "MouseAction requires ',' after it");
-        var xToken = Expect(TokenType.Number, "Requires X coordinate");
-        if (!int.TryParse(xToken.Value, out int x)) throw CreateException($"Invalid X coordinate '{xToken.Value}'");
-
-        Expect(TokenType.Comma, "X coordinate requires ',' after it");
-        var yToken = Expect(TokenType.Number, "Requires Y coordinate");
-        if (!int.TryParse(yToken.Value, out int y)) throw CreateException($"Invalid Y coordinate '{yToken.Value}'");
-
-        int wheelDelta = 0;
-        double delayMs = 0;
-
-        if (action == MouseAction.Wheel)
-        {
-            Expect(TokenType.Comma, "Y coordinate requires ',' after it (for Wheel)");
-            var deltaToken = Expect(TokenType.Number, "Requires WheelDelta");
-            if (!int.TryParse(deltaToken.Value, out wheelDelta)) throw CreateException($"Invalid WheelDelta '{deltaToken.Value}'");
-        }
-
-        // Optional delay parameter
-        if (CurrentToken().Type == TokenType.Comma)
-        {
-            Consume(); // Consume ','
-            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds for Mouse event");
-            if (!double.TryParse(delayToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out delayMs))
-                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
-        }
-
-        Expect(TokenType.ParenClose, "Mouse parameter list requires ')' after it");
-
-        _events.Add(new MouseEvent
-        {
-            Action = action,
-            X = x,
-            Y = y,
-            WheelDelta = wheelDelta,
-            TimeSinceLastEvent = delayMs
-        });
-    }
-
-    private void ParseKeyStatement()
-    {
-        Consume(TokenType.KeywordKey);
-        Expect(TokenType.ParenOpen, "'Key' requires '(' after it");
-
-        var actionToken = Expect(TokenType.Identifier, "Requires KeyboardAction (e.g., KeyDown, KeyUp)");
-        if (!Enum.TryParse<KeyboardAction>(actionToken.Value, true, out var action))
-            throw CreateException($"Unknown KeyboardAction '{actionToken.Value}'");
-
-        Expect(TokenType.Comma, "KeyboardAction requires ',' after it");
-        var keyToken = Expect(TokenType.Identifier, "Requires Keys enum value (e.g., LControlKey, A)");
-
-        string keyValue = keyToken.Value;
-        // Handle common problematic key names if needed (Lexer might handle some)
-        if (keyValue.Equals("Comma", StringComparison.OrdinalIgnoreCase)) keyValue = "Oemcomma";
-        // Add more mappings if Lexer doesn't handle them (e.g., Minus -> OemMinus)
-
-        if (!Enum.TryParse<System.Windows.Forms.Keys>(keyValue, true, out var key))
-        {
-            throw CreateException($"Unknown Keys enum value '{keyToken.Value}'");
-        }
-
-        double delayMs = 0;
-        // Optional delay parameter
-        if (CurrentToken().Type == TokenType.Comma)
-        {
-            Consume(); // Consume ','
-            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds for Key event");
-            if (!double.TryParse(delayToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out delayMs))
-                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
-        }
-
-        Expect(TokenType.ParenClose, "Key parameter list requires ')' after it");
-
-        _events.Add(new KeyboardEvent
-        {
-            Action = action,
-            Key = key,
-            TimeSinceLastEvent = delayMs
-        });
     }
 
     // script(string content, string? name)
@@ -517,6 +441,319 @@ public partial class NewDslParser
         });
     }
 
+    #endregion
+
+    #region Mouse Events Parsers 
+
+    private void ParseMouseDownStatement()
+    {
+        Consume(TokenType.KeywordMouseDown);
+
+        Expect(TokenType.ParenOpen, "'MouseDown' requires '(' after it");
+        var buttonToken = Expect(TokenType.Identifier, "Requires mouse button (Left, Right, Middle)");
+
+        int delayMs = 0;
+
+        // Check if there's an optional delay parameter
+        if (CurrentToken().Type == TokenType.Comma)
+        {
+            Consume(); // Consume ','
+            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
+            if (!int.TryParse(delayToken.Value, out delayMs))
+                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
+        }
+
+        Expect(TokenType.ParenClose, "Mouse button requires ')' after it");
+
+        _events.Add(new MouseEvent
+        {
+            Action = buttonToken.Value.ToLowerInvariant() switch
+            {
+                "left" => MouseAction.LeftDown,
+                "right" => MouseAction.RightDown,
+                "middle" => MouseAction.MiddleDown,
+                _ => throw CreateException($"Invalid mouse button '{buttonToken.Value}'. Expected 'Left', 'Right', or 'Middle'."),
+            },
+            TimeSinceLastEvent = delayMs,
+        });
+    }
+
+    private void ParseMouseUpStatement()
+    {
+        Consume(TokenType.KeywordMouseUp);
+        Expect(TokenType.ParenOpen, "'MouseUp' requires '(' after it");
+        var buttonToken = Expect(TokenType.Identifier, "Requires mouse button (Left, Right, Middle)");
+        int delayMs = 0;
+        // Check if there's an optional delay parameter
+        if (CurrentToken().Type == TokenType.Comma)
+        {
+            Consume(); // Consume ','
+            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
+            if (!int.TryParse(delayToken.Value, out delayMs))
+                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
+        }
+        Expect(TokenType.ParenClose, "Mouse button requires ')' after it");
+
+        _events.Add(new MouseEvent
+        {
+            Action = buttonToken.Value.ToLowerInvariant() switch
+            {
+                "left" => MouseAction.LeftUp,
+                "right" => MouseAction.RightUp,
+                "middle" => MouseAction.MiddleUp,
+                _ => throw CreateException($"Invalid mouse button '{buttonToken.Value}'. Expected 'Left', 'Right', or 'Middle'."),
+            },
+            TimeSinceLastEvent = delayMs,
+        });
+    }
+
+    private void ParseMouseClickStatement()
+    {
+        Consume(TokenType.KeywordMouseClick);
+        Expect(TokenType.ParenOpen, "'MouseClick' requires '(' after it");
+        var buttonToken = Expect(TokenType.Identifier, "Requires mouse button (Left, Right, Middle)");
+        int delayMs = 0;
+        // Check if there's an optional delay parameter
+        if (CurrentToken().Type == TokenType.Comma)
+        {
+            Consume(); // Consume ','
+            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
+            if (!int.TryParse(delayToken.Value, out delayMs))
+                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
+        }
+        Expect(TokenType.ParenClose, "Mouse button requires ')' after it");
+
+        (MouseAction, MouseAction) actionPair = buttonToken.Value.ToLowerInvariant() switch
+        {
+            "left" => (MouseAction.LeftDown, MouseAction.LeftUp),
+            "right" => (MouseAction.RightDown, MouseAction.RightUp),
+            "middle" => (MouseAction.MiddleDown, MouseAction.MiddleUp),
+            _ => throw CreateException($"Invalid mouse button '{buttonToken.Value}'. Expected 'Left', 'Right', or 'Middle'."),
+        };
+
+        _events.Add(new MouseEvent
+        {
+            Action = actionPair.Item1,
+            TimeSinceLastEvent = 0,
+        });
+
+        _events.Add(new MouseEvent
+        {
+            Action = actionPair.Item2,
+            TimeSinceLastEvent = delayMs,
+        });
+    }
+
+    private void ParseMouseMoveStatement()
+    {
+        Consume(TokenType.KeywordMouseMove);
+        Expect(TokenType.ParenOpen, "'MouseMove' requires '(' after it");
+        var xToken = Expect(TokenType.Number, "Requires X coordinate");
+        Expect(TokenType.Comma, "X coordinate requires ',' after it");
+        var yToken = Expect(TokenType.Number, "Requires Y coordinate");
+        if (!int.TryParse(xToken.Value, out int x))
+            throw CreateException($"Invalid X coordinate '{xToken.Value}'");
+        if (!int.TryParse(yToken.Value, out int y))
+            throw CreateException($"Invalid Y coordinate '{yToken.Value}'");
+
+        int delayMs = 0;
+
+        if (CurrentToken().Type == TokenType.Comma)
+        {
+            Consume(); // Consume ','
+            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
+            if (!int.TryParse(delayToken.Value, out delayMs))
+                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
+        }
+
+        Expect(TokenType.ParenClose, "Y coordinate requires ')' after it");
+        _events.Add(new MouseEvent
+        {
+            Action = MouseAction.Move,
+            X = x,
+            Y = y,
+            TimeSinceLastEvent = delayMs,
+        });
+    }
+
+    private void ParseMouseMoveToStatement()
+    {
+        Consume(TokenType.KeywordMouseMoveTo);
+        Expect(TokenType.ParenOpen, "'MouseMoveTo' requires '(' after it");
+        var xToken = Expect(TokenType.Number, "Requires X coordinate");
+        Expect(TokenType.Comma, "X coordinate requires ',' after it");
+        var yToken = Expect(TokenType.Number, "Requires Y coordinate");
+        if (!int.TryParse(xToken.Value, out int x))
+            throw CreateException($"Invalid X coordinate '{xToken.Value}'");
+        if (!int.TryParse(yToken.Value, out int y))
+            throw CreateException($"Invalid Y coordinate '{yToken.Value}'");
+        int delayMs = 0;
+        if (CurrentToken().Type == TokenType.Comma)
+        {
+            Consume(); // Consume ','
+            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
+            if (!int.TryParse(delayToken.Value, out delayMs))
+                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
+        }
+        Expect(TokenType.ParenClose, "Y coordinate requires ')' after it");
+        _events.Add(new MouseEvent
+        {
+            Action = MouseAction.MoveTo,
+            X = x,
+            Y = y,
+            TimeSinceLastEvent = delayMs,
+        });
+    }
+
+    private void ParseMouseWheelStatement()
+    {
+        Consume(TokenType.KeywordMouseWheel);
+        Expect(TokenType.ParenOpen, "'MouseWheel' requires '(' after it");
+
+        var deltaToken = Expect(TokenType.Number, "Requires wheel delta");
+        if (!int.TryParse(deltaToken.Value, out int delta))
+            throw CreateException($"Invalid wheel delta '{deltaToken.Value}'");
+
+        int delayMs = 0;
+
+        if (CurrentToken().Type == TokenType.Comma)
+        {
+            Consume(); // Consume ','
+            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
+            if (!int.TryParse(delayToken.Value, out delayMs))
+                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
+        }
+
+        Expect(TokenType.ParenClose, "Wheel delta requires ')' after it");
+
+        _events.Add(new MouseEvent
+        {
+            Action = MouseAction.Wheel,
+            WheelDelta = delta,
+            TimeSinceLastEvent = delayMs,
+        });
+    }
+
+    #endregion
+
+    #region Keyboard Events Parsers
+
+    private List<KeyboardEvent> ReadKeyEvents(KeyboardAction action)
+    {
+        var collection = new List<KeyboardEvent>();
+
+        int delayMs = 0;
+        while (true)
+        {
+            var token = CurrentToken();
+            if (token.Type == TokenType.Identifier)
+            {
+                if (!Enum.TryParse<Keys>(token.Value, true, out Keys key))
+                    throw CreateException($"Invalid key name '{token.Value}'");
+
+                if (action != KeyboardAction.KeyPress)
+                {
+                    collection.Add(new KeyboardEvent
+                    {
+                        Action = action,
+                        Key = key,
+                        TimeSinceLastEvent = 0,
+                    });
+                }
+                else
+                {
+                    // For KeyPress, add both KeyDown and KeyUp events
+                    collection.Add(new KeyboardEvent
+                    {
+                        Action = KeyboardAction.KeyDown,
+                        Key = key,
+                        TimeSinceLastEvent = 0,
+                    });
+                    collection.Add(new KeyboardEvent
+                    {
+                        Action = KeyboardAction.KeyUp,
+                        Key = key,
+                        TimeSinceLastEvent = 0,
+                    });
+                }
+                Consume(); // Consume key name 
+            }
+            else if (token.Type == TokenType.Number)
+            {
+                // Delay parameter
+                if (!int.TryParse(token.Value, out delayMs))
+                    throw CreateException($"Invalid delay milliseconds '{token.Value}'");
+                if (collection.Count == 0)
+                    throw CreateException("At least one key name must be specified before delay milliseconds");
+
+                Consume(); // Consume delay
+                break; // Delay must be the last parameter
+            }
+            else
+            {
+                break; // No more parameters
+            }
+
+            // Check for comma separator
+            if (CurrentToken().Type == TokenType.Comma)
+            {
+                Consume(); // Consume ','
+            }
+            else
+            {
+                break; // No more parameters
+            }
+        }
+
+        if (delayMs > 0)
+        {
+            foreach (var evt in collection.TakeLast(1))
+                evt.TimeSinceLastEvent = delayMs;
+        }
+
+        return collection;
+    }
+
+    // KeyDown(keyName1, keyName2, ..., delayMs)
+    private void ParseKeyDownStatement()
+    {
+        Consume(TokenType.KeywordKeyDown);
+
+        Expect(TokenType.ParenOpen, "'KeyDown' requires '(' after it");
+        List<KeyboardEvent> collection = ReadKeyEvents(KeyboardAction.KeyDown);
+        Expect(TokenType.ParenClose, "'KeyDown' parameters require ')' after them");
+
+        _events.AddRange(collection);
+    }
+
+
+    // KeyUp(keyName1, keyName2, ...)
+    private void ParseKeyUpStatement()
+    {
+        Consume(TokenType.KeywordKeyUp);
+
+        Expect(TokenType.ParenOpen, "'KeyUp' requires '(' after it");
+        List<KeyboardEvent> collection = ReadKeyEvents(KeyboardAction.KeyUp);
+        Expect(TokenType.ParenClose, "'KeyUp' parameters require ')' after them");
+
+        _events.AddRange(collection);
+    }
+
+    // KeyPress(keyName1, keyName2, ...)
+    private void ParseKeyPressStatement()
+    {
+        Consume(TokenType.KeywordKeyPress);
+
+        Expect(TokenType.ParenOpen, "'KeyPress' requires '(' after it");
+        List<KeyboardEvent> collection = ReadKeyEvents(KeyboardAction.KeyPress);
+        Expect(TokenType.ParenClose, "'KeyPress' parameters require ')' after them");
+
+        _events.AddRange(collection);
+    }
+
+    #endregion
+
+    #region Condition Expression Parsing
     // --- Condition Parsing ---
 
     private (ConditionalJumpEvent conditionEvent, JumpTargets jumpTargets) ParseCondition()
@@ -624,6 +861,7 @@ public partial class NewDslParser
         conditionEvent.CustomCondition = expressionToken.Value;
     }
 
+    #endregion
 
     // --- Helper & Utility Methods ---
 

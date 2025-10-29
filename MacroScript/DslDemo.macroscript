@@ -4,13 +4,16 @@
 // 格式: Action(参数...) [延迟ms]
 // 最后的数字是可选的 "TimeSinceLastEvent" (执行前延迟)
 
-Mouse(LeftDown, 100, 200, 50) // 延迟50ms, 然后在 (100, 200) 按下左键
-Mouse(LeftUp, 100, 200, 20)
-Mouse(Move, 500, 500, 100)
-Mouse(Wheel, 500, 500, 120, 10) // Wheel事件有4个参数 (x, y, delta, delay)
+MouseMoveTo(400, 400, 200) // 200ms 后鼠标移动到 (400, 400)
+MouseMove(50, -50, 100) // 100ms 后鼠标相对移动 (50, -50)
 
-Key(KeyDown, LControlKey, 100) // 延迟100ms, 然后按下左Ctrl
-Key(KeyUp, LControlKey, 50)
+MouseDown(Left, 50) //50ms后按下左键
+MouseUp(Left, 20) // 20ms后释放左键
+
+MouseClick(Left, 100) // 100ms后单击左键
+
+KeyDown(LControlKey, 100) // 延迟100ms, 然后按下左Ctrl
+KeyUp(LControlKey, 50)
 
 // 2. 显式延迟
 // (这会创建一个 DelayEvent)
@@ -20,12 +23,11 @@ Delay(1000) // 暂停 1000ms
 
 // 3a. 简单 IF
 if (PixelColor(10, 20) == RGB(255, 0, 0, 5)) // x, y, r, g, b, [tolerance]
-    Mouse(LeftDown, 10, 20)
-    Mouse(LeftUp, 10, 20)
+    KeyPress(LWin, R, 25) // 25ms后 按下并释放左Win键 + R 键 
 endif
 
 // 3b. IF / ELSE
-if (Custom(`hour > 9`)) // 支持您现有的自定义表达式
+if (Custom(`now().Hour > 9`)) // 支持您现有的自定义表达式
     Delay(1000)
 else
     Delay(500)
@@ -33,18 +35,34 @@ endif
 
 // 3c. 支持 != (不等于)
 if (PixelColor(0, 0) != RGB(0, 0, 0))
+    MouseMoveTo(0, 0)
     exit // exit 关键字用于停止宏
 endif
 
 // 4. 流程控制：WHILE / ENDWHILE
 while (PixelColor(100, 100) == RGB(255, 255, 255))
-    // 只要 (100,100) 处的像素是白色，就一直点击
-    Mouse(LeftDown, 50, 50)
-    Mouse(LeftUp, 50, 50, 100)
-    Delay(500)
+    // 只要 (100,100) 处的像素是白色，就一直向上滚动鼠标滚轮
+    MouseWheel(-100, 10) // 向上滚动 100 单位，延迟 10ms
+
+    if (Custom(`now().Hour >= 17`)) // 如果当前时间是下午5点或更晚
+        break // break 关键字用于跳出循环
+    endif
 endwhile
 
+Script(`
+    // 这是一个内嵌脚本示例
+    // 您可以在这里定义和操作全局变量，
+    // 变量可以在自定义表达式中使用
+    set("MyVar", 0)
+    set("MyVar", (int)get("MyVar") + 1)
+    println("MyVar is now: " + get("MyVar"))
+`, "MyScript") // 定义一个名为 MyScript 的脚本
+
+exit // 停止宏
+
 // 5. 传统标签和 GOTO (仍然支持)
-// label MyStartPoint
-// Mouse(Move, 0, 0, 100)
-// goto MyStartPoint // 跳转回 MyStartPoint
+label MyStartPoint
+
+MouseMove(0, 0, 100)
+
+goto MyStartPoint // 跳转回 MyStartPoint, 注意：这很危险

@@ -11,9 +11,20 @@ public class MouseEvent : MacroEvent
     {
         if (Action == MouseAction.Wheel)
         {
-            return $"鼠标滚轮: 滚动量 {WheelDelta} 在 ({X}, {Y})";
+            return $"鼠标滚轮滚动 {WheelDelta}";
         }
-        return $"鼠标 {Action} 在 ({X}, {Y})";
+        else if (Action == MouseAction.Move)
+        {
+            return $"鼠标 {Action} ({X}, {Y})";
+        }
+        else if (Action == MouseAction.MoveTo)
+        {
+            return $"鼠标 {Action} 到 ({X}, {Y})";
+        }
+        else
+        {
+            return $"鼠标 {Action}";
+        }
     }
 
     public override string TypeName => $"Mouse_{Action}";

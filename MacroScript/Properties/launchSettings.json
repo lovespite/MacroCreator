@@ -1,12 +1,16 @@
 {
   "profiles": {
-    "MacroScript Compile": {
+    "Showkeys": {
       "commandName": "Project",
-      "commandLineArgs": "compile DslDemo3.macroscript --view"
+      "commandLineArgs": "showkeys"
     },
-    "MacroScript Run": {
+    "Run File": {
       "commandName": "Project",
-      "commandLineArgs": "run DslDemo2.macroscript"
+      "commandLineArgs": "run DslDemo3.macroscript"
+    },
+    "Compile File": {
+      "commandName": "Project",
+      "commandLineArgs": "compile DslDemo2.macroscript --view"
     }
   }
 }

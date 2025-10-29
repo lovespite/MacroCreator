@@ -1,28 +1,26 @@
 ﻿// 这是注释
-
-// 1. 原子事件
-// 格式: Action(参数...) [延迟ms]
-// 最后的数字是可选的 "TimeSinceLastEvent" (执行前延迟)
-
-// Delay(1000) // 暂停 1000ms
-
-
-Mouse(Move, 0, 0, 200) // 延迟50ms, 然后在 (100, 200) 按下左键
-Mouse(Move, 400, 0, 200)
-Mouse(Move, 400, 400, 200)
-Mouse(Move, 0, 400, 200)
+MouseMoveTo(0, 0)
+MouseMoveTo(400, 0, 200)
+MouseMoveTo(400, 400, 200)
+MouseMoveTo(0, 400, 200)
 
 Delay(1000)
 
-if (PixelColor(0, 0) == RGB(255, 255, 255, 1)) // 如果 (0,0) 处的像素颜色是白色
-    Mouse(LeftDown, 1, 1, 100) // 延迟100ms, 然后按下左键
-    Mouse(LeftUp, 1, 1, 50)   // 延迟50ms, 然后释放左键
+if (PixelColor(0, 0) == RGB(255, 255, 255, 1)) // 如果 (0,0) 处的像素颜色不是白色
+    MouseMoveTo(1000, 1000)
+    MouseWheel(-120)
+    MouseWheel(-120, 100)
+    MouseWheel(-120, 100)
+    MouseWheel(-120, 100)
+    Script(`println("Wheel done.")`)
 else
     if (Custom(`now().Hour == 13`)) 
-        Key(KeyDown, LWin, 100) // 延迟100ms, 然后按下左Win
-        Key(KeyUp, LWin, 50)
+        KeyDown(LWin, 100) // 延迟100ms, 然后按下左Win
+        KeyPress(R, 10)
+        KeyUp(LWin, 50)
     else 
-        goto start0
+        Script(`println("It's not 1 PM yet!")`)
+        goto start1
     endif
 endif
 
@@ -30,21 +28,35 @@ exit
 
 label start0
 
+Script(`set("a", 0)`)
+
+MouseMoveTo(1000, 1000)
 while(Custom(`true`))
-    Mouse(Move, 200, 200, 500)
-    Delay(1000)
-    
-    if (Custom(`true`))
+    MouseMove(-10, -10, 50)
+
+    Script(`set("a", (int)get("a") + 1)`)
+    if (Custom(`(int)get("a") >= 100`))
         break
     endif
-
-    Mouse(Move, 0, 0) // 延迟50ms, 然后在 (100, 200) 按下左键
-    Mouse(Move, 400, 0, 200)
-    Mouse(Move, 400, 400, 200)
-    Mouse(Move, 0, 400, 200)
 endwhile        
 
-Key(KeyDown, LWin) // 延迟100ms, 然后按下左Win
-Key(KeyDown, R, 100) // 延迟100ms, 然后按下R
-Key(KeyUp, R, 50)
-Key(KeyUp, LWin, 50)
+MouseMoveTo(0, 0)
+MouseMove(400, 0, 200)
+MouseMove(400, 400, 200)
+MouseMove(0, 400, 200)
+
+exit
+
+label start1
+
+KeyDown(LWin, R, 100) // 延迟100ms, 然后按下左Win + R
+KeyUp(LWin, R, 50)
+
+KeyPress(Delete, 100) // 延迟100ms, 然后按下并释放 Delete 键
+KeyPress(N, O, T, E, P, A, D, Enter, 100) // 延迟100ms, 然后按下并释放 NOTE PAD 回车键
+
+Delay(3000)
+
+KeyPress(H, E, L, L, O, Space, W, O, R, D, 200)
+KeyDown(LShiftKey, D1, 200)
+KeyUp(LShiftKey, D1, 200) // 输入 ! 符号
