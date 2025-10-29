@@ -95,9 +95,8 @@ internal static class Program
         if (!File.Exists(inputPath))
             throw new FileNotFoundException("文件不存在", inputPath);
         var outputFile = outputPath ?? Path.ChangeExtension(inputPath, ".xml");
-
-        var utf8Text = File.ReadAllText(inputPath);
-        FileService.Save(outputFile, Scripting.Compile(utf8Text));
+         
+        FileService.Save(outputFile, Scripting.Compile(inputPath));
 
         return outputFile;
     }
@@ -109,9 +108,8 @@ internal static class Program
         var t = new Thread(() =>
         {
             try
-            {
-                var utf8Text = File.ReadAllText(inputFile);
-                var collection = Scripting.Compile(utf8Text);
+            { 
+                var collection = Scripting.Compile(inputFile);
 
                 if (collection.Count <= 0)
                     tcs.SetException(new InvalidDataException("事件序列为空"));

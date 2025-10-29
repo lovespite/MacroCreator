@@ -1,4 +1,5 @@
 ﻿using MacroCreator.Models;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace MacroScript.Dsl;
@@ -8,13 +9,12 @@ namespace MacroScript.Dsl;
 /// </summary>
 public partial class Lexer
 {
-    private readonly string _script;
-    private int _position;
+    private readonly StreamReader _reader;
     private int _lineNumber;
     private int _column;
 
-    // 关键字映射
-    private static readonly Dictionary<string, TokenType> Keywords = new(System.StringComparer.OrdinalIgnoreCase)
+    // 关键字映射 (无变化)
+    private static readonly Dictionary<string, TokenType> Keywords = new(StringComparer.OrdinalIgnoreCase)
     {
         { "if", TokenType.KeywordIf },
         { "else", TokenType.KeywordElse },
@@ -36,12 +36,24 @@ public partial class Lexer
         { "endscript", TokenType.KeywordEndScript },
     };
 
-    public Lexer(string script)
+    /// <summary>
+    /// 构造函数，接收一个 StreamReader
+    /// </summary>
+    public Lexer(Stream stream)
     {
-        _script = script;
-        _position = 0;
+        ArgumentNullException.ThrowIfNull(stream);
+        _reader = new StreamReader(stream);
         _lineNumber = 1;
         _column = 1;
+    }
+
+    /// <summary>
+    /// 构造函数，接收一个文件名
+    /// </summary>
+    /// <param name="filename"></param>
+    public Lexer(string filename)
+        : this(new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read))
+    {
     }
 
     /// <summary>
@@ -50,16 +62,24 @@ public partial class Lexer
     public List<Token> Tokenize()
     {
         var tokens = new List<Token>();
-        while (_position < _script.Length)
+        // 循环直到流的末尾
+        while (!_reader.EndOfStream)
         {
             var token = NextToken();
+
+            // NextToken 可能会在流的末尾返回 EndOfFile，尽管循环条件已检查
+            if (token.Type == TokenType.EndOfFile)
+            {
+                break;
+            }
+
             if (token.Type != TokenType.Whitespace && token.Type != TokenType.Comment)
             {
                 tokens.Add(token);
             }
             if (token.Type == TokenType.EndOfLine)
             {
-                tokens.Add(token); // 保留换行符，有助于解析语句边界和错误报告
+                tokens.Add(token); // 保留换行符
             }
         }
         tokens.Add(new Token(TokenType.EndOfFile, string.Empty, _lineNumber, _column));
@@ -71,178 +91,249 @@ public partial class Lexer
     /// </summary>
     private Token NextToken()
     {
-        if (_position >= _script.Length)
+        if (_reader.EndOfStream)
         {
             return new Token(TokenType.EndOfFile, string.Empty, _lineNumber, _column);
         }
 
-        char currentChar = _script[_position];
         int startColumn = _column;
-        int startLine = _lineNumber; // Store line number at the start of the token
+        int startLine = _lineNumber;
+
+        // 1. 读取并消耗下一个字符
+        int charCode = _reader.Read();
+        if (charCode == -1)
+        {
+            return new Token(TokenType.EndOfFile, string.Empty, _lineNumber, _column);
+        }
+
+        char currentChar = (char)charCode;
+        _column++; // 预先增加列号
 
         // 1. 空白字符 (including EndOfLine)
         if (char.IsWhiteSpace(currentChar))
         {
             if (currentChar == '\n')
             {
-                _position++;
                 _lineNumber++;
                 _column = 1;
                 return new Token(TokenType.EndOfLine, "\n", startLine, startColumn);
             }
-            if (currentChar == '\r') // Handle \r\n or \r
+            if (currentChar == '\r')
             {
-                _position++;
-                _column++;
-                if (_position < _script.Length && _script[_position] == '\n')
+                // 处理 \r\n 或 \r
+                if (!_reader.EndOfStream && _reader.Peek() == '\n')
                 {
-                    _position++; // Skip \n
+                    _reader.Read(); // 消耗 \n
                 }
                 _lineNumber++;
                 _column = 1;
-                // Report EndOfLine on the line where \r started
                 return new Token(TokenType.EndOfLine, "\r\n", startLine, startColumn);
             }
-            else // Other whitespace (space, tab)
+            else // 其他空白 (space, tab)
             {
-                int startPos = _position;
-                while (_position < _script.Length && char.IsWhiteSpace(_script[_position]) && _script[_position] != '\n' && _script[_position] != '\r')
+                var sb = new StringBuilder();
+                sb.Append(currentChar);
+                while (!_reader.EndOfStream)
                 {
-                    _position++;
-                    _column++;
+                    char nextChar = (char)_reader.Peek();
+                    if (char.IsWhiteSpace(nextChar) && nextChar != '\n' && nextChar != '\r')
+                    {
+                        _reader.Read(); // 消耗
+                        _column++;
+                        sb.Append(nextChar);
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
-                return new Token(TokenType.Whitespace, _script.Substring(startPos, _position - startPos), startLine, startColumn);
+                return new Token(TokenType.Whitespace, sb.ToString(), startLine, startColumn);
             }
         }
 
         // 2. 注释 (// 到行尾)
-        if (currentChar == '/' && _position + 1 < _script.Length && _script[_position + 1] == '/')
+        if (currentChar == '/' && !_reader.EndOfStream && _reader.Peek() == '/')
         {
-            int startPos = _position;
-            while (_position < _script.Length && _script[_position] != '\n' && _script[_position] != '\r')
+            _reader.Read(); // 消耗第二个 '/'
+            _column++;
+
+            var sb = new StringBuilder("//");
+            while (!_reader.EndOfStream)
             {
-                _position++;
-                _column++;
+                char nextChar = (char)_reader.Peek();
+                if (nextChar != '\n' && nextChar != '\r')
+                {
+                    _reader.Read(); // 消耗
+                    _column++;
+                    sb.Append(nextChar);
+                }
+                else
+                {
+                    break;
+                }
             }
-            return new Token(TokenType.Comment, _script.Substring(startPos, _position - startPos), startLine, startColumn);
+            return new Token(TokenType.Comment, sb.ToString(), startLine, startColumn);
         }
 
         // 3. 运算符
         if (currentChar == '=')
         {
-            if (_position + 1 < _script.Length && _script[_position + 1] == '=')
+            if (!_reader.EndOfStream && _reader.Peek() == '=')
             {
-                _position += 2; _column += 2;
+                _reader.Read(); // 消耗第二个 '='
+                _column++;
                 return new Token(TokenType.OperatorEquals, "==", startLine, startColumn);
             }
             else // Single '=' is assignment
             {
-                _position++; _column++;
                 return new Token(TokenType.OperatorAssign, "=", startLine, startColumn);
             }
         }
         if (currentChar == '!')
         {
-            if (_position + 1 < _script.Length && _script[_position + 1] == '=')
+            if (!_reader.EndOfStream && _reader.Peek() == '=')
             {
-                _position += 2; _column += 2;
+                _reader.Read(); // 消耗 '='
+                _column++;
                 return new Token(TokenType.OperatorNotEquals, "!=", startLine, startColumn);
             }
+            // 注意：单独的 '!' 会落到 Unknown
         }
+
         // Basic arithmetic operators
-        if (currentChar == '+') { _position++; _column++; return new Token(TokenType.OperatorPlus, "+", startLine, startColumn); }
-        if (currentChar == '-') { _position++; _column++; return new Token(TokenType.OperatorMinus, "-", startLine, startColumn); }
-        if (currentChar == '*') { _position++; _column++; return new Token(TokenType.OperatorMultiply, "*", startLine, startColumn); }
-        if (currentChar == '/') { _position++; _column++; return new Token(TokenType.OperatorDivide, "/", startLine, startColumn); }
+        if (currentChar == '+') { return new Token(TokenType.OperatorPlus, "+", startLine, startColumn); }
+        if (currentChar == '-') { return new Token(TokenType.OperatorMinus, "-", startLine, startColumn); }
+        if (currentChar == '*') { return new Token(TokenType.OperatorMultiply, "*", startLine, startColumn); }
+        if (currentChar == '/') { return new Token(TokenType.OperatorDivide, "/", startLine, startColumn); } // // 已被处理
 
 
         // 4. 括号, 逗号, 反引号
-        if (currentChar == '(') { _position++; _column++; return new Token(TokenType.ParenOpen, "(", startLine, startColumn); }
-        if (currentChar == ')') { _position++; _column++; return new Token(TokenType.ParenClose, ")", startLine, startColumn); }
-        if (currentChar == ',') { _position++; _column++; return new Token(TokenType.Comma, ",", startLine, startColumn); }
+        if (currentChar == '(') { return new Token(TokenType.ParenOpen, "(", startLine, startColumn); }
+        if (currentChar == ')') { return new Token(TokenType.ParenClose, ")", startLine, startColumn); }
+        if (currentChar == ',') { return new Token(TokenType.Comma, ",", startLine, startColumn); }
         if (currentChar == '`') // Custom expression backtick
         {
-            _position++; _column++;
-            int startPos = _position;
-            while (_position < _script.Length && _script[_position] != '`')
+            var sb = new StringBuilder();
+            while (true) // 循环直到找到 '`' 或 EOF
             {
-                if (_script[_position] == '\n' || _script[_position] == '\r')
+                int nextCode = _reader.Read();
+                if (nextCode == -1) // EOF
                 {
+                    throw new DslParserException($"行 {startLine}: Unterminated Custom expression string starting", startLine);
+                }
+
+                char nextChar = (char)nextCode;
+                _column++;
+
+                if (nextChar == '`')
+                {
+                    // 找到结束的反引号
+                    return new Token(TokenType.Identifier, sb.ToString(), startLine, startColumn);
+                }
+
+                if (nextChar == '\n' || nextChar == '\r')
+                {
+                    // 在抛出异常前更新行号/列号
+                    if (nextChar == '\r' && !_reader.EndOfStream && _reader.Peek() == '\n')
+                    {
+                        _reader.Read(); // 消耗 \n
+                    }
+                    _lineNumber++;
+                    _column = 1;
                     throw new DslParserException($"行 {startLine}: Custom expression string cannot span multiple lines", startLine);
                 }
-                _position++;
-                _column++;
+
+                sb.Append(nextChar);
             }
-            if (_position >= _script.Length)
-            {
-                throw new DslParserException($"行 {startLine}: Unterminated Custom expression string starting", startLine);
-            }
-            string value = _script.Substring(startPos, _position - startPos);
-            _position++; _column++; // Skip closing backtick
-                                    // Return as Identifier, used as argument to Custom()
-            return new Token(TokenType.Identifier, value, startLine, startColumn);
         }
 
         // 5. 变量 ($ followed by identifier rules)
         if (currentChar == '$')
         {
-            _position++; _column++;
-            if (_position >= _script.Length || !char.IsLetter(_script[_position])) // Must start with a letter after $
+            if (_reader.EndOfStream || !char.IsLetter((char)_reader.Peek()))
             {
                 throw new DslParserException($"行 {startLine}: Invalid variable name starting", startLine);
             }
-            int startPos = _position;
-            while (_position < _script.Length && (char.IsLetterOrDigit(_script[_position]) || _script[_position] == '_'))
+
+            var sb = new StringBuilder(currentChar.ToString());
+            while (!_reader.EndOfStream)
             {
-                _position++;
-                _column++;
+                char nextChar = (char)_reader.Peek();
+                if (char.IsLetterOrDigit(nextChar) || nextChar == '_')
+                {
+                    _reader.Read(); // 消耗
+                    _column++;
+                    sb.Append(nextChar);
+                }
+                else
+                {
+                    break;
+                }
             }
-            string varName = _script.Substring(startPos, _position - startPos);
-            return new Token(TokenType.Variable, varName, startLine, startColumn); // Store only the name, not $
+            return new Token(TokenType.Variable, sb.ToString(), startLine, startColumn);
         }
 
         // 6. 数字 (integer or decimal)
-        if (char.IsDigit(currentChar) || (currentChar == '.' && _position + 1 < _script.Length && char.IsDigit(_script[_position + 1])))
+        if (char.IsDigit(currentChar) || (currentChar == '.' && !_reader.EndOfStream && char.IsDigit((char)_reader.Peek())))
         {
-            int startPos = _position;
+            var sb = new StringBuilder();
+            sb.Append(currentChar);
+
             bool hasDecimal = currentChar == '.';
-            while (_position < _script.Length)
+            while (!_reader.EndOfStream)
             {
-                char nextChar = _script[_position];
+                char nextChar = (char)_reader.Peek();
+
                 if (char.IsDigit(nextChar))
                 {
-                    _position++; _column++;
+                    _reader.Read(); // 消耗
+                    _column++;
+                    sb.Append(nextChar);
                 }
                 else if (nextChar == '.' && !hasDecimal)
                 {
+                    _reader.Read(); // 消耗
+                    _column++;
+                    sb.Append(nextChar);
                     hasDecimal = true;
-                    _position++; _column++;
                 }
                 else
                 {
                     break; // End of number
                 }
             }
-            return new Token(TokenType.Number, _script.Substring(startPos, _position - startPos), startLine, startColumn);
+            return new Token(TokenType.Number, sb.ToString(), startLine, startColumn);
         }
 
-        // 7. 标识符或关键字 (letter followed by letter, digit, or underscore)
+        // 7. 标识符或关键字
         if (char.IsLetter(currentChar))
         {
-            int startPos = _position;
-            while (_position < _script.Length && (char.IsLetterOrDigit(_script[_position]) || _script[_position] == '_'))
+            var sb = new StringBuilder();
+            sb.Append(currentChar);
+
+            while (!_reader.EndOfStream)
             {
-                _position++;
-                _column++;
+                char nextChar = (char)_reader.Peek();
+                if (char.IsLetterOrDigit(nextChar) || nextChar == '_')
+                {
+                    _reader.Read(); // 消耗
+                    _column++;
+                    sb.Append(nextChar);
+                }
+                else
+                {
+                    break;
+                }
             }
-            string value = _script.Substring(startPos, _position - startPos);
+
+            string value = sb.ToString();
             if (Keywords.TryGetValue(value, out var keywordType))
             {
                 return new Token(keywordType, value, startLine, startColumn);
             }
             else
             {
-                // Check if it's a known enum value or a valid general identifier
+                // 检查是否为已知的 enum 值或有效的通用标识符
                 if (System.Enum.TryParse<MouseAction>(value, true, out _) ||
                     System.Enum.TryParse<KeyboardAction>(value, true, out _) ||
                     System.Enum.TryParse<System.Windows.Forms.Keys>(value, true, out _) ||
@@ -258,8 +349,7 @@ public partial class Lexer
         }
 
         // 8. Unknown character
-        _position++;
-        _column++;
+        // 字符已被消耗，_column 已被增加
         return new Token(TokenType.Unknown, currentChar.ToString(), startLine, startColumn);
     }
 

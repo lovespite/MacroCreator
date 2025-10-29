@@ -9,17 +9,17 @@ namespace MacroScript.Dsl;
 
 internal static class Scripting
 {
-    public static List<MacroEvent> Compile(string script)
+    public static List<MacroEvent> Compile(string filename)
     {
-        var lexer = new Lexer(script);
+        var lexer = new Lexer(filename);
         var tokens = lexer.Tokenize();
         var parser = new NewDslParser();
         var events = parser.Parse(tokens);
         return events;
     }
 
-    public static Task<List<MacroEvent>> CompileAsync(string script)
+    public static Task<List<MacroEvent>> CompileAsync(string filename)
     {
-        return Task.Run(() => Compile(script));
+        return Task.Run(() => Compile(filename));
     }
 }
