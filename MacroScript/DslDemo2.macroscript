@@ -48,10 +48,3 @@ Key(KeyDown, LWin) // 延迟100ms, 然后按下左Win
 Key(KeyDown, R, 100) // 延迟100ms, 然后按下R
 Key(KeyUp, R, 50)
 Key(KeyUp, LWin, 50)
-
-script MyScript
-    $a = 1
-    $b = (int)$a + 2
-    println("a = " + $a)
-    println("b = " + $b)
-endscript

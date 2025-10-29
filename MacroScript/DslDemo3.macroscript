@@ -1,12 +1,5 @@
-﻿script MyScript
-    $a = 1
-    $b = (int)$a + 2
-    println("a = " + $a)
-    println("b = " + $b)
-endscript
-
-script MyScript 
-    $s = "Hello"
-    $t = $s + " World"
-    println($t)
-endscript
+﻿Script(`
+set("a", 1)
+set("b", (int)get("a") + 1)
+println("b = " + get("b"))
+`, "sc1")

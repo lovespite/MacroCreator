@@ -7,7 +7,7 @@ namespace MacroScript.Dsl;
 /// <summary>
 /// 词法分析器，将 DSL 脚本字符串转换为 Token 序列
 /// </summary>
-public partial class Lexer : IDisposable
+public class Lexer : IDisposable
 {
     private readonly StreamReader _reader;
     private int _lineNumber;
@@ -39,7 +39,6 @@ public partial class Lexer : IDisposable
         { "argb", TokenType.KeywordARGB },
         { "custom", TokenType.KeywordCustom },
         { "script", TokenType.KeywordScript },
-        { "endscript", TokenType.KeywordEndScript },
     };
 
     /// <summary>
@@ -69,32 +68,24 @@ public partial class Lexer : IDisposable
 
     /// <summary>
     /// 生成所有 Token
-    /// </summary> 
+    /// </summary>
     public IEnumerable<Token> Tokenize()
     {
-        // 循环直到流的末尾
-        while (!_reader.EndOfStream)
+        // 循环直到流的末尾
+        while (!_reader.EndOfStream)
         {
             var token = NextToken();
 
-            // NextToken 可能会在流的末尾返回 EndOfFile，尽管循环条件已检查
-            if (token.Type == TokenType.EndOfFile)
-            {
-                break;
-            }
+            // NextToken 可能会在流的末尾返回 EndOfFile，尽管循环条件已检查
+            if (token.Type == TokenType.EndOfFile) break;
 
-            // --- 关键修改 ---
             // 过滤掉空白 (space/tab) 和注释。
-            // 根据 NextToken() 的逻辑, EndOfLine 是一个独立的类型, 不是 Whitespace。
-            // 因此, 这个条件会保留 EndOfLine (以及所有其他有效 Token)，并且只返回一次。
-            if (token.Type != TokenType.Whitespace && token.Type != TokenType.Comment)
-            {
+            if (token.Type != TokenType.Whitespace && token.Type != TokenType.Comment)
                 yield return token;
-            }
         }
 
-        // 循环结束后, 返回最后的 EndOfFile 标记
-        yield return new Token(TokenType.EndOfFile, string.Empty, _lineNumber, _column);
+        // 循环结束后, 返回最后的 EndOfFile 标记
+        yield return new Token(TokenType.EndOfFile, string.Empty, _lineNumber, _column);
     }
 
     /// <summary>
@@ -110,42 +101,55 @@ public partial class Lexer : IDisposable
         int startColumn = _column;
         int startLine = _lineNumber;
 
-        // 1. 读取并消耗下一个字符
-        int charCode = _reader.Read();
-        if (charCode == -1)
+        // Peek first character without consuming
+        int peekCode = _reader.Peek();
+        if (peekCode == -1)
         {
             return new Token(TokenType.EndOfFile, string.Empty, _lineNumber, _column);
         }
-
-        char currentChar = (char)charCode;
-        _column++; // 预先增加列号
+        char peekChar = (char)peekCode;
 
         // 1. 空白字符 (including EndOfLine)
-        if (char.IsWhiteSpace(currentChar))
+        if (char.IsWhiteSpace(peekChar))
         {
-            if (currentChar == '\n')
+            // Consume the character now
+            _reader.Read();
+            _column++;
+
+            if (peekChar == '\n')
             {
                 _lineNumber++;
                 _column = 1;
                 return new Token(TokenType.EndOfLine, "\n", startLine, startColumn);
             }
-            if (currentChar == '\r')
+
+            if (peekChar == '\r')
             {
-                // 处理 \r\n 或 \r
+                // Handle \r\n or \r
                 if (!_reader.EndOfStream && _reader.Peek() == '\n')
                 {
                     _reader.Read(); // 消耗 \n
+                                    // Column already advanced for \r, don't advance again for \n here
+                    _lineNumber++;
+                    _column = 1;
+                    return new Token(TokenType.EndOfLine, "\r\n", startLine, startColumn);
                 }
-                _lineNumber++;
-                _column = 1;
-                return new Token(TokenType.EndOfLine, "\r\n", startLine, startColumn);
+                else
+                {
+                    _lineNumber++;
+                    _column = 1;
+                    return new Token(TokenType.EndOfLine, "\r", startLine, startColumn); // Standalone \r
+                }
             }
             else // 其他空白 (space, tab)
             {
-                var sb = new StringBuilder().Append(currentChar);
+                var sb = new StringBuilder().Append(peekChar);
                 while (!_reader.EndOfStream)
                 {
-                    char nextChar = (char)_reader.Peek();
+                    int nextPeekCode = _reader.Peek();
+                    if (nextPeekCode == -1) break;
+                    char nextChar = (char)nextPeekCode;
+
                     if (char.IsWhiteSpace(nextChar) && nextChar != '\n' && nextChar != '\r')
                     {
                         _reader.Read(); // 消耗
@@ -162,30 +166,123 @@ public partial class Lexer : IDisposable
         }
 
         // 2. 注释 (// 到行尾)
-        if (currentChar == '/' && !_reader.EndOfStream && _reader.Peek() == '/')
+        if (peekChar == '/')
         {
-            _reader.Read(); // 消耗第二个 '/'
+            // Consume '/'
+            _reader.Read();
             _column++;
-
-            var sb = new StringBuilder("//");
-            while (!_reader.EndOfStream)
+            if (!_reader.EndOfStream && _reader.Peek() == '/')
             {
-                char nextChar = (char)_reader.Peek();
-                if (nextChar != '\n' && nextChar != '\r')
+                _reader.Read(); // 消耗第二个 '/'
+                _column++;
+
+                var sb = new StringBuilder("//");
+                while (!_reader.EndOfStream)
                 {
-                    _reader.Read(); // 消耗
-                    _column++;
-                    sb.Append(nextChar);
+                    int nextPeekCode = _reader.Peek();
+                    if (nextPeekCode == -1) break;
+                    char nextChar = (char)nextPeekCode;
+
+                    if (nextChar != '\n' && nextChar != '\r')
+                    {
+                        _reader.Read(); // 消耗
+                        _column++;
+                        sb.Append(nextChar);
+                    }
+                    else
+                    {
+                        break; // Stop before newline
+                    }
+                }
+                return new Token(TokenType.Comment, sb.ToString(), startLine, startColumn);
+            }
+            else
+            {
+                // Handle single '/' (like division operator) later if needed
+                // For now, treat single '/' as potential start of Unknown or OperatorDivide
+                if (peekChar == '/') { return new Token(TokenType.OperatorDivide, "/", startLine, startColumn); }
+            }
+        }
+
+
+        // 3. 字符串字面量 (", ', `)
+        if (peekChar == '"' || peekChar == '\'' || peekChar == '`')
+        {
+            char quoteChar = peekChar;
+            _reader.Read(); // Consume opening quote
+            _column++;
+            var sb = new StringBuilder();
+            bool isBacktick = quoteChar == '`';
+
+            while (true)
+            {
+                int nextCode = _reader.Read();
+                if (nextCode == -1) // EOF
+                {
+                    throw new DslParserException($"行 {startLine}: Unterminated string literal starting", startLine);
+                }
+
+                char nextChar = (char)nextCode;
+
+                // Handle position tracking, especially for newlines
+                if (nextChar == '\n')
+                {
+                    _column = 1;
+                    _lineNumber++;
+                }
+                else if (nextChar == '\r')
+                {
+                    // Check for \r\n, consume \n if present
+                    if (!_reader.EndOfStream && _reader.Peek() == '\n')
+                    {
+                        _reader.Read(); // Consume \n
+                    }
+                    _column = 1;
+                    _lineNumber++;
+                    nextChar = '\n'; // Normalize \r and \r\n to \n in the string value
                 }
                 else
                 {
-                    break;
+                    _column++;
+                }
+
+
+                if (nextChar == quoteChar)
+                {
+                    // Found closing quote
+                    return new Token(TokenType.StringLiteral, sb.ToString(), startLine, startColumn);
+                }
+
+                if (!isBacktick && (nextChar == '\n' || nextChar == '\r'))
+                {
+                    // Use _lineNumber because it was updated *before* this check
+                    throw new DslParserException($"行 {_lineNumber - 1}: Regular string literals (using \" or ') cannot span multiple lines. Use backticks (`) instead.", _lineNumber - 1);
+                }
+
+                if (nextChar == '\\') // Escape sequence
+                {
+                    if (_reader.EndOfStream) throw new DslParserException($"行 {_lineNumber}: Unterminated escape sequence at end of file", _lineNumber);
+                    int escapedCharCode = _reader.Read();
+                    if (escapedCharCode == -1) throw new DslParserException($"行 {_lineNumber}: Unterminated escape sequence at end of file", _lineNumber);
+
+                    _column++; // Advance column for the escaped character  
+                    ReadStringLiteral(sb, (char)escapedCharCode);
+                }
+                else
+                {
+                    sb.Append(nextChar);
                 }
             }
-            return new Token(TokenType.Comment, sb.ToString(), startLine, startColumn);
         }
 
-        // 3. 运算符
+
+        // Consume the character for subsequent checks
+        _reader.Read();
+        char currentChar = peekChar; // Use the peeked char now that it's consumed
+        _column++;
+
+
+        // 4. 运算符 (after handling strings and comments)
         if (currentChar == '=')
         {
             if (!_reader.EndOfStream && _reader.Peek() == '=')
@@ -207,69 +304,41 @@ public partial class Lexer : IDisposable
                 _column++;
                 return new Token(TokenType.OperatorNotEquals, "!=", startLine, startColumn);
             }
-            // 注意：单独的 '!' 会落到 Unknown
+            // Fall through to Unknown for single '!'
         }
 
         // Basic arithmetic operators
         if (currentChar == '+') { return new Token(TokenType.OperatorPlus, "+", startLine, startColumn); }
         if (currentChar == '-') { return new Token(TokenType.OperatorMinus, "-", startLine, startColumn); }
         if (currentChar == '*') { return new Token(TokenType.OperatorMultiply, "*", startLine, startColumn); }
-        if (currentChar == '/') { return new Token(TokenType.OperatorDivide, "/", startLine, startColumn); } // // 已被处理
+        // Division '/' was handled earlier with comments check
 
 
-        // 4. 括号, 逗号, 反引号
+        // 5. 括号, 逗号
         if (currentChar == '(') { return new Token(TokenType.ParenOpen, "(", startLine, startColumn); }
         if (currentChar == ')') { return new Token(TokenType.ParenClose, ")", startLine, startColumn); }
         if (currentChar == ',') { return new Token(TokenType.Comma, ",", startLine, startColumn); }
-        if (currentChar == '`') // Custom expression backtick
-        {
-            var sb = new StringBuilder();
-            while (true) // 循环直到找到 '`' 或 EOF
-            {
-                int nextCode = _reader.Read();
-                if (nextCode == -1) // EOF
-                {
-                    throw new DslParserException($"行 {startLine}: Unterminated Custom expression string starting", startLine);
-                }
 
-                char nextChar = (char)nextCode;
-                _column++;
+        // Backtick ` is handled by string literal logic now
 
-                if (nextChar == '`')
-                {
-                    // 找到结束的反引号
-                    return new Token(TokenType.Identifier, sb.ToString(), startLine, startColumn);
-                }
-
-                if (nextChar == '\n' || nextChar == '\r')
-                {
-                    // 在抛出异常前更新行号/列号
-                    if (nextChar == '\r' && !_reader.EndOfStream && _reader.Peek() == '\n')
-                    {
-                        _reader.Read(); // 消耗 \n
-                    }
-                    _lineNumber++;
-                    _column = 1;
-                    throw new DslParserException($"行 {startLine}: Custom expression string cannot span multiple lines", startLine);
-                }
-
-                sb.Append(nextChar);
-            }
-        }
-
-        // 5. 变量 ($ followed by identifier rules)
+        // 6. 变量 ($ followed by identifier rules)
         if (currentChar == '$')
         {
-            if (_reader.EndOfStream || !char.IsLetter((char)_reader.Peek()))
+            // Check if the *next* char starts a valid identifier part
+            if (_reader.EndOfStream || !IsValidIdentifierStart((char)_reader.Peek()))
             {
-                throw new DslParserException($"行 {startLine}: Invalid variable name starting", startLine);
+                throw new DslParserException($"行 {startLine}: Invalid character following '$', expected variable name", startLine);
             }
+
 
             var sb = new StringBuilder().Append(currentChar);
             while (!_reader.EndOfStream)
             {
-                char nextChar = (char)_reader.Peek();
-                if (char.IsLetterOrDigit(nextChar) || nextChar == '_')
+                int nextPeekCode = _reader.Peek();
+                if (nextPeekCode == -1) break;
+                char nextChar = (char)nextPeekCode;
+
+                if (IsValidIdentifierPart(nextChar))
                 {
                     _reader.Read(); // 消耗
                     _column++;
@@ -280,10 +349,14 @@ public partial class Lexer : IDisposable
                     break;
                 }
             }
+            if (sb.Length == 1) // Just '$'
+            {
+                throw new DslParserException($"行 {startLine}: Invalid variable name starting with '$'", startLine);
+            }
             return new Token(TokenType.Variable, sb.ToString(), startLine, startColumn);
         }
 
-        // 6. 数字 (integer or decimal)
+        // 7. 数字 (integer or decimal)
         if (char.IsDigit(currentChar) || (currentChar == '.' && !_reader.EndOfStream && char.IsDigit((char)_reader.Peek())))
         {
             var sb = new StringBuilder();
@@ -292,7 +365,9 @@ public partial class Lexer : IDisposable
             bool hasDecimal = currentChar == '.';
             while (!_reader.EndOfStream)
             {
-                char nextChar = (char)_reader.Peek();
+                int nextPeekCode = _reader.Peek();
+                if (nextPeekCode == -1) break;
+                char nextChar = (char)nextPeekCode;
 
                 if (char.IsDigit(nextChar))
                 {
@@ -302,9 +377,20 @@ public partial class Lexer : IDisposable
                 }
                 else if (nextChar == '.' && !hasDecimal)
                 {
-                    _reader.Read(); // 消耗
+                    // Check if the char *after* the dot is a digit for valid decimal
+                    _reader.Read(); // Consume '.'
                     _column++;
-                    sb.Append(nextChar);
+                    if (_reader.EndOfStream || !char.IsDigit((char)_reader.Peek()))
+                    {
+                        // Treat the '.' as belonging to the next token (or maybe error?)
+                        // Backtrack? For now, let's just error or consider it end of number.
+                        // For simplicity, let's stop the number here.
+                        sb.Append('.'); // Include the dot we consumed
+                        hasDecimal = true; // Mark it, although we stop after
+                        break;
+                        // Alternatively, throw: throw CreateException($"行 {startLine}: Invalid decimal number format", startLine);
+                    }
+                    sb.Append('.');
                     hasDecimal = true;
                 }
                 else
@@ -312,19 +398,28 @@ public partial class Lexer : IDisposable
                     break; // End of number
                 }
             }
+            // Check if it's just a single dot that was consumed
+            if (sb.Length == 1 && sb[0] == '.')
+            {
+                // If single '.', treat as unknown, maybe it's part of something else
+                return new Token(TokenType.Unknown, ".", startLine, startColumn);
+            }
             return new Token(TokenType.Number, sb.ToString(), startLine, startColumn);
         }
 
-        // 7. 标识符或关键字
-        if (char.IsLetter(currentChar))
+        // 8. 标识符或关键字
+        if (IsValidIdentifierStart(currentChar))
         {
             var sb = new StringBuilder();
             sb.Append(currentChar);
 
             while (!_reader.EndOfStream)
             {
-                char nextChar = (char)_reader.Peek();
-                if (char.IsLetterOrDigit(nextChar) || nextChar == '_')
+                int nextPeekCode = _reader.Peek();
+                if (nextPeekCode == -1) break;
+                char nextChar = (char)nextPeekCode;
+
+                if (IsValidIdentifierPart(nextChar))
                 {
                     _reader.Read(); // 消耗
                     _column++;
@@ -343,26 +438,79 @@ public partial class Lexer : IDisposable
             }
             else
             {
-                // 检查是否为已知的 enum 值或有效的通用标识符
+                // Check if it's a known enum value or just a generic identifier
                 if (System.Enum.TryParse<MouseAction>(value, true, out _) ||
                     System.Enum.TryParse<KeyboardAction>(value, true, out _) ||
-                    System.Enum.TryParse<System.Windows.Forms.Keys>(value, true, out _) ||
-                    Regex_VariableName().IsMatch(value))
+                    System.Enum.TryParse<System.Windows.Forms.Keys>(value, true, out _))
+                {
+                    return new Token(TokenType.Identifier, value, startLine, startColumn);
+                }
+                // Assume it's a user-defined identifier if it follows the rules
+                else if (Regexes.Identifier().IsMatch(value)) // Optional: stricter check if needed
                 {
                     return new Token(TokenType.Identifier, value, startLine, startColumn);
                 }
                 else
                 {
-                    throw new DslParserException($"行 {startLine}: Unrecognized identifier '{value}'", startLine);
+                    // Should not happen if IsValidIdentifierStart/Part are correct
+                    throw new DslParserException($"行 {startLine}: Invalid identifier '{value}'", startLine);
                 }
             }
         }
 
-        // 8. Unknown character
-        // 字符已被消耗，_column 已被增加
+        // 9. Unknown character (already consumed)
         return new Token(TokenType.Unknown, currentChar.ToString(), startLine, startColumn);
     }
 
-    [GeneratedRegex(@"^[a-zA-Z_][a-zA-Z0-9_]*$")]
-    private static partial Regex Regex_VariableName();
+    private void ReadStringLiteral(StringBuilder sb, char escapedChar)
+    {
+        switch (escapedChar)
+        {
+            case '"': sb.Append('"'); break;
+            case '`': sb.Append('`'); break;
+            case 'n': sb.Append('\n'); break;
+            case 'r': sb.Append('\r'); break;
+            case 't': sb.Append('\t'); break;
+            case '0': sb.Append('\0'); break;
+            case '\'': sb.Append('\''); break;
+            case '\\': sb.Append('\\'); break;
+            case 'u':
+                {
+                    // Unicode escape \uXXXX
+                    var hexSb = new StringBuilder();
+                    for (int i = 0; i < 4; i++)
+                    {
+                        if (_reader.EndOfStream) throw new DslParserException($"行 {_lineNumber}: Incomplete Unicode escape sequence", _lineNumber);
+                        int hexCharCode = _reader.Read();
+                        if (hexCharCode == -1) throw new DslParserException($"行 {_lineNumber}: Incomplete Unicode escape sequence", _lineNumber);
+                        _column++;
+                        char hexChar = (char)hexCharCode;
+                        if (!Uri.IsHexDigit(hexChar))
+                        {
+                            throw new DslParserException($"行 {_lineNumber}: Invalid character '{hexChar}' in Unicode escape sequence", _lineNumber);
+                        }
+                        hexSb.Append(hexChar);
+                    }
+                    string hexString = hexSb.ToString();
+                    int codePoint = Convert.ToInt32(hexString, 16);
+                    sb.Append((char)codePoint);
+                }
+                break;
+            default:
+                // Treat as literal backslash followed by the character
+                sb.Append('\\').Append(escapedChar);
+                break;
+        }
+    }
+
+    private bool IsValidIdentifierStart(char c)
+    {
+        return char.IsLetter(c) || c == '_';
+    }
+
+    private bool IsValidIdentifierPart(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_';
+    }
+
 }

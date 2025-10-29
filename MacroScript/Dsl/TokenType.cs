@@ -12,7 +12,7 @@ public enum TokenType
     KeywordLabel, KeywordGoto, KeywordExit,
     KeywordDelay, KeywordMouse, KeywordKey,
     KeywordPixelColor, KeywordRGB, KeywordARGB, KeywordCustom, // 条件相关关键字
-    KeywordScript, KeywordEndScript, // Script block keywords
+    KeywordScript,
     Identifier, // 标签名, 事件名, 枚举值等
     Variable, // $variable
     Number,
@@ -21,8 +21,8 @@ public enum TokenType
     OperatorEquals, OperatorNotEquals,
     ParenOpen, ParenClose,
     Comma,
-    Backtick, // 用于 Custom 条件表达式
-    StringLiteral, // 暂未使用，但为未来准备
+    // Backtick, // Backtick is removed as it's now part of StringLiteral handling
+    StringLiteral, // Double-quoted, single-quoted, or backtick-quoted strings
     Comment,
     Whitespace,
     EndOfLine,
