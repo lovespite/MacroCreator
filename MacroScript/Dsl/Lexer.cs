@@ -7,11 +7,17 @@ namespace MacroScript.Dsl;
 /// <summary>
 /// 词法分析器，将 DSL 脚本字符串转换为 Token 序列
 /// </summary>
-public partial class Lexer
+public partial class Lexer : IDisposable
 {
     private readonly StreamReader _reader;
     private int _lineNumber;
     private int _column;
+
+    public void Dispose()
+    {
+        _reader.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     // 关键字映射 (无变化)
     private static readonly Dictionary<string, TokenType> Keywords = new(StringComparer.OrdinalIgnoreCase)
@@ -39,12 +45,17 @@ public partial class Lexer
     /// <summary>
     /// 构造函数，接收一个 StreamReader
     /// </summary>
-    public Lexer(Stream stream)
+    public Lexer(Stream stream, Encoding encoding)
     {
         ArgumentNullException.ThrowIfNull(stream);
-        _reader = new StreamReader(stream);
+        _reader = new StreamReader(stream, encoding);
         _lineNumber = 1;
         _column = 1;
+    }
+
+    public Lexer(Stream stream)
+        : this(stream, Encoding.UTF8)
+    {
     }
 
     /// <summary>
@@ -58,32 +69,32 @@ public partial class Lexer
 
     /// <summary>
     /// 生成所有 Token
-    /// </summary>
-    public List<Token> Tokenize()
+    /// </summary> 
+    public IEnumerable<Token> Tokenize()
     {
-        var tokens = new List<Token>();
-        // 循环直到流的末尾
-        while (!_reader.EndOfStream)
+        // 循环直到流的末尾
+        while (!_reader.EndOfStream)
         {
             var token = NextToken();
 
-            // NextToken 可能会在流的末尾返回 EndOfFile，尽管循环条件已检查
-            if (token.Type == TokenType.EndOfFile)
+            // NextToken 可能会在流的末尾返回 EndOfFile，尽管循环条件已检查
+            if (token.Type == TokenType.EndOfFile)
             {
                 break;
             }
 
-            if (token.Type != TokenType.Whitespace && token.Type != TokenType.Comment)
+            // --- 关键修改 ---
+            // 过滤掉空白 (space/tab) 和注释。
+            // 根据 NextToken() 的逻辑, EndOfLine 是一个独立的类型, 不是 Whitespace。
+            // 因此, 这个条件会保留 EndOfLine (以及所有其他有效 Token)，并且只返回一次。
+            if (token.Type != TokenType.Whitespace && token.Type != TokenType.Comment)
             {
-                tokens.Add(token);
-            }
-            if (token.Type == TokenType.EndOfLine)
-            {
-                tokens.Add(token); // 保留换行符
+                yield return token;
             }
         }
-        tokens.Add(new Token(TokenType.EndOfFile, string.Empty, _lineNumber, _column));
-        return tokens;
+
+        // 循环结束后, 返回最后的 EndOfFile 标记
+        yield return new Token(TokenType.EndOfFile, string.Empty, _lineNumber, _column);
     }
 
     /// <summary>
@@ -131,8 +142,7 @@ public partial class Lexer
             }
             else // 其他空白 (space, tab)
             {
-                var sb = new StringBuilder();
-                sb.Append(currentChar);
+                var sb = new StringBuilder().Append(currentChar);
                 while (!_reader.EndOfStream)
                 {
                     char nextChar = (char)_reader.Peek();
@@ -255,7 +265,7 @@ public partial class Lexer
                 throw new DslParserException($"行 {startLine}: Invalid variable name starting", startLine);
             }
 
-            var sb = new StringBuilder(currentChar.ToString());
+            var sb = new StringBuilder().Append(currentChar);
             while (!_reader.EndOfStream)
             {
                 char nextChar = (char)_reader.Peek();

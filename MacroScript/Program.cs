@@ -4,7 +4,6 @@ using MacroCreator.Utils;
 using MacroScript.Dsl;
 using System.Diagnostics;
 using System.Drawing.Printing;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace MacroScript;
@@ -95,7 +94,7 @@ internal static class Program
         if (!File.Exists(inputPath))
             throw new FileNotFoundException("文件不存在", inputPath);
         var outputFile = outputPath ?? Path.ChangeExtension(inputPath, ".xml");
-         
+
         FileService.Save(outputFile, Scripting.Compile(inputPath));
 
         return outputFile;
@@ -108,7 +107,7 @@ internal static class Program
         var t = new Thread(() =>
         {
             try
-            { 
+            {
                 var collection = Scripting.Compile(inputFile);
 
                 if (collection.Count <= 0)
@@ -156,9 +155,13 @@ internal static class Program
         {
             Console.WriteLine("正在执行...");
             var controller = new MacroCreator.Controller.MacroController(eSeq);
+            controller.OnPrint += ConsolePrinter.Instance.Print;
+            controller.OnPrintLine += ConsolePrinter.Instance.PrintLine;
+            
             sw.Restart();
             await controller.StartPlayback();
             sw.Stop();
+            
             t = sw.Elapsed;
             Console.WriteLine($"执行完成, 用时 {t.TotalSeconds:0.00} s");
         }
@@ -179,54 +182,4 @@ internal static class Program
     {
         Utils.ShowWindow(handle, Utils.SW_SHOW);
     }
-}
-
-internal static partial class Utils
-{
-
-    public static nint GetMainWindow()
-    {
-        // "CASCADIA_HOSTING_WINDOW_CLASS"
-        return FindWindowA(null, Program.ConsoleTitle);
-    }
-
-    [LibraryImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool ShowWindow(IntPtr hWnd, uint nCmdShow);
-    public const uint SW_HIDE = 0;
-    public const uint SW_SHOW = 5;
-
-    [LibraryImport("user32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial nint FindWindowA(string? lpClassName, string lpWindowName);
-
-
-    //[LibraryImport("user32.dll", SetLastError = true)]
-    //private static partial int GetClassNameA(IntPtr hWnd, Span<byte> lpClassName, int nMaxCount);
-
-    //[LibraryImport("kernel32.dll", SetLastError = true)]
-    //[return: MarshalAs(UnmanagedType.Bool)]
-    //public static partial bool FreeConsole();
-
-    //[LibraryImport("kernel32.dll", SetLastError = true)]
-    //[return: MarshalAs(UnmanagedType.Bool)]
-    //public static partial bool AllocConsole();
-
-    //public static string GetWindowClassName(IntPtr hWnd)
-    //{
-    //    Span<byte> buffer = stackalloc byte[256];
-    //    int length = GetClassNameA(hWnd, buffer, buffer.Length);
-    //    if (length > 0)
-    //    {
-    //        return System.Text.Encoding.UTF8.GetString(buffer[..length]);
-    //    }
-    //    return string.Empty;
-    //}
-
-    //[LibraryImport("user32.dll", SetLastError = true)]
-    //private static partial int GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
-    //public static int GetWindowProcessId(IntPtr hWnd)
-    //{
-    //    GetWindowThreadProcessId(hWnd, out int pid);
-    //    return pid;
-    //}
 }

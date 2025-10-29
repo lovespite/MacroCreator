@@ -51,7 +51,7 @@ Key(KeyUp, LWin, 50)
 
 script MyScript
     $a = 1
-    $b = $a + 2
+    $b = (int)$a + 2
     println("a = " + $a)
     println("b = " + $b)
 endscript

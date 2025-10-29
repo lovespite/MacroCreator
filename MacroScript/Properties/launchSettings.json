@@ -2,7 +2,7 @@
   "profiles": {
     "MacroScript Compile": {
       "commandName": "Project",
-      "commandLineArgs": "compile DslDemo2.macroscript --view"
+      "commandLineArgs": "compile DslDemo3.macroscript --view"
     },
     "MacroScript Run": {
       "commandName": "Project",

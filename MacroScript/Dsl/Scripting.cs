@@ -11,7 +11,7 @@ internal static class Scripting
 {
     public static List<MacroEvent> Compile(string filename)
     {
-        var lexer = new Lexer(filename);
+        using var lexer = new Lexer(filename);
         var tokens = lexer.Tokenize();
         var parser = new NewDslParser();
         var events = parser.Parse(tokens);

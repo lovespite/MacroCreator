@@ -40,7 +40,7 @@ namespace MacroScript.Dsl.Tests
             //    while (PixelColor(0, 0) != RGB(255, 255, 255))
             //        Delay(1000)
             //    endwhile
-                
+
             //    """;
 
             //var collection = new DslParser().Parse(testText);
@@ -79,7 +79,9 @@ namespace MacroScript.Dsl.Tests
                 endwhile
                 
                 """;
-            var lexer = new Lexer(testText);
+            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(testText));
+            using var lexer = new Lexer(ms);
+
             var collection = new NewDslParser().Parse(lexer.Tokenize());
 
             Assert.IsNotNull(collection);

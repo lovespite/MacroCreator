@@ -1,28 +1,26 @@
 ﻿using MacroCreator.Models;
 using MacroCreator.Models.Events;
-using MacroScript.Dsl;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace MacroScript.Dsl;
 
-
 // --- 语法分析 (Parser) ---
-public partial class NewDslParser
+public class NewDslParser
 {
-    private List<Token> _tokens = null!;
-    private int _currentTokenIndex;
-    private readonly List<MacroEvent> _events = new();
+    // private List<Token> _tokens = null!;
+    // private int _currentTokenIndex;
+
+    // Token 流的迭代器
+    private IEnumerator<Token> _tokenEnumerator = null!;
+    private Token _currentToken = null!;
+
     private int _labelCounter = 0;
+    private readonly List<MacroEvent> _events = [];
     private readonly Stack<FlowControlBlock> _blockStack = new();
     private readonly Dictionary<string, bool> _labelsDefined = new(System.StringComparer.OrdinalIgnoreCase);
-    private readonly List<(JumpEvent Event, string TargetName, int LineNumber)> _gotoFixups = new();
-    // Conditional jump fixups might not be strictly needed if targets are resolved immediately
-    // private readonly List<(ConditionalJumpEvent Event, string? TrueTargetName, string? FalseTargetName, int LineNumber)> _conditionalJumpFixups = new();
+    private readonly List<(JumpEvent Event, string TargetName, int LineNumber)> _gotoFixups = [];
 
     private class FlowControlBlock
     {
@@ -42,26 +40,40 @@ public partial class NewDslParser
         }
     }
 
-    public List<MacroEvent> Parse(List<Token> tokens)
+    /// <summary>
+    /// 解析 Token 流
+    /// </summary>
+    public List<MacroEvent> Parse(IEnumerable<Token> tokens)
     {
-        // Filter out EndOfLine tokens that are not significant (e.g., multiple blank lines)
-        // We keep one EndOfLine after each statement to mark its end.
-        _tokens = FilterMeaningfulTokens(tokens);
-        _currentTokenIndex = 0;
         _events.Clear();
         _labelCounter = 0;
         _blockStack.Clear();
         _labelsDefined.Clear();
         _gotoFixups.Clear();
-        //_conditionalJumpFixups.Clear();
 
+        // 1. 获取过滤后的 Token 迭代器
+        _tokenEnumerator = FilterMeaningfulTokens(tokens).GetEnumerator();
+
+        // 2. "启动" (Prime) 迭代器: 必须先调用 MoveNext() 来加载第一个 Token
+        if (!_tokenEnumerator.MoveNext())
+        {
+            // 如果流为空 (即使是 Lexer 错误导致没有 EOF)，
+            // 我们也创建一个 EOF Token 来保证解析器可以正常启动和停止。
+            _currentToken = new Token(TokenType.EndOfFile, string.Empty, 1, 1);
+        }
+        else
+        {
+            _currentToken = _tokenEnumerator.Current;
+        }
+
+
+        // 3. 主循环 (无变化, 但现在依赖于重构后的 IsAtEnd() 和 Consume())
         while (!IsAtEnd())
         {
             ParseStatement();
             // Expect EndOfLine or EndOfFile after a statement
             if (!IsAtEnd() && CurrentToken().Type != TokenType.EndOfLine)
             {
-                // This indicates an issue with statement parsing or lexing if it occurs
                 throw CreateException($"Expected end of line or end of file after statement, but got {CurrentToken().Type}");
             }
             // Consume the EndOfLine token after a statement
@@ -71,6 +83,7 @@ public partial class NewDslParser
             }
         }
 
+        // 4. 结束检查 (无变化)
         if (_blockStack.Count > 0)
         {
             var block = _blockStack.Peek();
@@ -82,10 +95,11 @@ public partial class NewDslParser
         return _events;
     }
 
-    // Filters out consecutive EndOfLine tokens and leading/trailing EndOfLines if necessary
-    private List<Token> FilterMeaningfulTokens(List<Token> rawTokens)
+    /// <summary>
+    /// (已重构) 使用 yield return 过滤 Token 流
+    /// </summary>
+    private static IEnumerable<Token> FilterMeaningfulTokens(IEnumerable<Token> rawTokens)
     {
-        var filtered = new List<Token>();
         bool lastWasEndOfLine = true; // Treat start as if preceded by newline
 
         foreach (var token in rawTokens)
@@ -94,33 +108,27 @@ public partial class NewDslParser
             {
                 if (!lastWasEndOfLine) // Keep only the first EndOfLine after other tokens
                 {
-                    filtered.Add(token);
+                    yield return token;
                     lastWasEndOfLine = true;
                 }
                 // Skip consecutive EndOfLines (blank lines)
             }
             else if (token.Type == TokenType.EndOfFile)
             {
-                filtered.Add(token); // Always keep EndOfFile
-                lastWasEndOfLine = false;
+                yield return token; // 始终保留 EndOfFile
+                yield break; // 迭代结束
             }
             else
             {
-                filtered.Add(token);
+                yield return token;
                 lastWasEndOfLine = false;
             }
         }
-        // Ensure EOF exists, even if the input was empty or only whitespace/comments
-        if (filtered.Count == 0 || filtered.Last().Type != TokenType.EndOfFile)
-        {
-            // Add EOF based on the last token's position or default if empty
-            int line = rawTokens.LastOrDefault()?.LineNumber ?? 1;
-            int col = rawTokens.LastOrDefault()?.Column ?? 1;
-            filtered.Add(new Token(TokenType.EndOfFile, string.Empty, line, col));
-        }
 
-
-        return filtered;
+        // 注意：我们假设 Lexer 总是会提供一个 EndOfFile Token。
+        // 即使输入为空，Lexer 也会返回 EOF。
+        // 因此，这个迭代器 *总是* 会产生至少一个 EOF Token。
+        // `Parse` 方法中的启动逻辑也处理了流为空的极端情况。
     }
 
     private void ParseStatement()
@@ -444,37 +452,36 @@ public partial class NewDslParser
         Expect(TokenType.EndOfLine, "Need newline after 'script [name]'");
 
         var scriptLines = new List<string>();
-        var transformedLines = new List<string>();
+        // var transformedLines = new List<string>();
 
         // Read lines until endscript
         while (!IsAtEnd() && CurrentToken().Type != TokenType.KeywordEndScript)
         {
             int currentLineNum = CurrentToken().LineNumber;
-            StringBuilder lineBuilder = new StringBuilder();
+            StringBuilder lineBuilder = new();
             // Reconstruct the original line from tokens until EndOfLine
             while (!IsAtEnd() && CurrentToken().Type != TokenType.EndOfLine && CurrentToken().Type != TokenType.KeywordEndScript)
             {
                 // Append raw token value (handle spacing appropriately if needed, but often not necessary for execution)
-                lineBuilder.Append(CurrentToken().Value).Append(" "); // Simple space separation
+                lineBuilder.Append(CurrentToken().Value);
                 Consume();
             }
             string originalLine = lineBuilder.ToString().Trim();
             scriptLines.Add(originalLine); // Store original line if needed for debugging?
 
-            // Transform the line
-            if (!string.IsNullOrWhiteSpace(originalLine))
-            {
-                try
-                {
-                    transformedLines.Add(TransformScriptLine(originalLine, currentLineNum));
-                }
-                catch (Exception ex) when (ex is not DslParserException)
-                {
-                    // Catch transformation errors
-                    throw CreateException($"Error transforming script line: '{originalLine}'. Reason: {ex.Message}", currentLineNum);
-                }
-            }
-
+            //// Transform the line
+            //if (!string.IsNullOrWhiteSpace(originalLine))
+            //{
+            //    try
+            //    {
+            //        transformedLines.Add(TransformScriptLine(originalLine, currentLineNum));
+            //    }
+            //    catch (Exception ex) when (ex is not DslParserException)
+            //    {
+            //        // Catch transformation errors
+            //        throw CreateException($"Error transforming script line: '{originalLine}'. Reason: {ex.Message}", currentLineNum);
+            //    }
+            //}
 
             // Consume the EndOfLine token separating script lines
             if (!IsAtEnd() && CurrentToken().Type == TokenType.EndOfLine)
@@ -496,7 +503,7 @@ public partial class NewDslParser
         _events.Add(new ScriptEvent
         {
             EventName = scriptName, // Use the parsed script name
-            ScriptLines = transformedLines.ToArray(),
+            ScriptLines = [..scriptLines],
             TimeSinceLastEvent = 0 // Script blocks execute instantly relative to the sequence
         });
     }
@@ -602,13 +609,13 @@ public partial class NewDslParser
     // --- Script Transformation ---
 
     // Basic transformation for simple assignments and variable reads
-    private string TransformScriptLine(string line, int lineNumber)
+    private static string TransformScriptLine(string line, int lineNumber)
     {
         line = line.Trim();
         if (string.IsNullOrEmpty(line)) return string.Empty;
 
         // Match assignment: $variable = expression
-        var assignmentMatch = Regex.Match(line, @"^\s*\$(?<var>[a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?<expr>.*)$");
+        var assignmentMatch = Regexes.Regex_VarAssignmentMatcher().Match(line);
         if (assignmentMatch.Success)
         {
             string varName = assignmentMatch.Groups["var"].Value;
@@ -626,21 +633,22 @@ public partial class NewDslParser
 
     // Simple recursive expression transformer (handles basic arithmetic and variable reads)
     // This needs to be significantly more robust for complex expressions.
-    private string TransformScriptExpression(string expression, int lineNumber)
+    private static string TransformScriptExpression(string expression, int _)
     {
         // Replace $variable with (type)get("variable")
         // Need a simple way to infer type or make assumptions. Let's assume int for arithmetic.
         // This regex is basic and might have issues with nested structures or strings.
-        string transformed = Regex.Replace(expression, @"\$(?<var>[a-zA-Z_][a-zA-Z0-9_]*)",
+        string transformed = Regexes.Regex_VarReplacer().Replace(expression,
             match =>
             {
                 string varName = match.Groups["var"].Value;
-                // Determine context - crude check for arithmetic operators nearby
-                // A proper parser is needed for robust type inference.
-                bool seemsArithmetic = expression.Contains('+') || expression.Contains('-') || expression.Contains('*') || expression.Contains('/');
-                string cast = seemsArithmetic ? "(int)" : "(object)"; // Assume int for arithmetic, else object
-                return $"{cast}get(\"{varName}\")";
-            });
+                //// Determine context - crude check for arithmetic operators nearby
+                //// A proper parser is needed for robust type inference.
+                //bool seemsArithmetic = expression.Contains('+') || expression.Contains('-') || expression.Contains('*') || expression.Contains('/');
+                //string cast = seemsArithmetic ? "(int)" : "(object)"; // Assume int for arithmetic, else object
+                return $"get(\"{varName}\")";
+            }
+        );
 
         // Potentially add more transformations here for function calls etc. if needed
 
@@ -651,27 +659,42 @@ public partial class NewDslParser
 
     private Token CurrentToken()
     {
-        if (_currentTokenIndex < 0 || _currentTokenIndex >= _tokens.Count)
-        {
-            // Should ideally not happen if IsAtEnd is checked, but return EOF as safeguard
-            return _tokens.LastOrDefault(t => t.Type == TokenType.EndOfFile)
-                   ?? new Token(TokenType.EndOfFile, string.Empty, _tokens.LastOrDefault()?.LineNumber ?? 1, _tokens.LastOrDefault()?.Column ?? 1);
-        }
-        return _tokens[_currentTokenIndex];
+        // _currentToken 总是由 Parse() 或 Consume() 保证已设置
+        return _currentToken;
     }
 
-    private Token PreviousToken()
-    {
-        if (_currentTokenIndex <= 0) return new Token(TokenType.Unknown, "", 0, 0); // Or handle error
-        return _tokens[_currentTokenIndex - 1];
-    }
+    //private Token PreviousToken()
+    //{
+    //    if (_currentTokenIndex <= 0) return new Token(TokenType.Unknown, "", 0, 0); // Or handle error
+    //    return _tokens[_currentTokenIndex - 1];
+    //}
 
-    private bool IsAtEnd() => _currentTokenIndex >= _tokens.Count || CurrentToken().Type == TokenType.EndOfFile;
+    private bool IsAtEnd() => CurrentToken().Type == TokenType.EndOfFile;
 
     private Token Consume()
     {
-        if (!IsAtEnd()) _currentTokenIndex++;
-        return PreviousToken();
+        var consumedToken = _currentToken;
+
+        // 只有在 *不* 是 EOF 时才推进迭代器
+        if (consumedToken.Type != TokenType.EndOfFile)
+        {
+            if (_tokenEnumerator.MoveNext())
+            {
+                _currentToken = _tokenEnumerator.Current;
+            }
+            else
+            {
+                // 如果 MoveNext 失败 (流意外结束，没有 EOF)
+                // 我们制造一个 EOF 来安全地停止解析器。
+                // 我们使用前一个 Token 的位置信息来估算新位置。
+                _currentToken = new Token(TokenType.EndOfFile, string.Empty,
+                    consumedToken.LineNumber,
+                    consumedToken.Column + (consumedToken.Value?.Length ?? 0));
+            }
+        }
+
+        // 返回刚刚被消耗的 Token
+        return consumedToken;
     }
 
     // Consumes the current token if it matches the expected type, otherwise throws.
@@ -747,8 +770,19 @@ public partial class NewDslParser
 
     private DslParserException CreateException(string message, int? lineNumber = null)
     {
-        // Use provided line number or get from current/last token
-        int line = lineNumber ?? CurrentToken()?.LineNumber ?? _tokens.LastOrDefault()?.LineNumber ?? 0;
+        // 使用提供的行号，或者从当前 Token 获取行号
+        // 因为 CurrentToken() 总是返回一个有效 Token (即使是 EOF)，所以这总是安全的。
+        int line = lineNumber ?? CurrentToken().LineNumber;
         return new DslParserException(message, line);
     }
+}
+
+
+internal partial class Regexes
+{
+    [GeneratedRegex(@"^\s*\$(?<var>[a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?<expr>.*)$", RegexOptions.Compiled)]
+    public static partial Regex Regex_VarAssignmentMatcher();
+
+    [GeneratedRegex(@"\$(?<var>[a-zA-Z_][a-zA-Z0-9_]*)")]
+    public static partial Regex Regex_VarReplacer();
 }
