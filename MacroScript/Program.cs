@@ -1,5 +1,6 @@
 ﻿using MacroCreator.Models.Events;
 using MacroCreator.Services;
+using MacroCreator.Services.CH9329;
 using MacroCreator.Utils;
 using MacroScript.Dsl;
 using System.Diagnostics;
@@ -31,9 +32,17 @@ internal static class Program
         {
             Console.WriteLine($"文件未找到: {ex.FileName}");
         }
-        catch (Dsl.DslParserException ex)
+        catch (DslParserException ex)
         {
             Console.WriteLine($"DSL 解析错误 (行 {ex.LineNumber}): {ex.Message}");
+        }
+        catch (CH9329Exception ex)
+        {
+            Console.WriteLine($"CH9329 错误: {ex.ErrorCode} - {ex.Message}");
+        }
+        catch (TimeoutException ex)
+        {
+            Console.WriteLine($"超时错误: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -94,7 +103,7 @@ internal static class Program
         var prefix = ArgNamePrefix + name;
         var altPrefix = alias is null ? null : ArgNameAliasPrefix + alias;
 
-        return _args.Contains(prefix) || _args.Contains(altPrefix);
+        return _args.Contains(prefix) || (altPrefix != null && _args.Contains(altPrefix));
     }
 
     private static string? GetArg(string name, string? alias = null)
@@ -176,14 +185,32 @@ internal static class Program
         var t = sw.Elapsed;
         Console.WriteLine($"编译完成, 用时 {t.TotalSeconds:0.00} s");
 
-        var hWnd = HideCurrentConsoleWindow();
+        var hWnd = HasArg("hide") ? HideCurrentConsoleWindow() : 0;
+
+        // 检查 --redirect 参数
+        var comPort = GetArg("redirect", "r");
 
         try
         {
-            Console.WriteLine("正在执行...");
-            var controller = new MacroCreator.Controller.MacroController(eSeq);
+
+            // 使用 using 语句确保 Controller 被释放 (从而释放 InputSimulator)
+            using var controller = new MacroCreator.Controller.MacroController(eSeq, comPort);
+
             controller.OnPrint += ConsolePrinter.Instance.Print;
             controller.OnPrintLine += ConsolePrinter.Instance.PrintLine;
+
+            if (controller.Redirected)
+            {
+                Console.WriteLine($"正在连接设备 {comPort} ...");
+                var info = await controller.Simulator!.Controller.GetInfoAsync();
+                Console.WriteLine($"已重定向到设备 {comPort}, 状态:\n{info}");
+                if (info.UsbStatus == MacroCreator.Services.CH9329.UsbStatus.NotConnected)
+                {
+                    throw new InvalidOperationException("HID设备未连接到目标主机，或未被正确识别，请检查连接后重试。");
+                }
+            }
+
+            Console.WriteLine("正在执行 ...");
 
             sw.Restart();
             await controller.StartPlayback();
@@ -194,7 +221,7 @@ internal static class Program
         }
         finally
         {
-            ShowCurrentConsoleWindow(hWnd);
+            if (hWnd != 0) ShowCurrentConsoleWindow(hWnd);
         }
     }
 

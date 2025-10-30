@@ -2,6 +2,7 @@
 using MacroCreator.Models;
 using MacroCreator.Models.Events;
 using System.Diagnostics;
+using MacroCreator.Services.CH9329; // 导入 CH9329 命名空间
 
 namespace MacroCreator.Controller;
 
@@ -10,16 +11,22 @@ namespace MacroCreator.Controller;
 /// 作为 UI 和后端服务之间的协调者
 /// UI 层只与这个类交互
 /// </summary>
-public class MacroController : IPrintService
+public class MacroController : IPrintService, IDisposable // 实现 IDisposable
 {
     private List<MacroEvent> _events = [];
     private readonly RecordingService _recordingService;
     private readonly PlaybackService _playbackService;
     private string? _currentFilePath = null;
 
+    // 添加 InputSimulator 实例和播放器字典字段
+    private readonly InputSimulator? _inputSimulator;
+    private readonly Dictionary<Type, IEventPlayer> _playerStrategies;
+
     public IReadOnlyList<MacroEvent> EventSequence => _events.AsReadOnly();
     public AppState CurrentState { get; private set; } = AppState.Idle;
     public string? CurrentFilePath => _currentFilePath;
+    public InputSimulator? Simulator => _inputSimulator;
+    public bool Redirected => _inputSimulator is not null;
 
     public event Action<AppState>? StateChanged;
     public event Action<EventSequenceChangeArgs>? EventSequenceChanged;
@@ -27,29 +34,78 @@ public class MacroController : IPrintService
     public event Action<object?>? OnPrint;
     public event Action<object?>? OnPrintLine;
 
-    public MacroController()
+    /// <summary>
+    /// 基础构造函数，用于 MacroCreator (WinForms)
+    /// </summary>
+    public MacroController() : this(redirectComPort: null)
+    {
+    }
+
+    /// <summary>
+    /// 用于 MacroScript 的构造函数 (旧)
+    /// </summary>
+    public MacroController(IReadOnlyList<MacroEvent> sequence) : this(sequence, null)
+    {
+    }
+
+    /// <summary>
+    /// 用于 MacroScript 的新构造函数，支持重定向
+    /// </summary>
+    public MacroController(IReadOnlyList<MacroEvent> sequence, string? redirectComPort) : this(redirectComPort)
+    {
+        _events = [.. sequence];
+    }
+
+    /// <summary>
+    /// 核心构造函数，处理重定向逻辑
+    /// </summary>
+    /// <param name="redirectComPort">如果提供，则尝试重定向到此 COM 端口</param>
+    public MacroController(string? redirectComPort = null)
     {
         _recordingService = new RecordingService();
         _recordingService.OnEventRecorded += _events.Add;
 
-        // 使用策略模式初始化回放服务
-        var playerStrategies = new Dictionary<Type, IEventPlayer>
+        if (!string.IsNullOrEmpty(redirectComPort))
+        {
+            _inputSimulator = new InputSimulator(redirectComPort);
+            _inputSimulator.Open();
+            _inputSimulator.Controller.WarmupCache(); // 预热缓存
+            StatusMessageChanged?.Invoke($"键鼠操作已成功重定向到 {redirectComPort}");
+        }
+
+        // 使用 _inputSimulator 实例初始化播放器策略
+        _playerStrategies = CreatePlayers(_inputSimulator);
+        _playbackService = new PlaybackService(_playerStrategies, this);
+    }
+
+    /// <summary>
+    /// 根据是否提供了 InputSimulator 来创建播放器策略
+    /// </summary>
+    private static Dictionary<Type, IEventPlayer> CreatePlayers(InputSimulator? simulator)
+    {
+        var players = new Dictionary<Type, IEventPlayer>
         {
             { typeof(Nop), new NopPlayer() },
             { typeof(ScriptEvent), new ScriptEventPlayer() },
-            { typeof(MouseEvent), new MouseEventPlayer() },
-            { typeof(KeyboardEvent), new KeyboardEventPlayer() },
             { typeof(DelayEvent), new DelayEventPlayer() },
             { typeof(JumpEvent), new JumpEventPlayer() },
             { typeof(ConditionalJumpEvent), new ConditionalJumpEventPlayer() },
-            { typeof(BreakEvent), new BreakEventPlayer() }
+            { typeof(BreakEvent), new BreakEventPlayer() },
         };
-        _playbackService = new PlaybackService(playerStrategies, this);
-    }
 
-    public MacroController(IReadOnlyList<MacroEvent> sequence) : this()
-    {
-        _events = [.. sequence];
+        if (simulator != null)
+        {
+            // 使用 CH9329 硬件播放器
+            players[typeof(MouseEvent)] = new Ch9329MouseEventPlayer(simulator);
+            players[typeof(KeyboardEvent)] = new Ch9329KeyboardEventPlayer(simulator);
+        }
+        else
+        {
+            // 使用本地输入模拟器播放器
+            players[typeof(MouseEvent)] = new MouseEventPlayer();
+            players[typeof(KeyboardEvent)] = new KeyboardEventPlayer();
+        }
+        return players;
     }
 
     public void Print(object? message)
@@ -281,5 +337,15 @@ public class MacroController : IPrintService
         if (CurrentState == newState) return;
         CurrentState = newState;
         StateChanged?.Invoke(newState);
+    }
+
+    /// <summary>
+    /// 释放 InputSimulator
+    /// </summary>
+    public void Dispose()
+    {
+        _inputSimulator?.Close();
+        _inputSimulator?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

@@ -18,8 +18,10 @@ Script(`
 KeyDown(LWin, R, 100) // 延迟100ms, 然后按下左Win + R
 KeyUp(LWin, R, 50)
 
+Delay(1000)
+
 KeyPress(Delete, 100) // 延迟100ms, 然后按下并释放 Delete 键
-KeyPress(N, O, T, E, P, A, D, Enter, 100) // 延迟100ms, 然后按下并释放 NOTE PAD 回车键
+KeyPress(N, O, T, E, P, A, D, Enter, 200) // 延迟200ms, 然后按下并释放 NOTE PAD 回车键
 
 Delay(3000)
 

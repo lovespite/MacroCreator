@@ -39,9 +39,27 @@ public readonly struct ChipInfo(byte version, UsbStatus usbStatus, KeyboardLedSt
         return $"0x{Version:X2}";
     }
 
+    public string GetConnectionString()
+    {
+        return UsbStatus switch
+        {
+            UsbStatus.NotConnected => "未连接",
+            UsbStatus.ConnectedAndRecognized => "已连接并识别",
+            _ => "未知状态",
+        };
+    }
+
+    public string GetLedStatusString()
+    {
+        var status = $"Capslock: {(LedStatus.HasFlag(KeyboardLedStatus.CapsLock) ? "ON" : "OFF")}";
+        status += $", Numlock: {(LedStatus.HasFlag(KeyboardLedStatus.NumLock) ? "ON" : "OFF")}";
+        status += $", Scrolllock: {(LedStatus.HasFlag(KeyboardLedStatus.ScrollLock) ? "ON" : "OFF")}";
+
+        return status;
+    }
+
     public override string ToString()
     {
-        return $"版本: {GetVersionString()}, USB状态: {UsbStatus}, 指示灯: {LedStatus}";
+        return $"芯片版本: {GetVersionString()}, 连接状态: {GetConnectionString()}, 指示灯: {GetLedStatusString()}";
     }
 }
- 
