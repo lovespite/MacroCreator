@@ -5,6 +5,7 @@
  * 它提供了一个通过 .NET SerialPort 与 CH9329 芯片进行通信的接口。
  */
 
+using System.Buffers;
 using System.IO.Ports;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -13,6 +14,7 @@ namespace MacroCreator.Services.CH9329;
 
 /// <summary>
 /// CH9329 芯片串口通信控制器。
+/// 性能优化版本：使用 ArrayPool 池化缓冲区、Span<T> 优化内存操作、减少内存分配。
 /// </summary>
 public class Ch9329Controller : IDisposable
 {
@@ -20,9 +22,17 @@ public class Ch9329Controller : IDisposable
     private readonly SerialPort _serialPort;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
+    // 使用 ArrayPool 来减少内存分配
+    private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
+
+    // 缓存常用的键盘释放命令帧（减少重复构建）
+    private byte[]? _cachedKeyReleaseFrame;
+    private byte[]? _cachedMouseReleaseFrame;
+
     private const byte FRAME_HEAD_1 = 0x57;
     private const byte FRAME_HEAD_2 = 0xAB;
     private const int DEFAULT_TIMEOUT = 500; // 默认超时时间 (ms)
+    private const int MAX_FRAME_SIZE = 70; // 最大帧大小 (头部6字节 + 数据64字节)
 
     #region 命令码 (Command Codes)
     private const byte CMD_GET_INFO = 0x01;
@@ -89,7 +99,7 @@ public class Ch9329Controller : IDisposable
     /// <returns>包含芯片信息的 <see cref="ChipInfo"/> 对象。</returns>
     public async Task<ChipInfo> GetInfoAsync()
     {
-        byte[] response = await SendCommandAsync(CMD_GET_INFO, null);
+        byte[] response = await SendCommandAsync(CMD_GET_INFO);
 
         // 预期响应数据长度为 8
         if (response.Length != 8)
@@ -111,20 +121,50 @@ public class Ch9329Controller : IDisposable
     /// <param name="keys">6个普通按键的键码。如果少于6个，其余用 0x00 填充。全部为 0x00 表示释放按键。</param>
     public async Task SendKeyboardDataAsync(KeyModifier modifiers, params byte[] keys)
     {
-        if (keys == null) keys = new byte[6];
+        if (keys == null) keys = [];
         if (keys.Length > 6) throw new ArgumentException("最多只能指定 6 个普通按键。", nameof(keys));
 
-        byte[] data = new byte[8];
-        data[0] = (byte)modifiers;
-        data[1] = 0x00; // 保留字节
-
-        // 填充按键
-        for (int i = 0; i < 6; i++)
+        // 检查是否是键盘释放命令（全零），使用缓存的帧
+        if (modifiers == 0 && keys.Length == 0)
         {
-            data[i + 2] = (i < keys.Length) ? keys[i] : (byte)0x00;
+            await SendCachedKeyReleaseAsync();
+            return;
         }
 
-        byte[] response = await SendCommandAsync(CMD_SEND_KB_GENERAL_DATA, data);
+        // 使用池化数组
+        byte[] data = _bufferPool.Rent(8);
+        try
+        {
+            data[0] = (byte)modifiers;
+            data[1] = 0x00; // 保留字节
+
+            // 填充按键
+            for (int i = 0; i < 6; i++)
+            {
+                data[i + 2] = (i < keys.Length) ? keys[i] : (byte)0x00;
+            }
+
+            byte[] response = await SendCommandAsync(CMD_SEND_KB_GENERAL_DATA, data.AsMemory(0, 8));
+            ValidateSimpleResponse(response, "SendKeyboardDataAsync");
+        }
+        finally
+        {
+            _bufferPool.Return(data);
+        }
+    }
+
+    /// <summary>
+    /// 发送缓存的键盘释放命令（性能优化）。
+    /// </summary>
+    private async Task SendCachedKeyReleaseAsync()
+    {
+        if (_cachedKeyReleaseFrame == null)
+        {
+            byte[] data = new byte[8]; // 全零数据
+            _cachedKeyReleaseFrame = BuildFrame(CMD_SEND_KB_GENERAL_DATA, data);
+        }
+
+        byte[] response = await SendFrameDirectAsync(_cachedKeyReleaseFrame, CMD_SEND_KB_GENERAL_DATA);
         ValidateSimpleResponse(response, "SendKeyboardDataAsync");
     }
 
@@ -173,18 +213,24 @@ public class Ch9329Controller : IDisposable
         if (x > 4095) x = 4095;
         if (y > 4095) y = 4095;
 
-        byte[] data =
-        [
-            0x02, // 固定值
-            (byte)buttons,
-            (byte)(x & 0xFF),         // X 坐标低字节
-            (byte)((x >> 8) & 0xFF), // X 坐标高字节
-            (byte)(y & 0xFF),         // Y 坐标低字节
-            (byte)((y >> 8) & 0xFF), // Y 坐标高字节
-            (byte)wheel,
-        ];
-        byte[] response = await SendCommandAsync(CMD_SEND_MS_ABS_DATA, data);
-        ValidateSimpleResponse(response);
+        byte[] data = _bufferPool.Rent(7);
+        try
+        {
+            data[0] = 0x02; // 固定值
+            data[1] = (byte)buttons;
+            data[2] = (byte)(x & 0xFF);         // X 坐标低字节
+            data[3] = (byte)((x >> 8) & 0xFF); // X 坐标高字节
+            data[4] = (byte)(y & 0xFF);         // Y 坐标低字节
+            data[5] = (byte)((y >> 8) & 0xFF); // Y 坐标高字节
+            data[6] = (byte)wheel;
+
+            byte[] response = await SendCommandAsync(CMD_SEND_MS_ABS_DATA, data.AsMemory(0, 7));
+            ValidateSimpleResponse(response);
+        }
+        finally
+        {
+            _bufferPool.Return(data);
+        }
     }
 
     /// <summary>
@@ -196,16 +242,22 @@ public class Ch9329Controller : IDisposable
     /// <param name="wheel">滚轮滚动。正值向上，负值向下。</param>
     public async Task SendRelativeMouseAsync(MouseButton buttons, sbyte dx, sbyte dy, sbyte wheel)
     {
-        byte[] data =
-        [
-            0x01, // 固定值
-            (byte)buttons,
-            (byte)dx,
-            (byte)dy,
-            (byte)wheel,
-        ];
-        byte[] response = await SendCommandAsync(CMD_SEND_MS_REL_DATA, data);
-        ValidateSimpleResponse(response);
+        byte[] data = _bufferPool.Rent(5);
+        try
+        {
+            data[0] = 0x01; // 固定值
+            data[1] = (byte)buttons;
+            data[2] = (byte)dx;
+            data[3] = (byte)dy;
+            data[4] = (byte)wheel;
+
+            byte[] response = await SendCommandAsync(CMD_SEND_MS_REL_DATA, data.AsMemory(0, 5));
+            ValidateSimpleResponse(response);
+        }
+        finally
+        {
+            _bufferPool.Return(data);
+        }
     }
 
     /// <summary>
@@ -227,7 +279,7 @@ public class Ch9329Controller : IDisposable
     /// <returns>包含 50 字节原始配置数据的字节数组。</returns>
     public async Task<byte[]> GetConfigAsync()
     {
-        byte[] response = await SendCommandAsync(CMD_GET_PARA_CFG, null);
+        byte[] response = await SendCommandAsync(CMD_GET_PARA_CFG);
         if (response.Length != 50)
         {
             throw new CH9329Exception(Ch9329Error.ProtocolError, $"GetConfigAsync 期望 50 字节数据，但收到了 {response.Length} 字节。");
@@ -309,7 +361,7 @@ public class Ch9329Controller : IDisposable
     /// </summary>
     public async Task RestoreDefaultsAsync()
     {
-        byte[] response = await SendCommandAsync(CMD_SET_DEFAULT_CFG, null);
+        byte[] response = await SendCommandAsync(CMD_SET_DEFAULT_CFG);
         ValidateSimpleResponse(response);
     }
 
@@ -318,7 +370,7 @@ public class Ch9329Controller : IDisposable
     /// </summary>
     public async Task ResetAsync()
     {
-        byte[] response = await SendCommandAsync(CMD_RESET, null);
+        byte[] response = await SendCommandAsync(CMD_RESET);
         ValidateSimpleResponse(response);
     }
 
@@ -341,15 +393,28 @@ public class Ch9329Controller : IDisposable
     }
 
     /// <summary>
-    /// 构造一个完整的串口命令帧。
+    /// 直接构造帧并返回（用于缓存）。
     /// </summary>
-    private byte[] BuildFrame(byte cmd, byte[]? data)
+    private byte[] BuildFrame(byte cmd, ReadOnlySpan<byte> data)
     {
-        int dataLength = (data?.Length ?? 0);
+        int dataLength = data.Length;
         if (dataLength > 64) throw new ArgumentException("数据长度不能超过 64 字节。");
 
         // 帧头(2) + 地址(1) + 命令(1) + 长度(1) + 数据(N) + 校验(1)
-        byte[] frame = new byte[6 + dataLength];
+        Span<byte> frame = stackalloc byte[6 + dataLength];
+
+        BuildFrameInternal(frame, cmd, data);
+
+        return frame.ToArray();
+    }
+
+    /// <summary>
+    /// 内部帧构造方法，将帧数据写入指定的缓冲区。
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void BuildFrameInternal(Span<byte> frame, byte cmd, ReadOnlySpan<byte> data)
+    {
+        int dataLength = data.Length;
 
         frame[0] = FRAME_HEAD_1;
         frame[1] = FRAME_HEAD_2;
@@ -357,28 +422,52 @@ public class Ch9329Controller : IDisposable
         frame[3] = cmd;
         frame[4] = (byte)dataLength;
 
-        if (data is not null && dataLength > 0)
+        if (dataLength > 0)
         {
-            Buffer.BlockCopy(data, 0, frame, 5, dataLength);
+            data.CopyTo(frame[5..]);
         }
 
-        // 计算校验和 (从 HEAD 到 DATA)
-        byte checksum = 0;
-        for (int i = 0; i < frame.Length - 1; i++)
-        {
-            checksum += frame[i];
-        }
-        frame[^1] = checksum;
-
-        return frame;
+        // 计算校验和（使用向量化优化）
+        byte checksum = CalculateChecksum(frame[..(5 + dataLength)]);
+        frame[5 + dataLength] = checksum;
     }
 
     /// <summary>
-    /// 异步发送命令并等待响应。
+    /// 计算校验和（性能优化版本）。
     /// </summary>
-    private async Task<byte[]> SendCommandAsync(byte cmd, byte[]? data)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte CalculateChecksum(ReadOnlySpan<byte> data)
     {
-        await _lock.WaitAsync(); // 确保同一时间只有一个命令在执行
+        int sum = 0;
+
+        // 使用循环展开优化
+        int i = 0;
+        int length = data.Length;
+
+        // 每次处理 4 个字节（循环展开）
+        for (; i <= length - 4; i += 4)
+        {
+            sum += data[i];
+            sum += data[i + 1];
+            sum += data[i + 2];
+            sum += data[i + 3];
+        }
+
+        // 处理剩余字节
+        for (; i < length; i++)
+        {
+            sum += data[i];
+        }
+
+        return (byte)(sum & 0xFF);
+    }
+
+    /// <summary>
+    /// 直接发送已构建的帧（用于缓存的帧）。
+    /// </summary>
+    private async Task<byte[]> SendFrameDirectAsync(byte[] frame, byte cmd)
+    {
+        await _lock.WaitAsync();
         try
         {
             if (!_serialPort.IsOpen)
@@ -386,13 +475,8 @@ public class Ch9329Controller : IDisposable
                 throw new InvalidOperationException("串口未打开。");
             }
 
-            _serialPort.DiscardInBuffer(); // 清空接收缓冲区
-            byte[] frame = BuildFrame(cmd, data);
-
-            // 发送命令
+            _serialPort.DiscardInBuffer();
             await _serialPort.BaseStream.WriteAsync(frame, CancellationToken.None);
-
-            // 异步读取响应
             return await ReadResponseAsync(cmd);
         }
         finally
@@ -402,116 +486,318 @@ public class Ch9329Controller : IDisposable
     }
 
     /// <summary>
-    /// 异步读取和解析响应帧。
+    /// 异步发送命令并等待响应（性能优化版本）。
     /// </summary>
-    private async Task<byte[]> ReadResponseAsync(byte originalCmd)
+    private async Task<byte[]> SendCommandAsync(byte cmd, ReadOnlyMemory<byte> data)
     {
-        byte[] header = new byte[5]; // HEAD(2) + ADDR(1) + CMD(1) + LEN(1)
-
-        // 使用 CancellationToken 实现超时
-        var cts = new CancellationTokenSource(DEFAULT_TIMEOUT);
-        int bytesRead = 0;
+        await _lock.WaitAsync(); // 确保同一时间只有一个命令在执行
         try
         {
-            // 1. 读取帧头
-            while (bytesRead < header.Length)
+            if (!_serialPort.IsOpen) throw new InvalidOperationException("串口未打开。");
+
+            _serialPort.DiscardInBuffer(); // 清空接收缓冲区
+
+            // 使用池化缓冲区来构建帧
+            int dataLength = data.Length;
+            int frameSize = 6 + dataLength;
+            byte[] frameBuffer = _bufferPool.Rent(frameSize);
+            try
             {
-                int read = await _serialPort.BaseStream.ReadAsync(header.AsMemory(bytesRead, header.Length - bytesRead), cts.Token);
-                if (read == 0) throw new TimeoutException("读取响应超时。");
-                bytesRead += read;
+                Span<byte> frame = frameBuffer.AsSpan(0, frameSize);
+                BuildFrameInternal(frame, cmd, data.Span);
+
+                // 发送命令
+                await _serialPort.BaseStream.WriteAsync(frameBuffer.AsMemory(0, frameSize), CancellationToken.None);
+
+                // 异步读取响应
+                return await ReadResponseAsync(cmd);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            throw new CH9329Exception(Ch9329Error.CmdErrTimeout, "读取响应头超时。");
-        }
-        catch (Exception ex)
-        {
-            throw new CH9329Exception(Ch9329Error.ProtocolError, $"串口读取错误: {ex.Message}");
-        }
-
-        // 2. 验证帧头
-        if (header[0] != FRAME_HEAD_1 || header[1] != FRAME_HEAD_2)
-        {
-            throw new CH9329Exception(Ch9329Error.CmdErrHead, "无效的响应帧头。");
-        }
-
-        // 3. 验证地址 (0xFF 是广播地址，芯片不应答，但我们检查收到的地址是否匹配)
-        if (header[2] != _chipAddress && _chipAddress != 0x00)
-        {
-            // 0x00 地址可以接收任意地址码
-        }
-
-        // 4. 验证命令码
-        byte responseCmd = header[3];
-        byte expectedSuccessCmd = (byte)(originalCmd | RSP_SUCCESS_FLAG);
-        byte expectedErrorCmd = (byte)(originalCmd | RSP_ERROR_FLAG);
-
-        bool isSuccess = (responseCmd == expectedSuccessCmd);
-        bool isError = (responseCmd == expectedErrorCmd);
-
-        if (!isSuccess && !isError)
-        {
-            throw new CH9329Exception(Ch9329Error.CmdErrCmd, $"响应命令码不匹配。收到: 0x{responseCmd:X2}, 期望: 0x{expectedSuccessCmd:X2} 或 0x{expectedErrorCmd:X2}。");
-        }
-
-        // 5. 读取数据和校验和
-        byte dataLen = header[4];
-        byte[] dataAndSum = new byte[dataLen + 1];
-        bytesRead = 0;
-
-        try
-        {
-            if (dataAndSum.Length > 0)
+            finally
             {
-                while (bytesRead < dataAndSum.Length)
-                {
-                    int read = await _serialPort.BaseStream.ReadAsync(dataAndSum, bytesRead, dataAndSum.Length - bytesRead, cts.Token);
-                    if (read == 0) throw new TimeoutException("读取响应数据超时。");
-                    bytesRead += read;
-                }
+                _bufferPool.Return(frameBuffer);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            throw new CH9329Exception(Ch9329Error.CmdErrTimeout, "读取响应数据超时。");
-        }
-        catch (Exception ex)
-        {
-            throw new CH9329Exception(Ch9329Error.ProtocolError, $"串口读取错误: {ex.Message}");
         }
         finally
         {
-            cts.Dispose();
+            _lock.Release();
         }
+    }
 
+    /// <summary>
+    /// 异步发送命令并等待响应（性能优化版本）。
+    /// </summary>
+    private Task<byte[]> SendCommandAsync(byte cmd) => SendCommandAsync(cmd, ReadOnlyMemory<byte>.Empty);
 
-        byte receivedSum = dataAndSum[dataLen];
-        byte[] data = new byte[dataLen];
-        if (dataLen > 0)
+    /// <summary>
+    /// 异步读取和解析响应帧（性能优化版本）。
+    /// </summary>
+    private async Task<byte[]> ReadResponseAsync(byte originalCmd)
+    {
+        byte[] headerBuffer = _bufferPool.Rent(5); // HEAD(2) + ADDR(1) + CMD(1) + LEN(1)
+
+        try
         {
-            Buffer.BlockCopy(dataAndSum, 0, data, 0, dataLen);
+            // 使用 CancellationToken 实现超时
+            var cts = new CancellationTokenSource(DEFAULT_TIMEOUT);
+            int bytesRead = 0;
+
+            try
+            {
+                // 1. 读取帧头
+                while (bytesRead < 5)
+                {
+                    int read = await _serialPort.BaseStream.ReadAsync(headerBuffer.AsMemory(bytesRead, 5 - bytesRead), cts.Token);
+                    if (read == 0) throw new TimeoutException("读取响应超时。");
+                    bytesRead += read;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw new CH9329Exception(Ch9329Error.CmdErrTimeout, "读取响应头超时。");
+            }
+            catch (Exception ex)
+            {
+                throw new CH9329Exception(Ch9329Error.ProtocolError, $"串口读取错误: {ex.Message}");
+            }
+
+            // 2. 验证帧头
+            if (headerBuffer[0] != FRAME_HEAD_1 || headerBuffer[1] != FRAME_HEAD_2)
+            {
+                throw new CH9329Exception(Ch9329Error.CmdErrHead, "无效的响应帧头。");
+            }
+
+            // 3. 验证地址
+            if (headerBuffer[2] != _chipAddress && _chipAddress != 0x00)
+            {
+                // 0x00 地址可以接收任意地址码
+            }
+
+            // 4. 验证命令码
+            byte responseCmd = headerBuffer[3];
+            byte expectedSuccessCmd = (byte)(originalCmd | RSP_SUCCESS_FLAG);
+            byte expectedErrorCmd = (byte)(originalCmd | RSP_ERROR_FLAG);
+
+            bool isSuccess = (responseCmd == expectedSuccessCmd);
+            bool isError = (responseCmd == expectedErrorCmd);
+
+            if (!isSuccess && !isError)
+            {
+                throw new CH9329Exception(Ch9329Error.CmdErrCmd, $"响应命令码不匹配。收到: 0x{responseCmd:X2}, 期望: 0x{expectedSuccessCmd:X2} 或 0x{expectedErrorCmd:X2}。");
+            }
+
+            // 5. 读取数据和校验和
+            byte dataLen = headerBuffer[4];
+            byte[] dataBuffer = _bufferPool.Rent(dataLen + 1);
+
+            try
+            {
+                bytesRead = 0;
+
+                if (dataLen + 1 > 0)
+                {
+                    while (bytesRead < dataLen + 1)
+                    {
+                        int read = await _serialPort.BaseStream.ReadAsync(dataBuffer, bytesRead, dataLen + 1 - bytesRead, cts.Token);
+                        if (read == 0) throw new TimeoutException("读取响应数据超时。");
+                        bytesRead += read;
+                    }
+                }
+
+                byte receivedSum = dataBuffer[dataLen];
+
+                // 6. 验证校验和（使用优化的计算方法）
+                byte calculatedSum = CalculateChecksum(headerBuffer.AsSpan(0, 5));
+                calculatedSum += CalculateChecksum(dataBuffer.AsSpan(0, dataLen));
+
+                if (receivedSum != calculatedSum)
+                {
+                    throw new CH9329Exception(Ch9329Error.CmdErrSum, $"响应校验和错误。收到: 0x{receivedSum:X2}, 计算: 0x{calculatedSum:X2}。");
+                }
+
+                // 7. 处理错误响应
+                if (isError)
+                {
+                    Ch9329Error errorCode = (dataLen > 0) ? (Ch9329Error)dataBuffer[0] : Ch9329Error.CmdErrOperate;
+                    throw new CH9329Exception(errorCode, $"芯片返回错误。状态码: 0x{errorCode:X2}");
+                }
+
+                // 8. 返回成功数据
+                byte[] result = new byte[dataLen];
+                if (dataLen > 0)
+                {
+                    Buffer.BlockCopy(dataBuffer, 0, result, 0, dataLen);
+                }
+                return result;
+            }
+            finally
+            {
+                _bufferPool.Return(dataBuffer);
+                cts.Dispose();
+            }
         }
-
-        // 6. 验证校验和
-        byte calculatedSum = 0;
-        foreach (byte b in header) calculatedSum += b;
-        foreach (byte b in data) calculatedSum += b;
-
-        if (receivedSum != calculatedSum)
+        finally
         {
-            throw new CH9329Exception(Ch9329Error.CmdErrSum, $"响应校验和错误。收到: 0x{receivedSum:X2}, 计算: 0x{calculatedSum:X2}。");
+            _bufferPool.Return(headerBuffer);
         }
+    }
 
-        // 7. 处理错误响应
-        if (isError)
+    #endregion
+
+    #region 性能优化扩展方法 (Performance Optimizations)
+
+    /// <summary>
+    /// 批量发送键盘按键序列（性能优化，减少锁竞争）。
+    /// </summary>
+    /// <param name="keySequence">键盘操作序列（修饰键和按键数组对）。</param>
+    public async Task SendKeyboardSequenceAsync(IEnumerable<(KeyModifier modifiers, byte[] keys)> keySequence)
+    {
+        await _lock.WaitAsync();
+        try
         {
-            Ch9329Error errorCode = (dataLen > 0) ? (Ch9329Error)data[0] : Ch9329Error.CmdErrOperate;
-            throw new CH9329Exception(errorCode, $"芯片返回错误。状态码: 0x{errorCode:X2}");
+            if (!_serialPort.IsOpen)
+            {
+                throw new InvalidOperationException("串口未打开。");
+            }
+
+            foreach (var (modifiers, keys) in keySequence)
+            {
+                _serialPort.DiscardInBuffer();
+
+                byte[] data = _bufferPool.Rent(8);
+                try
+                {
+                    data[0] = (byte)modifiers;
+                    data[1] = 0x00;
+
+                    for (int i = 0; i < 6; i++)
+                    {
+                        data[i + 2] = (i < keys.Length) ? keys[i] : (byte)0x00;
+                    }
+
+                    int dataLength = 8;
+                    int frameSize = 6 + dataLength;
+                    byte[] frameBuffer = _bufferPool.Rent(frameSize);
+                    try
+                    {
+                        Span<byte> frame = frameBuffer.AsSpan(0, frameSize);
+                        ReadOnlySpan<byte> dataSpan = data.AsSpan(0, 8);
+                        BuildFrameInternal(frame, CMD_SEND_KB_GENERAL_DATA, dataSpan);
+
+                        await _serialPort.BaseStream.WriteAsync(frameBuffer.AsMemory(0, frameSize), CancellationToken.None);
+
+                        byte[] response = await ReadResponseAsync(CMD_SEND_KB_GENERAL_DATA);
+                        ValidateSimpleResponse(response, "SendKeyboardSequenceAsync");
+                    }
+                    finally
+                    {
+                        _bufferPool.Return(frameBuffer);
+                    }
+                }
+                finally
+                {
+                    _bufferPool.Return(data);
+                }
+            }
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// 批量发送鼠标移动序列（性能优化）。
+    /// </summary>
+    /// <param name="mouseSequence">鼠标操作序列。</param>
+    public async Task SendMouseSequenceAsync(IEnumerable<(MouseButton buttons, sbyte dx, sbyte dy, sbyte wheel)> mouseSequence)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            if (!_serialPort.IsOpen)
+            {
+                throw new InvalidOperationException("串口未打开。");
+            }
+
+            foreach (var (buttons, dx, dy, wheel) in mouseSequence)
+            {
+                _serialPort.DiscardInBuffer();
+
+                byte[] data = _bufferPool.Rent(5);
+                try
+                {
+                    data[0] = 0x01;
+                    data[1] = (byte)buttons;
+                    data[2] = (byte)dx;
+                    data[3] = (byte)dy;
+                    data[4] = (byte)wheel;
+
+                    int dataLength = 5;
+                    int frameSize = 6 + dataLength;
+                    byte[] frameBuffer = _bufferPool.Rent(frameSize);
+                    try
+                    {
+                        Span<byte> frame = frameBuffer.AsSpan(0, frameSize);
+                        ReadOnlySpan<byte> dataSpan = data.AsSpan(0, 5);
+                        BuildFrameInternal(frame, CMD_SEND_MS_REL_DATA, dataSpan);
+
+                        await _serialPort.BaseStream.WriteAsync(frameBuffer.AsMemory(0, frameSize), CancellationToken.None);
+
+                        byte[] response = await ReadResponseAsync(CMD_SEND_MS_REL_DATA);
+                        ValidateSimpleResponse(response, "SendMouseSequenceAsync");
+                    }
+                    finally
+                    {
+                        _bufferPool.Return(frameBuffer);
+                    }
+                }
+                finally
+                {
+                    _bufferPool.Return(data);
+                }
+            }
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// 预热缓存（预先构建常用的帧）。
+    /// </summary>
+    public void WarmupCache()
+    {
+        // 预先构建键盘释放帧
+        if (_cachedKeyReleaseFrame == null)
+        {
+            byte[] data = new byte[8];
+            _cachedKeyReleaseFrame = BuildFrame(CMD_SEND_KB_GENERAL_DATA, data);
         }
 
-        // 8. 返回成功数据
-        return data;
+        // 预先构建鼠标释放帧
+        if (_cachedMouseReleaseFrame == null)
+        {
+            byte[] data = new byte[5];
+            data[0] = 0x01;
+            _cachedMouseReleaseFrame = BuildFrame(CMD_SEND_MS_REL_DATA, data);
+        }
+    }
+
+    /// <summary>
+    /// 快速发送鼠标释放命令（使用缓存帧）。
+    /// </summary>
+    public async Task SendMouseReleaseAsync()
+    {
+        if (_cachedMouseReleaseFrame == null)
+        {
+            byte[] data = new byte[5];
+            data[0] = 0x01;
+            _cachedMouseReleaseFrame = BuildFrame(CMD_SEND_MS_REL_DATA, data);
+        }
+
+        byte[] response = await SendFrameDirectAsync(_cachedMouseReleaseFrame, CMD_SEND_MS_REL_DATA);
+        ValidateSimpleResponse(response, "SendMouseReleaseAsync");
     }
 
     #endregion
