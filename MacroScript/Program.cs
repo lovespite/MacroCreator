@@ -4,8 +4,6 @@ using MacroCreator.Services.CH9329;
 using MacroCreator.Utils;
 using MacroScript.Dsl;
 using System.Diagnostics;
-using System.Drawing.Printing;
-using System.Threading.Tasks;
 
 namespace MacroScript;
 
