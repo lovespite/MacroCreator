@@ -13,6 +13,7 @@
 
 ### 📜 脚本语言 (MacroScript)
 - **DSL 编译器**：自定义领域特定语言 (DSL)，用于编写复杂的自动化脚本
+    - DSL语言支持见项目：[vscode-macroscript-support](https://github.com/lovespite/vscode-macroscript-support)
 - **命令行工具**：编译、运行和管理宏脚本
 - **条件控制**：支持 `if/else/endif`、`while/endwhile` 语法
 - **像素检测**：通过 `PixelColor` 函数进行屏幕像素颜色判断
