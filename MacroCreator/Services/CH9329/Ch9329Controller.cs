@@ -6,6 +6,7 @@
  */
 
 using System.IO.Ports;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace MacroCreator.Services.CH9329;
@@ -135,33 +136,8 @@ public class Ch9329Controller : IDisposable
     /// <param name="keys">最多 6 个普通按键。修饰键 (Ctrl, Shift, Alt, Win) 应通过 'modifiers' 参数传递。</param>
     public async Task SendKeyboardDataAsync(KeyModifier modifiers, params Keys[] keys)
     {
-        if (keys == null) keys = new Keys[0];
-        if (keys.Length > 6) throw new ArgumentException("最多只能指定 6 个普通按键。", nameof(keys));
-
-        List<byte> hidKeysList = new List<byte>(6);
-        foreach (Keys key in keys)
-        {
-            var hidCode = HidKeys.Map(key);
-            if (hidCode == 0x00) break;
-            if (!hidKeysList.Contains(hidCode))
-            {
-                hidKeysList.Add(hidCode);
-            }
-            else
-            {
-                throw new ArgumentException($"按键 '{key}' 重复出现。每个按键只能指定一次。", nameof(keys));
-            }
-        }
-
-        // 
-        if (hidKeysList.Count > 6)
-        {
-            // 这不应该发生，因为我们有 keys.Length > 6 的检查，但作为安全措施
-            throw new ArgumentException("按键转换后超过 6 个唯一 HID 按键。", nameof(keys));
-        }
-
         // 调用原始方法，它会处理填充到 6 个字节
-        await SendKeyboardDataAsync(modifiers, hidKeysList.ToArray());
+        await SendKeyboardDataAsync(modifiers, keys.Select(HidKeys.Map).ToArray());
     }
 
     /// <summary>
@@ -182,7 +158,7 @@ public class Ch9329Controller : IDisposable
 
         byte[] data = [0x02, byte2, byte3, byte4];
         byte[] response = await SendCommandAsync(CMD_SEND_KB_MEDIA_DATA, data);
-        ValidateSimpleResponse(response, "SendMediaKeyAsync");
+        ValidateSimpleResponse(response);
     }
 
     /// <summary>
@@ -208,28 +184,28 @@ public class Ch9329Controller : IDisposable
             (byte)wheel,
         ];
         byte[] response = await SendCommandAsync(CMD_SEND_MS_ABS_DATA, data);
-        ValidateSimpleResponse(response, "SendAbsoluteMouseAsync");
+        ValidateSimpleResponse(response);
     }
 
     /// <summary>
     /// (CMD_SEND_MS_REL_DATA) 异步发送相对鼠标数据（移动、点击、滚轮）。
     /// </summary>
     /// <param name="buttons">鼠标按键 (例如 <see cref="MouseButton"/>)。</param>
-    /// <param name="x">X轴相对移动 (-127 到 +127)。</param>
-    /// <param name="y">Y轴相对移动 (-127 到 +127)。</param>
+    /// <param name="dx">X轴相对移动 (-127 到 +127)。</param>
+    /// <param name="dy">Y轴相对移动 (-127 到 +127)。</param>
     /// <param name="wheel">滚轮滚动。正值向上，负值向下。</param>
-    public async Task SendRelativeMouseAsync(MouseButton buttons, sbyte x, sbyte y, sbyte wheel)
+    public async Task SendRelativeMouseAsync(MouseButton buttons, sbyte dx, sbyte dy, sbyte wheel)
     {
         byte[] data =
         [
             0x01, // 固定值
             (byte)buttons,
-            (byte)x,
-            (byte)y,
+            (byte)dx,
+            (byte)dy,
             (byte)wheel,
         ];
         byte[] response = await SendCommandAsync(CMD_SEND_MS_REL_DATA, data);
-        ValidateSimpleResponse(response, "SendRelativeMouseAsync");
+        ValidateSimpleResponse(response);
     }
 
     /// <summary>
@@ -242,7 +218,7 @@ public class Ch9329Controller : IDisposable
         if (hidData.Length > 64) throw new ArgumentException("HID 数据长度不能超过 64 字节。", nameof(hidData));
 
         byte[] response = await SendCommandAsync(CMD_SEND_MY_HID_DATA, hidData);
-        ValidateSimpleResponse(response, "SendCustomHidDataAsync");
+        ValidateSimpleResponse(response);
     }
 
     /// <summary>
@@ -271,7 +247,7 @@ public class Ch9329Controller : IDisposable
         }
 
         byte[] response = await SendCommandAsync(CMD_SET_PARA_CFG, configData);
-        ValidateSimpleResponse(response, "SetConfigAsync");
+        ValidateSimpleResponse(response);
     }
 
     /// <summary>
@@ -325,7 +301,7 @@ public class Ch9329Controller : IDisposable
         Buffer.BlockCopy(strBytes, 0, data, 2, strBytes.Length);
 
         byte[] response = await SendCommandAsync(CMD_SET_USB_STRING, data);
-        ValidateSimpleResponse(response, "SetUsbStringAsync");
+        ValidateSimpleResponse(response);
     }
 
     /// <summary>
@@ -334,7 +310,7 @@ public class Ch9329Controller : IDisposable
     public async Task RestoreDefaultsAsync()
     {
         byte[] response = await SendCommandAsync(CMD_SET_DEFAULT_CFG, null);
-        ValidateSimpleResponse(response, "RestoreDefaultsAsync");
+        ValidateSimpleResponse(response);
     }
 
     /// <summary>
@@ -343,7 +319,7 @@ public class Ch9329Controller : IDisposable
     public async Task ResetAsync()
     {
         byte[] response = await SendCommandAsync(CMD_RESET, null);
-        ValidateSimpleResponse(response, "ResetAsync");
+        ValidateSimpleResponse(response);
     }
 
     #endregion
@@ -353,13 +329,13 @@ public class Ch9329Controller : IDisposable
     /// <summary>
     /// 验证简单的成功/失败响应 (数据长度为 1，内容为 0x00)。
     /// </summary>
-    private static void ValidateSimpleResponse(byte[] response, string commandName)
+    private static void ValidateSimpleResponse(byte[] response, [CallerMemberName] string? commandName = null)
     {
         if (response.Length != 1 || response[0] != (byte)Ch9329Error.Success)
         {
             throw new CH9329Exception(
                 (Ch9329Error)(response.Length > 0 ? response[0] : 0xFF),
-                $"{commandName} 执行失败或响应无效。状态码: 0x{(response.Length > 0 ? response[0] : 0xFF):X2}"
+                $"{commandName ?? string.Empty}执行失败或响应无效。状态码: 0x{(response.Length > 0 ? response[0] : 0xFF):X2}"
             );
         }
     }
@@ -414,7 +390,7 @@ public class Ch9329Controller : IDisposable
             byte[] frame = BuildFrame(cmd, data);
 
             // 发送命令
-            await _serialPort.BaseStream.WriteAsync(frame, 0, frame.Length, CancellationToken.None);
+            await _serialPort.BaseStream.WriteAsync(frame, CancellationToken.None);
 
             // 异步读取响应
             return await ReadResponseAsync(cmd);
@@ -440,7 +416,7 @@ public class Ch9329Controller : IDisposable
             // 1. 读取帧头
             while (bytesRead < header.Length)
             {
-                int read = await _serialPort.BaseStream.ReadAsync(header, bytesRead, header.Length - bytesRead, cts.Token);
+                int read = await _serialPort.BaseStream.ReadAsync(header.AsMemory(bytesRead, header.Length - bytesRead), cts.Token);
                 if (read == 0) throw new TimeoutException("读取响应超时。");
                 bytesRead += read;
             }
@@ -549,132 +525,5 @@ public class Ch9329Controller : IDisposable
         _serialPort.Dispose();
         _lock.Dispose();
         GC.SuppressFinalize(this);
-    }
-}
-
-
-internal static class HidKeys
-{
-    private static readonly Dictionary<Keys, byte> _keyMap = new()
-    {
-        // 字母
-        { Keys.A, 0x04 },
-        { Keys.B, 0x05 },
-        { Keys.C, 0x06 },
-        { Keys.D, 0x07 },
-        { Keys.E, 0x08 },
-        { Keys.F, 0x09 },
-        { Keys.G, 0x0A },
-        { Keys.H, 0x0B },
-        { Keys.I, 0x0C },
-        { Keys.J, 0x0D },
-        { Keys.K, 0x0E },
-        { Keys.L, 0x0F },
-        { Keys.M, 0x10 },
-        { Keys.N, 0x11 },
-        { Keys.O, 0x12 },
-        { Keys.P, 0x13 },
-        { Keys.Q, 0x14 },
-        { Keys.R, 0x15 },
-        { Keys.S, 0x16 },
-        { Keys.T, 0x17 },
-        { Keys.U, 0x18 },
-        { Keys.V, 0x19 },
-        { Keys.W, 0x1A },
-        { Keys.X, 0x1B },
-        { Keys.Y, 0x1C },
-        { Keys.Z, 0x1D },
-
-        // 数字 (主键盘)
-        { Keys.D1, 0x1E },
-        { Keys.D2, 0x1F },
-        { Keys.D3, 0x20 },
-        { Keys.D4, 0x21 },
-        { Keys.D5, 0x22 },
-        { Keys.D6, 0x23 },
-        { Keys.D7, 0x24 },
-        { Keys.D8, 0x25 },
-        { Keys.D9, 0x26 },
-        { Keys.D0, 0x27 },
-
-        // 功能键
-        { Keys.F1, 0x3A },
-        { Keys.F2, 0x3B },
-        { Keys.F3, 0x3C },
-        { Keys.F4, 0x3D },
-        { Keys.F5, 0x3E },
-        { Keys.F6, 0x3F },
-        { Keys.F7, 0x40 },
-        { Keys.F8, 0x41 },
-        { Keys.F9, 0x42 },
-        { Keys.F10, 0x43 },
-        { Keys.F11, 0x44 },
-        { Keys.F12, 0x45 },
-
-        // 控制键
-        { Keys.Enter, 0x28 }, { Keys.Return, 0x28 },
-        { Keys.Escape, 0x29 },
-        { Keys.Back, 0x2A }, // Backspace
-        { Keys.Tab, 0x2B },
-        { Keys.Space, 0x2C }, // 标准 HID 码, 附录中缺失
-        { Keys.OemMinus, 0x2D }, // - _
-        { Keys.Oemplus, 0x2E }, // = +
-        { Keys.OemOpenBrackets, 0x2F }, // [ {
-        { Keys.OemCloseBrackets, 0x30 }, // ] }
-        { Keys.OemBackslash, 0x31 }, // \ | (协议附录为 Keycode29, 0x31 是标准码)
-        { Keys.OemSemicolon, 0x33 }, // ; :
-        { Keys.OemQuotes, 0x34 }, // ' "
-        { Keys.Oemtilde, 0x35 }, // ` ~
-        { Keys.Oemcomma, 0x36 }, // , <
-        { Keys.OemPeriod, 0x37 }, // . >
-        { Keys.OemQuestion, 0x38 }, // / ?
-        { Keys.CapsLock, 0x39 }, { Keys.Capital, 0x39 },
-
-        // 导航键
-        { Keys.PrintScreen, 0x46 },
-        { Keys.Scroll, 0x47 },
-        { Keys.Pause, 0x48 },
-        { Keys.Insert, 0x49 },
-        { Keys.Home, 0x4A },
-        { Keys.PageUp, 0x4B }, { Keys.Prior, 0x4B },
-        { Keys.Delete, 0x4C },
-        { Keys.End, 0x4D },
-        { Keys.PageDown, 0x4E }, { Keys.Next, 0x4E },
-        { Keys.Right, 0x4F },
-        { Keys.Left, 0x50 },
-        { Keys.Down, 0x51 },
-        { Keys.Up, 0x52 },
-        { Keys.NumLock, 0x53 },
-
-        // 小键盘
-        { Keys.NumPad1, 0x59 },
-        { Keys.NumPad2, 0x5A },
-        { Keys.NumPad3, 0x5B },
-        { Keys.NumPad4, 0x5C },
-        { Keys.NumPad5, 0x5D },
-        { Keys.NumPad6, 0x5E },
-        { Keys.NumPad7, 0x5F },
-        { Keys.NumPad8, 0x60 },
-        { Keys.NumPad9, 0x61 },
-        { Keys.NumPad0, 0x62 },
-        { Keys.Divide, 0x54 },
-        { Keys.Multiply, 0x55 },
-        { Keys.Subtract, 0x56 },
-        { Keys.Add, 0x57 },
-        { Keys.Decimal, 0x63 },
-        // Numpad Enter 协议码为 0x58, Keys.Enter 码为 0x28, 
-        // 多数情况下通用，此处暂不单独映射 Numpad Enter
-
-        // 其他
-        { Keys.Apps, 0x65 }, // 菜单键
-    };
-
-    public static byte Map(Keys key)
-    {
-        if (_keyMap.TryGetValue(key, out byte hidCode))
-        {
-            return hidCode;
-        }
-        return 0x00; // 未映射的键返回 0x00
     }
 }

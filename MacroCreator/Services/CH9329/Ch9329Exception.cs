@@ -22,5 +22,3 @@ public class CH9329Exception : Exception
         ErrorCode = errorCode;
     }
 }
-
-#endregion

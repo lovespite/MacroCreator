@@ -6,32 +6,24 @@
  */
 
 namespace MacroCreator.Services.CH9329;
-#region 辅助枚举和结构 (Helper Enums and Structs)
 
 /// <summary>
 /// (CMD_GET_INFO) 芯片信息响应。
 /// </summary>
-public struct ChipInfo
+public readonly struct ChipInfo(byte version, UsbStatus usbStatus, KeyboardLedStatus ledStatus)
 {
     /// <summary>
     /// 芯片版本号。例如 0x30 表示 V1.0。
     /// </summary>
-    public readonly byte Version;
+    public readonly byte Version = version;
     /// <summary>
     /// USB 枚举状态。
     /// </summary>
-    public readonly UsbStatus UsbStatus;
+    public readonly UsbStatus UsbStatus = usbStatus;
     /// <summary>
     /// 键盘大小写指示灯状态。
     /// </summary>
-    public readonly KeyboardLedStatus LedStatus;
-
-    public ChipInfo(byte version, UsbStatus usbStatus, KeyboardLedStatus ledStatus)
-    {
-        Version = version;
-        UsbStatus = usbStatus;
-        LedStatus = ledStatus;
-    }
+    public readonly KeyboardLedStatus LedStatus = ledStatus;
 
     public string GetVersionString()
     {
