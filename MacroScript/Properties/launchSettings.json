@@ -6,7 +6,7 @@
     },
     "Run File": {
       "commandName": "Project",
-      "commandLineArgs": "run DslDemo3.macroscript -r COM9"
+      "commandLineArgs": "run DslDemo3.macroscript"
     },
     "Compile File": {
       "commandName": "Project",
