@@ -246,6 +246,7 @@ public class MacroController : IPrintService
             }
         });
 
+        playbackThread.TrySetApartmentState(ApartmentState.STA);
         playbackThread.Name = "PlaybackServiceThread";
         playbackThread.IsBackground = true;
         playbackThread.Start();

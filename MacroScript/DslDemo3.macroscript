@@ -1,11 +1,32 @@
 ﻿Script(`set("a", 1)`)
 
+label sc1
 Script(`
 set("a", (int)get("a") + 1)
 println("a = " + get("a"))
-`, "sc1")
+`)
 
-if(Custom(`(int)get("a") <= 10`))
-    // Do something
+if (Custom(`(int)get("a") <= 10`))
     goto sc1
 endif
+
+Script(`
+    set("isOk", clipboard.Write("Final value of a: " + get("a")))
+    println("Clipboard write success: " + get("isOk"))
+`)
+
+KeyDown(LWin, R, 100) // 延迟100ms, 然后按下左Win + R
+KeyUp(LWin, R, 50)
+
+KeyPress(Delete, 100) // 延迟100ms, 然后按下并释放 Delete 键
+KeyPress(N, O, T, E, P, A, D, Enter, 100) // 延迟100ms, 然后按下并释放 NOTE PAD 回车键
+
+Delay(3000)
+
+KeyPress(H, E, L, L, O, Space, W, O, R, D, 200)
+KeyDown(LShiftKey, D1, 200)
+KeyUp(LShiftKey, D1, 200) // 输入 ! 符号
+KeyPress(Enter, 100)
+
+KeyDown(LControlKey, V, 100)
+KeyUp(LControlKey, V, 100) // 粘贴剪贴板内容

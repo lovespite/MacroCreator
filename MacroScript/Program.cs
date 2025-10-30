@@ -15,6 +15,7 @@ internal static class Program
     private static string[] _args = null!;
     public static string ConsoleTitle = null!;
 
+    [STAThread]
     static void Main(string[] args)
     {
         Console.Title = ConsoleTitle = "MacroScript_v1_" + Rnd.GetString(8);

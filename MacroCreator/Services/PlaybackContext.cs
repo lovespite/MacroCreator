@@ -1,5 +1,6 @@
 ﻿// 命名空间定义了应用程序的入口点
 using MacroCreator.Models.Events;
+using System.Diagnostics;
 
 namespace MacroCreator.Services;
 
@@ -37,7 +38,10 @@ public class PlaybackContext : IDisposable
     /// </summary>
     public IReadOnlyList<MacroEvent> Events { get; }
 
-    public PlaybackContext(IReadOnlyList<MacroEvent> events, CallExternalFileDelegate? callback = null, IPrintService? printer = null)
+    public PlaybackContext(
+        IReadOnlyList<MacroEvent> events,
+        CallExternalFileDelegate? callback = null,
+        IPrintService? printer = null)
     {
         Events = events;
         LoadAndPlayNewFileCallback = callback;
@@ -58,6 +62,7 @@ public class PlaybackContext : IDisposable
         var interpreter = new DynamicExpresso.Interpreter();
 
         interpreter.SetVariable("runtime", context);
+        interpreter.SetVariable("clipboard", new ClipboardService());
 
         interpreter.SetFunction("set", context.Set);
         interpreter.SetFunction("get", context.Get);
@@ -178,3 +183,47 @@ public class PlaybackContext : IDisposable
 
 public delegate Task CallExternalFileDelegate(string filePath);
 public delegate bool ConditionEvaluator();
+
+internal class ClipboardService
+{
+    public bool Write(string text)
+    {
+        try
+        {
+            Clipboard.SetText(text);
+            return true;
+        }
+        catch (Exception ex)
+        {
+#if DEBUG
+            Debug.WriteLine("Clipboard Write Error: " + ex.Message);
+#endif
+            return false;
+        }
+    }
+
+    public string Read()
+    {
+        try
+        {
+            return Clipboard.GetText();
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    public bool WriteImage(Image image)
+    {
+        try
+        {
+            Clipboard.SetImage(image);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
