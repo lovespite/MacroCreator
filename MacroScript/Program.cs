@@ -1,8 +1,10 @@
-﻿using MacroCreator.Models.Events;
+﻿using MacroCreator.Controller;
+using MacroCreator.Models.Events;
 using MacroCreator.Services;
 using MacroCreator.Services.CH9329;
 using MacroCreator.Utils;
 using MacroScript.Dsl;
+using MacroScript.Interactive;
 using System.Diagnostics;
 
 namespace MacroScript;
@@ -14,41 +16,48 @@ internal static class Program
     private static string[] _args = null!;
     public static string ConsoleTitle = null!;
 
+    private static ConsoleHelper Console => ConsoleHelper.Instance;
+
     [STAThread]
     static void Main(string[] args)
     {
-        Console.Title = ConsoleTitle = "MacroScript_v1_" + Rnd.GetString(8);
         _args = args;
-        if (args.Length == 0) return;
+        System.Console.Title = ConsoleTitle = "MacroScript_v1_" + Rnd.GetString(8);
+
+        if (_args.Length == 0)
+        {
+            InteractiveMode();
+            return;
+        }
 
         try
         {
             ProcessCommand().GetAwaiter().GetResult();
-            Console.WriteLine("Success");
+            Console.PrintSuccess("Success");
         }
         catch (FileNotFoundException ex)
         {
-            Console.WriteLine($"文件未找到: {ex.FileName}");
+            Console.PrintError($"文件未找到: {ex.FileName}");
         }
         catch (DslParserException ex)
         {
-            Console.WriteLine($"DSL 解析错误 (行 {ex.LineNumber}): {ex.Message}");
+            Console.PrintError($"DSL 解析错误 (行 {ex.LineNumber}): {ex.Message}");
         }
         catch (CH9329Exception ex)
         {
-            Console.WriteLine($"CH9329 错误: {ex.ErrorCode} - {ex.Message}");
+            Console.PrintError($"CH9329 错误: {ex.ErrorCode} - {ex.Message}");
         }
         catch (TimeoutException ex)
         {
-            Console.WriteLine($"超时错误: {ex.Message}");
+            Console.PrintError($"超时错误: {ex.Message}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"未知错误: {ex.Message}");
+            Console.PrintError($"未知错误: {ex.Message}");
         }
 
         if (HasArg("pause", "p"))
-            Console.ReadKey();
+            System.Console.ReadKey();
     }
 
     private static void PrintAllKeyNames(int columns = 10)
@@ -64,7 +73,7 @@ internal static class Program
             ++colIndex;
             if ((i + 1) % columns == 0)
             {
-                Console.WriteLine();
+                Console.NextLine();
                 colIndex = 0;
             }
         }
@@ -77,6 +86,11 @@ internal static class Program
         var cmd = _args[0];
         switch (cmd)
         {
+            case "interactive":
+                {
+                    InteractiveMode();
+                }
+                break;
             case "showkeys":
                 {
                     PrintAllKeyNames();
@@ -183,30 +197,15 @@ internal static class Program
         var t = sw.Elapsed;
         Console.WriteLine($"编译完成, 用时 {t.TotalSeconds:0.00} s");
 
-        var hWnd = HasArg("hide") ? HideCurrentConsoleWindow() : 0;
+        var hWnd = HasArg("hide") ? HideConsoleWindow() : 0;
 
         // 检查 --redirect 参数
         var comPort = GetArg("redirect", "r");
 
         try
         {
-
             // 使用 using 语句确保 Controller 被释放 (从而释放 InputSimulator)
-            using var controller = new MacroCreator.Controller.MacroController(eSeq, comPort);
-
-            controller.OnPrint += ConsolePrinter.Instance.Print;
-            controller.OnPrintLine += ConsolePrinter.Instance.PrintLine;
-
-            if (controller.Redirected)
-            {
-                Console.WriteLine($"正在连接设备 {comPort} ...");
-                var info = await controller.Simulator!.Controller.GetInfoAsync();
-                Console.WriteLine($"已重定向到设备 {comPort}, 状态:\n{info}");
-                if (info.UsbStatus == MacroCreator.Services.CH9329.UsbStatus.NotConnected)
-                {
-                    throw new InvalidOperationException("HID设备未连接到目标主机，或未被正确识别，请检查连接后重试。");
-                }
-            }
+            using var controller = await GetMacroController(eSeq, comPort);
 
             Console.WriteLine("正在执行 ...");
 
@@ -219,19 +218,79 @@ internal static class Program
         }
         finally
         {
-            if (hWnd != 0) ShowCurrentConsoleWindow(hWnd);
+            if (hWnd != 0) ShowConsoleWindow(hWnd);
         }
     }
 
-    private static nint HideCurrentConsoleWindow()
+    private static async Task<MacroController> GetMacroController(List<MacroEvent> eSeq, string? comPort)
+    {
+        var controller = new MacroController(eSeq, comPort);
+
+        controller.OnPrint += ConsoleHelper.Instance.Print;
+        controller.OnPrintLine += ConsoleHelper.Instance.PrintLine;
+
+        if (controller.Redirected)
+        {
+            Console.WriteLine($"正在连接设备 {comPort} ...");
+            var info = await controller.Simulator!.Controller.GetInfoAsync();
+            Console.WriteLine($"已重定向到设备 {comPort}, 状态:\n{info}");
+            if (info.UsbStatus == UsbStatus.NotConnected)
+            {
+                throw new InvalidOperationException("HID设备未连接到目标主机，或未被正确识别，请检查连接后重试。");
+            }
+        }
+
+        return controller;
+    }
+
+    private static nint HideConsoleWindow()
     {
         var handle = Utils.GetMainWindow();
         Utils.ShowWindow(handle, Utils.SW_HIDE);
         return handle;
     }
 
-    private static void ShowCurrentConsoleWindow(nint handle)
+    private static void ShowConsoleWindow(nint handle)
     {
         Utils.ShowWindow(handle, Utils.SW_SHOW);
+    }
+
+    private static void InteractiveMode()
+    {
+        // 检查 --redirect 参数
+        var comPort = GetArg("redirect", "r");
+        using var controller = GetMacroController([], comPort).GetAwaiter().GetResult();
+
+        using var interpreter = new InteractiveInterpreter()
+            .RegisterFunction(new InteractiveInterface(controller));
+
+        interpreter.Start();
+    }
+}
+
+internal class InteractiveInterface
+{
+    public readonly MacroController _controller;
+    public InteractiveInterface(MacroController controller)
+    {
+        ArgumentNullException.ThrowIfNull(controller);
+        _controller = controller;
+    }
+
+    [InteractiveFunction(Description = "播放XML序列文件")]
+    public string Play([InteractiveParameter(Description = "文件路径")] string filename)
+    {
+        _controller.LoadSequence(filename);
+        _controller.StartPlayback().Wait();
+        return "Playback finished.";
+    }
+
+    [InteractiveFunction(Description = "播放XML序列文件")]
+    public string Test(
+        [InteractiveParameter(Description = "文件路径")] string filename,
+        [InteractiveParameter(Description = "测试参数")] int testParam = 3
+    )
+    {
+        return $"{filename} {testParam}";
     }
 }

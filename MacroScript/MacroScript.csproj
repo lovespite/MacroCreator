@@ -14,13 +14,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="DslDemo3.macroscript">
+    <None Update="DslDemo\DslDemo3.macroscript">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="DslDemo2.macroscript">
+    <None Update="DslDemo\DslDemo2.macroscript">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="DslDemo.macroscript">
+    <None Update="DslDemo\DslDemo.macroscript">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

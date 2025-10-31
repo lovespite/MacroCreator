@@ -11,6 +11,9 @@
     "Compile File": {
       "commandName": "Project",
       "commandLineArgs": "compile DslDemo3.macroscript --view"
+    },
+    "Interactive": {
+      "commandName": "Project"
     }
   }
 }
