@@ -170,6 +170,16 @@ internal partial class InteractiveInterface : IDisposable
         await _controller!.Simulator!.MouseMove(dx, dy);
     }
 
+    [InteractiveFunction(Name = "click", Alias = "tap", Description = "点击鼠标")]
+    public async Task MouseClick(
+        [InteractiveParameter(Description = "按下的键\nLeft(l): 左键\nRight(r): 右键\nMiddle(m): 中键\n单个或组合, 例如: click lr // 同时按下左右键")] MouseButton button,
+        [InteractiveParameter(Description = "按下释放按钮之间的延迟（毫秒）")] int delay = 50
+    )
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator!.MouseClick(button, delay);
+    }
+
 #if DEBUG
     [InteractiveFunction(Description = "测试方法")]
     public Task<object?> Test(
@@ -235,5 +245,34 @@ partial class InteractiveInterface
         t.Start();
 
         return await tcs.Task;
+    }
+
+    internal static void InstallCustomParameterDeserializers()
+    {
+        ParameterDeserializer.SetCustomDeserializer(typeof(MouseButton), s =>
+        {
+            if (Enum.TryParse<MouseButton>(s, true, out var btn)) return btn;
+            s = s.ToLowerInvariant();
+            if (string.Equals(s, "all", StringComparison.OrdinalIgnoreCase))
+            {
+                return MouseButton.Left | MouseButton.Right | MouseButton.Middle;
+            }
+
+            if (int.TryParse(s, out var intVal))
+            {
+                return (MouseButton)intVal;
+            }
+
+            MouseButton flag = MouseButton.None;
+            if (s.Contains('l'))
+                flag |= MouseButton.Left;
+            if (s.Contains('r'))
+                flag |= MouseButton.Right;
+            if (s.Contains('m'))
+                flag |= MouseButton.Middle;
+
+            return flag;
+
+        });
     }
 }

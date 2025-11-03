@@ -19,6 +19,8 @@ internal static class Program
         _args = args;
         System.Console.Title = ConsoleTitle = "MacroScript_v1_" + Rnd.GetString(8);
 
+        InteractiveInterface.InstallCustomParameterDeserializers();
+
         try
         {
             await ProcessCommand();
