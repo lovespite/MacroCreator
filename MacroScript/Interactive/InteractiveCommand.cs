@@ -31,9 +31,9 @@ public class InteractiveCommand(string primaryCommand, string[] args)
 
             if (char.IsWhiteSpace(c))
             {
-                if (sb.Length == 0) continue;
                 if (quoteChar == '\0') // 未在引号内
                 {
+                    if (sb.Length == 0) continue;
                     args.Add(sb.ToString());
                     sb.Clear();
                 }
