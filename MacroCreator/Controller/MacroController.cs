@@ -135,18 +135,11 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
 
     public void LoadSequence(string filePath)
     {
-        try
-        {
-            _events.Clear();
-            _events = FileService.Load(filePath);
-            _currentFilePath = filePath;
-            EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.FullRefresh));
-            StatusMessageChanged?.Invoke($"文件已加载: {Path.GetFileName(filePath)}");
-        }
-        catch (Exception ex)
-        {
-            throw new ApplicationException($"打开文件失败: {ex.Message}", ex);
-        }
+        _events.Clear();
+        _events = FileService.Load(filePath);
+        _currentFilePath = filePath;
+        EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.FullRefresh));
+        StatusMessageChanged?.Invoke($"文件已加载: {Path.GetFileName(filePath)}");
     }
 
     public void SaveSequence(string? filePath = null)
@@ -154,7 +147,7 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
         var pathToSave = filePath ?? _currentFilePath;
         if (string.IsNullOrEmpty(pathToSave))
         {
-            throw new InvalidOperationException("没有可保存的文件路径请使用“另存为”");
+            throw new InvalidOperationException("没有可保存的文件路径");
         }
 
         try

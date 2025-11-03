@@ -47,9 +47,49 @@ public partial class MainForm : Form
     public MainForm(string? openFile) : this()
     {
         if (openFile is not null)
-            _controller.LoadSequence(openFile);
+        {
+
+            try
+            {
+                _controller.LoadSequence(openFile);
+            }
+            catch (FileNotFoundException ex)
+            {
+                _ = HandleOpenFileNotFound(ex);
+            }
+            catch (Exception ex)
+            {
+                Controller_StatusChanged("ERR! 加载文件时发生错误：" + ex.Message);
+            }
+        }
 
         UpdateTitle();
+    }
+
+    private async Task HandleOpenFileNotFound(FileNotFoundException ex)
+    {
+        if (ex.FileName is not string fPath) return;
+
+        await Task.Yield();
+
+        var prompt = $"文件未找到：\n{fPath}\n\n是否创建一个新文件？";
+        var result = MessageBox.Show(this, prompt, "文件未找到", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        if (result != DialogResult.Yes)
+        {
+            Application.Exit();
+            return;
+        }
+
+        try
+        {
+            _controller.NewSequence();
+            _controller.SaveSequence(fPath);
+            UpdateTitle();
+        }
+        catch (Exception ex2)
+        {
+            Controller_StatusChanged($"ERR! 创建文件 {fPath} 失败, {ex2.Message}");
+        }
     }
 
     public void Print(object? message)
