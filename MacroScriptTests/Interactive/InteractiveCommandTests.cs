@@ -66,6 +66,18 @@
         }
 
         [TestMethod()]
+        public void ParseTest4()
+        {
+            string arg1 = "\nline1\nline2\nline3\n";
+
+            var cmd1 = InteractiveCommand.Parse($"run `{arg1}`");
+            Assert.AreEqual("run", cmd1.PrimaryCommand);
+            Assert.AreEqual(1, cmd1.Args.Length);
+
+            Assert.AreEqual(arg1, cmd1.Args[0]); 
+        }
+
+        [TestMethod()]
         public void ParseTestException()
         {
             Assert.ThrowsException<FormatException>(() =>
