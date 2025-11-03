@@ -37,7 +37,7 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     /// <summary>
     /// 基础构造函数，用于 MacroCreator (WinForms)
     /// </summary>
-    public MacroController() : this(redirectComPort: null)
+    public MacroController() : this([], simulator: null)
     {
     }
 
@@ -51,7 +51,7 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     /// <summary>
     /// 用于 MacroScript 的新构造函数，支持重定向
     /// </summary>
-    public MacroController(IReadOnlyList<MacroEvent> sequence, string? redirectComPort) : this(redirectComPort)
+    public MacroController(IReadOnlyList<MacroEvent> sequence, InputSimulator? simulator) : this(simulator)
     {
         _events = [.. sequence];
     }
@@ -60,17 +60,15 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     /// 核心构造函数，处理重定向逻辑
     /// </summary>
     /// <param name="redirectComPort">如果提供，则尝试重定向到此 COM 端口</param>
-    public MacroController(string? redirectComPort = null)
+    public MacroController(InputSimulator? simulator)
     {
         _recordingService = new RecordingService();
         _recordingService.OnEventRecorded += _events.Add;
 
-        if (!string.IsNullOrEmpty(redirectComPort))
+        if (simulator is not null)
         {
-            _inputSimulator = new InputSimulator(redirectComPort);
-            _inputSimulator.Open();
-            _inputSimulator.Controller.WarmupCache(); // 预热缓存
-            StatusMessageChanged?.Invoke($"键鼠操作已成功重定向到 {redirectComPort}");
+            _inputSimulator = simulator;
+            StatusMessageChanged?.Invoke($"键鼠操作已成功重定向到 {simulator.Controller.PortName}");
         }
 
         // 使用 _inputSimulator 实例初始化播放器策略
@@ -260,13 +258,19 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
         {
             throw new ArgumentException("结束事件必须在起始事件之后。", nameof(endTo));
         }
-        var sequenceToPlay = _events[startFromIndex..(endToIndex + 1)];
+
+        await StartPlayback(_events[startFromIndex..(endToIndex + 1)]);
+    }
+
+    public async Task StartPlayback(IReadOnlyList<MacroEvent> events)
+    {
+        if (CurrentState != AppState.Idle) return;
 
         SetState(AppState.Playing);
         StatusMessageChanged?.Invoke("播放中... 按 F11 停止");
         try
         {
-            await Playback(sequenceToPlay);
+            await Playback(events);
             StatusMessageChanged?.Invoke("播放完成");
         }
         catch (TaskCanceledException)
@@ -337,7 +341,6 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     /// </summary>
     public void Dispose()
     {
-        _inputSimulator?.Close();
         _inputSimulator?.Dispose();
         GC.SuppressFinalize(this);
     }

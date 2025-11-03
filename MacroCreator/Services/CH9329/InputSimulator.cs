@@ -4,6 +4,8 @@
  * 提供简化的鼠标和键盘操作接口，基于 Ch9329Controller 实现。
  */
 
+using System.Diagnostics;
+
 namespace MacroCreator.Services.CH9329;
 
 /// <summary>
@@ -11,9 +13,9 @@ namespace MacroCreator.Services.CH9329;
 /// </summary>
 public class InputSimulator : IDisposable
 {
-    private readonly Ch9329Controller _controller;
+    private readonly Ch9329Controller _ch9329Controller;
 
-    public Ch9329Controller Controller => _controller;
+    public Ch9329Controller Controller => _ch9329Controller;
 
     // 跟踪当前按下的键和鼠标按钮状态
     private readonly HashSet<Keys> _pressedKeys = [];
@@ -33,18 +35,39 @@ public class InputSimulator : IDisposable
     /// <param name="controller">底层 CH9329 控制器实例。</param>
     public InputSimulator(Ch9329Controller controller)
     {
-        _controller = controller ?? throw new ArgumentNullException(nameof(controller));
+        _ch9329Controller = controller ?? throw new ArgumentNullException(nameof(controller));
     }
 
     /// <summary>
-    /// 初始化 InputSimulator 的新实例（创建新的控制器）。
+    /// 使用指定的串口参数打开一个新的 InputSimulator 实例。 
     /// </summary>
-    /// <param name="portName">串口名称 (例如 "COM3")</param>
-    /// <param name="baudRate">波特率 (默认为 9600)</param>
-    /// <param name="chipAddress">芯片地址 (默认为 0x00)</param>
-    public InputSimulator(string portName, int baudRate = 9600, byte chipAddress = 0x00)
+    /// <param name="comPort"></param>
+    /// <param name="baudRate"></param>
+    /// <param name="chipAddress"></param>
+    /// <returns></returns>
+    public static InputSimulator Open(string comPort, int baudRate = 9600, byte chipAddress = 0x00)
     {
-        _controller = new Ch9329Controller(portName, baudRate, chipAddress);
+        var ch9329Controller = new Ch9329Controller(comPort, baudRate, chipAddress);
+
+        try
+        {
+            ch9329Controller.Open();
+        }
+        catch (Exception ex)
+        {
+            ch9329Controller.Dispose();
+
+#if DEBUG
+            Debug.WriteLine($"Failed to open CH9329 controller on {comPort}: {ex}");
+#endif
+
+            throw;
+        }
+
+        var simulator = new InputSimulator(ch9329Controller);
+        ch9329Controller.WarmupCache();
+
+        return simulator;
     }
 
     /// <summary>
@@ -65,12 +88,12 @@ public class InputSimulator : IDisposable
     /// <summary>
     /// 打开串口连接。
     /// </summary>
-    public void Open() => _controller.Open();
+    public void Open() => _ch9329Controller.Open();
 
     /// <summary>
     /// 关闭串口连接。
     /// </summary>
-    public void Close() => _controller.Close();
+    public void Close() => _ch9329Controller.Close();
 
     #region 鼠标操作 (Mouse Operations)
 
@@ -89,7 +112,7 @@ public class InputSimulator : IDisposable
         _currentX += deltaX;
         _currentY += deltaY;
 
-        await _controller.SendRelativeMouseAsync(_pressedMouseButtons, deltaX, deltaY, 0);
+        await _ch9329Controller.SendRelativeMouseAsync(_pressedMouseButtons, deltaX, deltaY, 0);
     }
 
     /// <summary>
@@ -107,7 +130,7 @@ public class InputSimulator : IDisposable
         _currentX = x;
         _currentY = y;
 
-        await _controller.SendAbsoluteMouseAsync(_pressedMouseButtons, absX, absY, 0);
+        await _ch9329Controller.SendAbsoluteMouseAsync(_pressedMouseButtons, absX, absY, 0);
     }
 
     /// <summary>
@@ -117,7 +140,7 @@ public class InputSimulator : IDisposable
     public async Task MouseDown(MouseButton button)
     {
         _pressedMouseButtons |= button;
-        await _controller.SendRelativeMouseAsync(_pressedMouseButtons, 0, 0, 0);
+        await _ch9329Controller.SendRelativeMouseAsync(_pressedMouseButtons, 0, 0, 0);
     }
 
     /// <summary>
@@ -127,7 +150,7 @@ public class InputSimulator : IDisposable
     public async Task MouseUp(MouseButton button)
     {
         _pressedMouseButtons &= ~button;
-        await _controller.SendRelativeMouseAsync(_pressedMouseButtons, 0, 0, 0);
+        await _ch9329Controller.SendRelativeMouseAsync(_pressedMouseButtons, 0, 0, 0);
     }
 
     /// <summary>
@@ -167,12 +190,12 @@ public class InputSimulator : IDisposable
     public async Task MouseWheel(int amount)
     {
         sbyte wheelAmount = ClampToSByte(amount);
-        await _controller.SendRelativeMouseAsync(_pressedMouseButtons, 0, 0, wheelAmount);
+        await _ch9329Controller.SendRelativeMouseAsync(_pressedMouseButtons, 0, 0, wheelAmount);
     }
 
     public async Task ReleaseAllMouse()
     {
-        await _controller.SendMouseReleaseAsync();
+        await _ch9329Controller.SendMouseReleaseAsync();
     }
 
     #endregion
@@ -196,7 +219,7 @@ public class InputSimulator : IDisposable
 
         // 构建当前按键数组（最多 6 个）
         byte[] keyCodes = [.. _pressedKeys.Select(HidKeys.Map).Where(k => k != 0x00).Take(6)];
-        await _controller.SendKeyboardDataAsync(modifiers, keyCodes);
+        await _ch9329Controller.SendKeyboardDataAsync(modifiers, keyCodes);
     }
 
     /// <summary>
@@ -218,7 +241,7 @@ public class InputSimulator : IDisposable
         if (_pressedKeys.Count > 0)
         {
             byte[] keyCodes = [.. _pressedKeys.Select(HidKeys.Map).Where(k => k != 0x00).Take(6)];
-            await _controller.SendKeyboardDataAsync(KeyModifier.None, keyCodes);
+            await _ch9329Controller.SendKeyboardDataAsync(KeyModifier.None, keyCodes);
         }
         else
         {
@@ -244,7 +267,7 @@ public class InputSimulator : IDisposable
     public async Task ReleaseAllKeys()
     {
         _pressedKeys.Clear();
-        await _controller.SendKeyboardDataAsync(KeyModifier.None, Array.Empty<byte>());
+        await _ch9329Controller.SendKeyboardDataAsync(KeyModifier.None, Array.Empty<byte>());
     }
 
     /// <summary>
@@ -463,7 +486,7 @@ public class InputSimulator : IDisposable
     /// </summary>
     public void Dispose()
     {
-        _controller?.Dispose();
+        _ch9329Controller?.Dispose();
         GC.SuppressFinalize(this);
     }
 }

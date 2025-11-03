@@ -6,8 +6,10 @@
  */
 
 using System.Buffers;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace MacroCreator.Services.CH9329;
@@ -70,6 +72,11 @@ public class Ch9329Controller : IDisposable
     }
 
     /// <summary>
+    /// 端口名称
+    /// </summary>
+    public string PortName => _serialPort.PortName;
+
+    /// <summary>
     /// 打开串口连接。
     /// </summary>
     public void Open()
@@ -85,10 +92,27 @@ public class Ch9329Controller : IDisposable
     /// </summary>
     public void Close()
     {
-        if (_serialPort.IsOpen)
+
+#if DEBUG
+        try
         {
+            Debug.WriteLine("正在关闭串口");
             _serialPort.Close();
         }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("关闭串口发生异常: " + ex);
+        }
+#else
+        try
+        { 
+            _serialPort.Close();
+        }
+        catch 
+        { 
+            // ignore
+        }
+#endif
     }
 
     #region 公共命令 (Public Commands)
@@ -534,30 +558,32 @@ public class Ch9329Controller : IDisposable
     private async Task<byte[]> ReadResponseAsync(byte originalCmd)
     {
         byte[] headerBuffer = _bufferPool.Rent(5); // HEAD(2) + ADDR(1) + CMD(1) + LEN(1)
-
+        var mem = headerBuffer.AsMemory(0, 5);
+        mem.Span.Clear();
         try
         {
-            // 使用 CancellationToken 实现超时
-            var cts = new CancellationTokenSource(DEFAULT_TIMEOUT);
             int bytesRead = 0;
 
-            try
+            // 1. 读取帧头
+            while (bytesRead < 5)
             {
-                // 1. 读取帧头
-                while (bytesRead < 5)
+                try
                 {
-                    int read = await _serialPort.BaseStream.ReadAsync(headerBuffer.AsMemory(bytesRead, 5 - bytesRead), cts.Token);
-                    if (read == 0) throw new TimeoutException("读取响应超时。");
-                    bytesRead += read;
+                    bytesRead += await _serialPort.BaseStream.ReadAsync(mem[bytesRead..]);
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                throw new CH9329Exception(Ch9329Error.CmdErrTimeout, "读取响应头超时。");
-            }
-            catch (Exception ex)
-            {
-                throw new CH9329Exception(Ch9329Error.ProtocolError, $"串口读取错误: {ex.Message}");
+                catch (OperationCanceledException)
+                {
+                    throw new CH9329Exception(Ch9329Error.CmdErrTimeout, "读取响应头超时。");
+                }
+                catch (IOException)
+                {
+                    if (!_serialPort.IsOpen) throw;
+                    // ignore
+                }
+                catch (Exception ex)
+                {
+                    throw new CH9329Exception(Ch9329Error.ProtocolError, $"串口读取错误: {ex.Message}");
+                }
             }
 
             // 2. 验证帧头
@@ -588,6 +614,7 @@ public class Ch9329Controller : IDisposable
             // 5. 读取数据和校验和
             byte dataLen = headerBuffer[4];
             byte[] dataBuffer = _bufferPool.Rent(dataLen + 1);
+            mem = dataBuffer.AsMemory(0, dataLen + 1);
 
             try
             {
@@ -597,9 +624,7 @@ public class Ch9329Controller : IDisposable
                 {
                     while (bytesRead < dataLen + 1)
                     {
-                        int read = await _serialPort.BaseStream.ReadAsync(dataBuffer, bytesRead, dataLen + 1 - bytesRead, cts.Token);
-                        if (read == 0) throw new TimeoutException("读取响应数据超时。");
-                        bytesRead += read;
+                        bytesRead += await _serialPort.BaseStream.ReadAsync(mem);
                     }
                 }
 
@@ -622,17 +647,11 @@ public class Ch9329Controller : IDisposable
                 }
 
                 // 8. 返回成功数据
-                byte[] result = new byte[dataLen];
-                if (dataLen > 0)
-                {
-                    Buffer.BlockCopy(dataBuffer, 0, result, 0, dataLen);
-                }
-                return result;
+                return mem[..dataLen].ToArray();
             }
             finally
             {
                 _bufferPool.Return(dataBuffer);
-                cts.Dispose();
             }
         }
         finally
