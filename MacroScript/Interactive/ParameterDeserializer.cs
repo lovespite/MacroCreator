@@ -1,6 +1,6 @@
 ﻿namespace MacroScript.Interactive;
 
-public static class ParameterConverters
+public static class ParameterDeserializer
 {
     public static object? String(string parameterExpr) => parameterExpr;
     public static object? StringEnumerable(string parameterExpr)
@@ -61,7 +61,7 @@ public static class ParameterConverters
     public static object? BooleanArray(string parameterExpr) => BooleanEnumerable(parameterExpr) is IEnumerable<bool> parts ? parts.ToArray() : null;
     public static object? BooleanList(string parameterExpr) => BooleanEnumerable(parameterExpr) is IEnumerable<bool> parts ? parts.ToList() : null;
 
-    private static readonly Dictionary<Type, ParamterConverter> _typeToConverterMap = new()
+    private static readonly Dictionary<Type, ParamterDeserializer> _typeMap = new()
     {
         { typeof(string), String },
         { typeof(IEnumerable<string>), StringEnumerable },
@@ -89,10 +89,15 @@ public static class ParameterConverters
         { typeof(List<bool>), BooleanList },
     };
 
-    public static ParamterConverter? FromTypeOf(Type t)
+    public static ParamterDeserializer? FromTypeOf(Type t)
     {
-        if (_typeToConverterMap.TryGetValue(t, out var converter))
+        if (_typeMap.TryGetValue(t, out var converter))
             return converter;
         return null;
+    }
+
+    public static void SetCustomDeserializer(Type t, ParamterDeserializer converter)
+    {
+        _typeMap[t] = converter;
     }
 }

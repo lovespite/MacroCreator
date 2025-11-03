@@ -1,11 +1,7 @@
-﻿using MacroCreator.Controller;
-using MacroCreator.Models.Events;
-using MacroCreator.Services;
-using MacroCreator.Services.CH9329;
+﻿using MacroCreator.Services.CH9329;
 using MacroCreator.Utils;
 using MacroScript.Dsl;
 using MacroScript.Interactive;
-using System.Diagnostics;
 
 namespace MacroScript;
 
@@ -18,22 +14,15 @@ internal static class Program
 
     private static ConsoleHelper Console => ConsoleHelper.Instance;
 
-    [STAThread]
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         _args = args;
         System.Console.Title = ConsoleTitle = "MacroScript_v1_" + Rnd.GetString(8);
 
-        if (_args.Length == 0)
-        {
-            InteractiveMode();
-            return;
-        }
-
         try
         {
-            ProcessCommand().GetAwaiter().GetResult();
-            Console.PrintSuccess("Success");
+            await ProcessCommand();
+            // Console.PrintSuccess("Success");
         }
         catch (FileNotFoundException ex)
         {
@@ -83,12 +72,17 @@ internal static class Program
 
     private static async Task ProcessCommand()
     {
-        var cmd = _args[0];
-        switch (cmd)
+        if (_args.Length == 0)
+        {
+            await InteractiveMode(GetArg("redirect", "r"));
+            return;
+        }
+
+        switch (_args[0])
         {
             case "interactive":
                 {
-                    InteractiveMode();
+                    await InteractiveMode(GetArg("redirect", "r"));
                 }
                 break;
             case "showkeys":
@@ -98,19 +92,26 @@ internal static class Program
                 break;
             case "compile":
                 {
-                    var outputFile = CompileToFile(_args[1], GetArg("output", "o"));
-                    if (HasArg("view", "v")) _ = OpenMacroFile(outputFile);
+                    await CompileToFile(
+                        inputFile: _args[1],
+                        outputFile: GetArg("output", "o"),
+                        viewInUiAfterCompiled: HasArg("view", "v")
+                    );
                 }
                 break;
             case "run":
                 {
-                    await RunMacroScript(_args[1]);
+                    await RunMacroScript(
+                       inputFile: _args[1],
+                       ch9329ComPort: GetArg("redirect", "r"),
+                       hideConsole: HasArg("hide", "h")
+                    );
                 }
                 break;
         }
     }
 
-    private static bool HasArg(string name, string? alias = null)
+    public static bool HasArg(string name, string? alias = null)
     {
         var prefix = ArgNamePrefix + name;
         var altPrefix = alias is null ? null : ArgNameAliasPrefix + alias;
@@ -118,7 +119,7 @@ internal static class Program
         return _args.Contains(prefix) || (altPrefix != null && _args.Contains(altPrefix));
     }
 
-    private static string? GetArg(string name, string? alias = null)
+    public static string? GetArg(string name, string? alias = null)
     {
         var prefix = ArgNamePrefix + name;
         var altPrefix = alias is null ? null : ArgNameAliasPrefix + alias;
@@ -137,160 +138,52 @@ internal static class Program
         return null;
     }
 
-    private static string CompileToFile(string inputPath, string? outputPath)
-    {
-        if (!File.Exists(inputPath))
-            throw new FileNotFoundException("文件不存在", inputPath);
-        var outputFile = outputPath ?? Path.ChangeExtension(inputPath, ".xml");
-
-        FileService.Save(outputFile, Scripting.Compile(inputPath));
-
-        return outputFile;
-    }
-
-    private static async Task<List<MacroEvent>> CompileAsync(string inputFile)
-    {
-        var tcs = new TaskCompletionSource<List<MacroEvent>>();
-
-        var t = new Thread(() =>
-        {
-            try
-            {
-                var collection = Scripting.Compile(inputFile);
-
-                if (collection.Count <= 0)
-                    tcs.SetException(new InvalidDataException("事件序列为空"));
-                else
-                    tcs.SetResult(collection);
-            }
-            catch (Exception ex)
-            {
-                tcs.SetException(ex);
-            }
-        });
-
-        t.IsBackground = true;
-        t.Name = "CompileThread";
-        t.Start();
-
-        var eSeq = await tcs.Task;
-        return eSeq;
-    }
-
-    private static Process? OpenMacroFile(string inputFile)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = nameof(MacroCreator) + ".exe",
-            Arguments = $"open \"{inputFile}\"",
-            UseShellExecute = false,
-        };
-
-        return Process.Start(psi);
-    }
-
-    private static async Task RunMacroScript(string inputFile)
-    {
-        var sw = Stopwatch.StartNew();
-        Console.WriteLine("正在编译...");
-        List<MacroEvent> eSeq = await CompileAsync(inputFile);
-        var t = sw.Elapsed;
-        Console.WriteLine($"编译完成, 用时 {t.TotalSeconds:0.00} s");
-
-        var hWnd = HasArg("hide") ? HideConsoleWindow() : 0;
-
-        // 检查 --redirect 参数
-        var comPort = GetArg("redirect", "r");
-
-        try
-        {
-            // 使用 using 语句确保 Controller 被释放 (从而释放 InputSimulator)
-            using var controller = await GetMacroController(eSeq, comPort);
-
-            Console.WriteLine("正在执行 ...");
-
-            sw.Restart();
-            await controller.StartPlayback();
-            sw.Stop();
-
-            t = sw.Elapsed;
-            Console.WriteLine($"执行完成, 用时 {t.TotalSeconds:0.00} s");
-        }
-        finally
-        {
-            if (hWnd != 0) ShowConsoleWindow(hWnd);
-        }
-    }
-
-    private static async Task<MacroController> GetMacroController(List<MacroEvent> eSeq, string? comPort)
-    {
-        var controller = new MacroController(eSeq, comPort);
-
-        controller.OnPrint += ConsoleHelper.Instance.Print;
-        controller.OnPrintLine += ConsoleHelper.Instance.PrintLine;
-
-        if (controller.Redirected)
-        {
-            Console.WriteLine($"正在连接设备 {comPort} ...");
-            var info = await controller.Simulator!.Controller.GetInfoAsync();
-            Console.WriteLine($"已重定向到设备 {comPort}, 状态:\n{info}");
-            if (info.UsbStatus == UsbStatus.NotConnected)
-            {
-                throw new InvalidOperationException("HID设备未连接到目标主机，或未被正确识别，请检查连接后重试。");
-            }
-        }
-
-        return controller;
-    }
-
-    private static nint HideConsoleWindow()
+    public static nint HideConsoleWindow()
     {
         var handle = Utils.GetMainWindow();
         Utils.ShowWindow(handle, Utils.SW_HIDE);
         return handle;
     }
 
-    private static void ShowConsoleWindow(nint handle)
+    public static void ShowConsoleWindow(nint handle)
     {
         Utils.ShowWindow(handle, Utils.SW_SHOW);
     }
 
-    private static void InteractiveMode()
+    private static async Task InteractiveMode(string? ch9329ComPort)
     {
-        // 检查 --redirect 参数
-        var comPort = GetArg("redirect", "r");
-        using var controller = GetMacroController([], comPort).GetAwaiter().GetResult();
+        var interf = new InteractiveInterface();
+        using var interpreter = new InteractiveInterpreter().RegisterFunction(interf);
 
-        using var interpreter = new InteractiveInterpreter()
-            .RegisterFunction(new InteractiveInterface(controller));
+        if (ch9329ComPort is not null)
+            await interf.Connect(ch9329ComPort);
 
-        interpreter.Start();
-    }
-}
-
-internal class InteractiveInterface
-{
-    public readonly MacroController _controller;
-    public InteractiveInterface(MacroController controller)
-    {
-        ArgumentNullException.ThrowIfNull(controller);
-        _controller = controller;
+        await interpreter.Start();
     }
 
-    [InteractiveFunction(Description = "播放XML序列文件")]
-    public string Play([InteractiveParameter(Description = "文件路径")] string filename)
+    private static async Task CompileToFile(string inputFile, string? outputFile, bool viewInUiAfterCompiled)
     {
-        _controller.LoadSequence(filename);
-        _controller.StartPlayback().Wait();
-        return "Playback finished.";
+        using var interf = new InteractiveInterface();
+        var output = await interf.Compile(inputFile, outputFile) as string;
+
+        if (viewInUiAfterCompiled && File.Exists(output))
+        {
+            interf.View(output);
+        }
     }
 
-    [InteractiveFunction(Description = "播放XML序列文件")]
-    public string Test(
-        [InteractiveParameter(Description = "文件路径")] string filename,
-        [InteractiveParameter(Description = "测试参数")] int testParam = 3
-    )
+    private static async Task RunMacroScript(string inputFile, string? ch9329ComPort, bool hideConsole)
     {
-        return $"{filename} {testParam}";
+        var handle = hideConsole ? HideConsoleWindow() : 0;
+        try
+        {
+            using var interf = new InteractiveInterface();
+            await interf.Connect(ch9329ComPort);
+            await interf.RunMacroScriptFile(inputFile);
+        }
+        finally
+        {
+            if (handle != 0) ShowConsoleWindow(handle);
+        }
     }
 }

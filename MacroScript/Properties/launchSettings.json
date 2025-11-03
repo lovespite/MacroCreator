@@ -6,14 +6,15 @@
     },
     "Run File": {
       "commandName": "Project",
-      "commandLineArgs": "run DslDemo3.macroscript"
+      "commandLineArgs": "run DslDemo\\DslDemo3.macroscript"
     },
     "Compile File": {
       "commandName": "Project",
-      "commandLineArgs": "compile DslDemo3.macroscript --view"
+      "commandLineArgs": "compile DslDemo\\DslDemo3.macroscript --view"
     },
     "Interactive": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "interactive -r COM17"
     }
   }
 }

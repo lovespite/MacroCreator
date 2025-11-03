@@ -47,7 +47,11 @@ public class InteractiveCommand(string primaryCommand, string[] args)
             if (c == EscapeChar)
             {
                 if (quoteChar == '\0')
-                    throw new FormatException("转义字符只能在引号内使用");
+                {
+                    // 不在引号内，转义字符作为普通字符处理
+                    sb.Append(c);
+                    continue;
+                }
 
                 currentCharIndex++;
                 if (currentCharIndex >= argsPart.Length) throw new FormatException("无效的转义字符位置");

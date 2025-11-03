@@ -1,10 +1,10 @@
 ﻿namespace MacroScript.Interactive;
 
-public delegate object? ParamterConverter(string parameterExpr);
+public delegate object? ParamterDeserializer(string parameterExpr);
 
 [AttributeUsage(AttributeTargets.Parameter)]
 public class InteractiveParameterAttribute : Attribute
 {
     public string? Description { get; set; }
-    public ParamterConverter? Converter { get; set; }
+    public ParamterDeserializer? Converter { get; set; }
 }
