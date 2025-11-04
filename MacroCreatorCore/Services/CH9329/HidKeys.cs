@@ -66,7 +66,7 @@ internal static class HidKeys
         { Keys.F12, 0x45 },
 
         // 控制键
-        { Keys.Enter, 0x28 }, { Keys.Return, 0x28 },
+        { Keys.Enter, 0x28 }, // { Keys.Return, 0x28 }, 
         { Keys.Escape, 0x29 },
         { Keys.Back, 0x2A }, // Backspace
         { Keys.Tab, 0x2B },
@@ -82,7 +82,7 @@ internal static class HidKeys
         { Keys.Oemcomma, 0x36 }, // , <
         { Keys.OemPeriod, 0x37 }, // . >
         { Keys.OemQuestion, 0x38 }, // / ?
-        { Keys.CapsLock, 0x39 }, { Keys.Capital, 0x39 },
+        { Keys.CapsLock, 0x39 }, // { Keys.Capital, 0x39 },
 
         // 导航键
         { Keys.PrintScreen, 0x46 },
@@ -90,10 +90,10 @@ internal static class HidKeys
         { Keys.Pause, 0x48 },
         { Keys.Insert, 0x49 },
         { Keys.Home, 0x4A },
-        { Keys.PageUp, 0x4B }, { Keys.Prior, 0x4B },
+        { Keys.PageUp, 0x4B }, // { Keys.Prior, 0x4B },
         { Keys.Delete, 0x4C },
         { Keys.End, 0x4D },
-        { Keys.PageDown, 0x4E }, { Keys.Next, 0x4E },
+        { Keys.PageDown, 0x4E }, // { Keys.Next, 0x4E },
         { Keys.Right, 0x4F },
         { Keys.Left, 0x50 },
         { Keys.Down, 0x51 },

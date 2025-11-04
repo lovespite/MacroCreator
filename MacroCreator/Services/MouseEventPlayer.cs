@@ -19,45 +19,45 @@ public class MouseEventPlayer : IEventPlayer
         switch (me.Action)
         {
             case MouseAction.Move:
-                flags = NativeMethods.MOUSEEVENTF_MOVE;
+                flags = Win32.MOUSEEVENTF_MOVE;
                 dx = me.X;
                 dy = me.Y;
                 break;
             case MouseAction.MoveTo:
-                NativeMethods.SetCursorPos(me.X, me.Y);
+                Win32.SetCursorPos(me.X, me.Y);
                 break;
             case MouseAction.LeftDown:
-                flags = NativeMethods.MOUSEEVENTF_LEFTDOWN;
+                flags = Win32.MOUSEEVENTF_LEFTDOWN;
                 break;
             case MouseAction.LeftUp:
-                flags = NativeMethods.MOUSEEVENTF_LEFTUP;
+                flags = Win32.MOUSEEVENTF_LEFTUP;
                 break;
             case MouseAction.RightDown:
-                flags = NativeMethods.MOUSEEVENTF_RIGHTDOWN;
+                flags = Win32.MOUSEEVENTF_RIGHTDOWN;
                 break;
             case MouseAction.RightUp:
-                flags = NativeMethods.MOUSEEVENTF_RIGHTUP;
+                flags = Win32.MOUSEEVENTF_RIGHTUP;
                 break;
             case MouseAction.MiddleDown:
-                flags = NativeMethods.MOUSEEVENTF_MIDDLEDOWN;
+                flags = Win32.MOUSEEVENTF_MIDDLEDOWN;
                 break;
             case MouseAction.MiddleUp:
-                flags = NativeMethods.MOUSEEVENTF_MIDDLEUP;
+                flags = Win32.MOUSEEVENTF_MIDDLEUP;
                 break;
             case MouseAction.Wheel:
-                flags = NativeMethods.MOUSEEVENTF_WHEEL;
+                flags = Win32.MOUSEEVENTF_WHEEL;
                 mouseData = (uint)me.WheelDelta;
                 break;
         }
 
         if (flags == 0) return Task.FromResult(PlaybackResult.Continue());
 
-        var input = new NativeMethods.INPUT
+        var input = new Win32.INPUT
         {
-            type = NativeMethods.INPUT_MOUSE,
-            u = new NativeMethods.InputUnion
+            type = Win32.INPUT_MOUSE,
+            u = new Win32.InputUnion
             {
-                mi = new NativeMethods.MOUSEINPUT
+                mi = new Win32.MOUSEINPUT
                 {
                     dx = dx,
                     dy = dy,
@@ -69,7 +69,7 @@ public class MouseEventPlayer : IEventPlayer
             }
         };
 
-        NativeMethods.SendInput(1, [input], Marshal.SizeOf<NativeMethods.INPUT>());
+        Win32.SendInput(1, [input], Marshal.SizeOf<Win32.INPUT>());
 
         return Task.FromResult(PlaybackResult.Continue());
     }

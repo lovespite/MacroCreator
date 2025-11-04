@@ -1,5 +1,4 @@
 ﻿using MacroCreator.Models;
-
 namespace MacroCreator.Utils;
 
 public static class StringExtensions
@@ -11,52 +10,52 @@ public static class StringExtensions
         return string.Concat(str.AsSpan(0, maxLength - 3), "...");
     }
 
-    public static Keys ToKey(this char c)
+    public static (KeyModifier, Keys) ToModifierAndKey(this char c)
     {
         return c switch
         {
-            >= 'a' and <= 'z' => Keys.A + (c - 'a'),
-            >= 'A' and <= 'Z' => (Keys.Shift | (Keys.A + (c - 'A'))),
-            >= '0' and <= '9' => Keys.D0 + (c - '0'),
-            ' ' => Keys.Space,
-            '\t' => Keys.Tab,
-            '\r' or '\n' => Keys.Enter,
-            '.' => Keys.OemPeriod,
-            ',' => Keys.Oemcomma,
-            ';' => Keys.OemSemicolon,
-            '\'' => Keys.OemQuotes,
-            '/' => Keys.OemQuestion,
-            '\\' => Keys.OemBackslash,
-            '[' => Keys.OemOpenBrackets,
-            ']' => Keys.OemCloseBrackets,
-            '-' => Keys.OemMinus,
-            '=' => Keys.Oemplus,
-            '`' => Keys.Oemtilde,
+            >= 'a' and <= 'z' => (KeyModifier.None, Keys.A + (c - 'a')),
+            >= 'A' and <= 'Z' => (KeyModifier.LeftShift, Keys.A + (c - 'A')),
+            >= '0' and <= '9' => (KeyModifier.None, Keys.D0 + (c - '0')),
+            ' ' => (KeyModifier.None, Keys.Space),
+            '\t' => (KeyModifier.None, Keys.Tab),
+            '\r' or '\n' => (KeyModifier.None, Keys.Enter),
+            '.' => (KeyModifier.None, Keys.OemPeriod),
+            ',' => (KeyModifier.None, Keys.Oemcomma),
+            ';' => (KeyModifier.None, Keys.OemSemicolon),
+            '\'' => (KeyModifier.None, Keys.OemQuotes),
+            '/' => (KeyModifier.None, Keys.OemQuestion),
+            '\\' => (KeyModifier.None, Keys.OemBackslash),
+            '[' => (KeyModifier.None, Keys.OemOpenBrackets),
+            ']' => (KeyModifier.None, Keys.OemCloseBrackets),
+            '-' => (KeyModifier.None, Keys.OemMinus),
+            '=' => (KeyModifier.None, Keys.Oemplus),
+            '`' => (KeyModifier.None, Keys.Oemtilde),
 
             // 需要 Shift 的符号
-            '!' => Keys.Shift | Keys.D1,
-            '@' => Keys.Shift | Keys.D2,
-            '#' => Keys.Shift | Keys.D3,
-            '$' => Keys.Shift | Keys.D4,
-            '%' => Keys.Shift | Keys.D5,
-            '^' => Keys.Shift | Keys.D6,
-            '&' => Keys.Shift | Keys.D7,
-            '*' => Keys.Shift | Keys.D8,
-            '(' => Keys.Shift | Keys.D9,
-            ')' => Keys.Shift | Keys.D0,
-            '_' => Keys.Shift | Keys.OemMinus,
-            '+' => Keys.Shift | Keys.Oemplus,
-            '{' => Keys.Shift | Keys.OemOpenBrackets,
-            '}' => Keys.Shift | Keys.OemCloseBrackets,
-            '|' => Keys.Shift | Keys.OemBackslash,
-            ':' => Keys.Shift | Keys.OemSemicolon,
-            '"' => Keys.Shift | Keys.OemQuotes,
-            '<' => Keys.Shift | Keys.Oemcomma,
-            '>' => Keys.Shift | Keys.OemPeriod,
-            '?' => Keys.Shift | Keys.OemQuestion,
-            '~' => Keys.Shift | Keys.Oemtilde,
+            '!' => (KeyModifier.LeftShift, Keys.D1),
+            '@' => (KeyModifier.LeftShift, Keys.D2),
+            '#' => (KeyModifier.LeftShift, Keys.D3),
+            '$' => (KeyModifier.LeftShift, Keys.D4),
+            '%' => (KeyModifier.LeftShift, Keys.D5),
+            '^' => (KeyModifier.LeftShift, Keys.D6),
+            '&' => (KeyModifier.LeftShift, Keys.D7),
+            '*' => (KeyModifier.LeftShift, Keys.D8),
+            '(' => (KeyModifier.LeftShift, Keys.D9),
+            ')' => (KeyModifier.LeftShift, Keys.D0),
+            '_' => (KeyModifier.LeftShift, Keys.OemMinus),
+            '+' => (KeyModifier.LeftShift, Keys.Oemplus),
+            '{' => (KeyModifier.LeftShift, Keys.OemOpenBrackets),
+            '}' => (KeyModifier.LeftShift, Keys.OemCloseBrackets),
+            '|' => (KeyModifier.LeftShift, Keys.OemBackslash),
+            ':' => (KeyModifier.LeftShift, Keys.OemSemicolon),
+            '"' => (KeyModifier.LeftShift, Keys.OemQuotes),
+            '<' => (KeyModifier.LeftShift, Keys.Oemcomma),
+            '>' => (KeyModifier.LeftShift, Keys.OemPeriod),
+            '?' => (KeyModifier.LeftShift, Keys.OemQuestion),
+            '~' => (KeyModifier.LeftShift, Keys.Oemtilde),
 
-            _ => Keys.None
+            _ => (KeyModifier.None, Keys.None)
         };
     }
 }

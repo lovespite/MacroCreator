@@ -167,8 +167,7 @@ internal static class Program
         var interf = new InteractiveInterface();
         using var interpreter = new InteractiveInterpreter().RegisterFunction(interf);
 
-        if (ch9329ComPort is not null)
-            await interf.Connect(ch9329ComPort);
+        await interf.Connect(ch9329ComPort);
 
         await interpreter.Start();
     }

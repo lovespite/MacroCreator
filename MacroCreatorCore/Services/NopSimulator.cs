@@ -18,8 +18,8 @@ public class NopSimulator : SimulatorBase
     public override Task MouseDown(MouseButton button) => Task.CompletedTask;
     public override Task MouseUp(MouseButton button) => Task.CompletedTask;
     public override Task MouseWheel(int amount) => Task.CompletedTask;
-    public override Task KeyDown(Keys key) => Task.CompletedTask;
-    public override Task KeyUp(Keys key) => Task.CompletedTask;
+    public override Task KeyDown(params Keys[] key) => Task.CompletedTask;
+    public override Task KeyUp(params Keys[] key) => Task.CompletedTask;
     public override Task ReleaseAllKeys() => Task.CompletedTask;
     public override Task ReleaseAllMouse() => Task.CompletedTask;
     public override void SetScreenResolution(int width, int height) { }

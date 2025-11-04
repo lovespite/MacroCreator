@@ -6,6 +6,9 @@ using MacroScript.Dsl;
 using MacroScript.Utils;
 using MacroCreator.Native;
 using System.Diagnostics;
+using MacroCreator.Models;
+using MacroCreator.Utils;
+using MacroCreator.Models;
 
 namespace MacroScript.Interactive;
 
@@ -196,6 +199,76 @@ internal partial class InteractiveInterface : IDisposable
         await _controller!.Simulator!.MouseWheel(amount);
     }
 
+    [InteractiveFunction(Name = "delay", Description = "延迟指定的毫秒数")]
+    public async Task Delay(int milliseconds)
+    {
+        ThrowIfControllerNotConnected();
+        await Task.Delay(milliseconds);
+    }
+
+    [InteractiveFunction(Name = "kd", Description = "按下指定按键（不释放）")]
+    public async Task KeyDown(Keys[] keys)
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator!.KeyDown(keys);
+    }
+
+    [InteractiveFunction(Name = "ku", Description = "释放指定按键, 若未指定参数")]
+    public async Task KeyUp(Keys[] keys)
+    {
+        ThrowIfControllerNotConnected();
+        if (keys.Length == 0)
+        {
+            await _controller!.Simulator!.ReleaseAllKeys();
+        }
+        else
+        {
+            await _controller!.Simulator!.KeyUp(keys);
+        }
+    }
+
+    [InteractiveFunction(Name = "type", Description = "输入文本,仅支持英文（包含大小写）、数字和基本符号")]
+    public async Task TypeText(string text, int msDelay = 10)
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator!.TypeText(text, msDelay);
+    }
+
+    [InteractiveFunction(Name = "kua", Description = "释放所有按键")]
+    public async Task ReleaseAllKeys()
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator!.ReleaseAllKeys();
+    }
+
+    [InteractiveFunction(Name = "press", Description = "按下并释放指定按键")]
+    public async Task KeyPress(Keys[] keys, int delay = 50)
+    {
+        ThrowIfControllerNotConnected();
+        foreach (var key in keys)
+        {
+            await _controller!.Simulator!.KeyPress(key, 20);
+            await Task.Delay(delay);
+        }
+    }
+
+    //[InteractiveFunction(Name = "combo", Description = "组合键按下并释放")]
+    //public async Task Combine(Keys[] keys)
+    //{
+    //    ThrowIfControllerNotConnected();
+    //    await _controller!.Simulator.KeyCombination(keys);
+    //}
+
+    [InteractiveFunction(Name = "combo", Description = "组合键按下并释放")]
+    public async Task Combine(
+        [InteractiveParameter(Description = "修饰键, Ctrl=$, Alt(%), Shift(^), Win(#), 可组合")] KeyModifier modifier,
+        [InteractiveParameter(Description = "其他键")] Keys keys
+    )
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator.KeyCombination(modifier, keys);
+    }
+
 #if DEBUG
     [InteractiveFunction(Description = "测试方法")]
     public Task<object?> Test(
@@ -207,112 +280,4 @@ internal partial class InteractiveInterface : IDisposable
     }
 #endif
 
-}
-
-partial class InteractiveInterface
-{
-    public static ISimulator ConnectSimulator(string? comPortName)
-    {
-        if (comPortName is not null)
-        {
-            var simulator = Ch9329Simulator.Open(comPortName);
-            simulator.Controller.Open();
-            simulator.Controller.WarmupCache();
-            return simulator;
-        }
-
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-        {
-            return new Win32LocalMachineSimulator();
-        }
-        else
-        {
-            ConsoleHelper.Instance.PrintWarning("当前操作系统不支持本地模拟器");
-            return NopSimulator.Instance;
-        }
-    }
-
-    public static async Task<MacroController> GetMacroController(string? comPort)
-    {
-        var simulator = ConnectSimulator(comPort);
-
-        if (simulator is Ch9329Simulator ch9329)
-        {
-            ConsoleHelper.Instance.PrintLine($"正在连接设备 {comPort} ...");
-            var info = await ch9329.Controller.GetInfoAsync();
-
-            if (info.UsbStatus == UsbStatus.NotConnected)
-            {
-                throw new InvalidOperationException("HID设备未连接到目标主机，或未被正确识别，请检查连接后重试");
-            }
-            ConsoleHelper.Instance.PrintInfo($"已重定向到设备 {comPort}, 状态:\n{info}");
-        }
-
-        var controller = new MacroController(new SystemTimer(), simulator);
-
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-            controller.PlaybackService.SetInterpreterVariable("clipboard", new Win32.Win32Clipboard());
-
-        controller.OnPrint += ConsoleHelper.Instance.Print;
-        controller.OnPrintLine += ConsoleHelper.Instance.PrintLine;
-
-        return controller;
-    }
-
-    private static async Task<List<MacroEvent>> CompileAsync(string inputFile)
-    {
-        var tcs = new TaskCompletionSource<List<MacroEvent>>();
-
-        var t = new Thread(() =>
-        {
-            try
-            {
-                var collection = Scripting.Compile(inputFile);
-
-                if (collection.Count <= 0)
-                    tcs.SetException(new InvalidDataException("事件序列为空"));
-                else
-                    tcs.SetResult(collection);
-            }
-            catch (Exception ex)
-            {
-                tcs.SetException(ex);
-            }
-        });
-
-        t.IsBackground = true;
-        t.Name = "CompileThread";
-        t.Start();
-
-        return await tcs.Task;
-    }
-
-    internal static void InstallCustomParameterDeserializers()
-    {
-        ParameterDeserializer.SetCustomDeserializer(typeof(MouseButton), s =>
-        {
-            if (Enum.TryParse<MouseButton>(s, true, out var btn)) return btn;
-            s = s.ToLowerInvariant();
-            if (string.Equals(s, "all", StringComparison.OrdinalIgnoreCase))
-            {
-                return MouseButton.Left | MouseButton.Right | MouseButton.Middle;
-            }
-
-            if (int.TryParse(s, out var intVal))
-            {
-                return (MouseButton)intVal;
-            }
-
-            MouseButton flag = MouseButton.None;
-            if (s.Contains('l'))
-                flag |= MouseButton.Left;
-            if (s.Contains('r'))
-                flag |= MouseButton.Right;
-            if (s.Contains('m'))
-                flag |= MouseButton.Middle;
-
-            return flag;
-
-        });
-    }
 }

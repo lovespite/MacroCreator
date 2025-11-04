@@ -25,10 +25,10 @@ public static class InputHook
     public static void Install()
     {
         _mouseHookProc = MouseHookCallback;
-        _mouseHookID = SetHook(NativeMethods.WH_MOUSE_LL, _mouseHookProc);
+        _mouseHookID = SetHook(Win32.WH_MOUSE_LL, _mouseHookProc);
 
         _keyboardHookProc = KeyboardHookCallback;
-        _keyboardHookID = SetHook(NativeMethods.WH_KEYBOARD_LL, _keyboardHookProc);
+        _keyboardHookID = SetHook(Win32.WH_KEYBOARD_LL, _keyboardHookProc);
     }
 
     public static void Uninstall()
@@ -49,24 +49,24 @@ public static class InputHook
     {
         if (nCode >= 0)
         {
-            var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
+            var hookStruct = Marshal.PtrToStructure<Win32.MSLLHOOKSTRUCT>(lParam);
             int x = 0, y = 0;
             int delta = 0;
 
             MouseAction action;
             switch ((uint)wParam)
             {
-                case NativeMethods.WM_LBUTTONDOWN: action = MouseAction.LeftDown; break;
-                case NativeMethods.WM_LBUTTONUP: action = MouseAction.LeftUp; break;
-                case NativeMethods.WM_RBUTTONDOWN: action = MouseAction.RightDown; break;
-                case NativeMethods.WM_RBUTTONUP: action = MouseAction.RightUp; break;
-                case NativeMethods.WM_MBUTTONDOWN: action = MouseAction.MiddleDown; break;
-                case NativeMethods.WM_MBUTTONUP: action = MouseAction.MiddleUp; break;
-                case NativeMethods.WM_MOUSEWHEEL:
+                case Win32.WM_LBUTTONDOWN: action = MouseAction.LeftDown; break;
+                case Win32.WM_LBUTTONUP: action = MouseAction.LeftUp; break;
+                case Win32.WM_RBUTTONDOWN: action = MouseAction.RightDown; break;
+                case Win32.WM_RBUTTONUP: action = MouseAction.RightUp; break;
+                case Win32.WM_MBUTTONDOWN: action = MouseAction.MiddleDown; break;
+                case Win32.WM_MBUTTONUP: action = MouseAction.MiddleUp; break;
+                case Win32.WM_MOUSEWHEEL:
                     action = MouseAction.Wheel;
                     delta = (short)((hookStruct.mouseData >> 16) & 0xffff);
                     break;
-                case NativeMethods.WM_MOUSEMOVE:
+                case Win32.WM_MOUSEMOVE:
                 default:
                     action = MouseAction.MoveTo;
                     x = hookStruct.pt.x;
@@ -85,11 +85,11 @@ public static class InputHook
             int vkCode = Marshal.ReadInt32(lParam);
             Models.Keys key = (Models.Keys)vkCode;
 
-            if ((uint)wParam == NativeMethods.WM_KEYDOWN || (uint)wParam == NativeMethods.WM_SYSKEYDOWN)
+            if ((uint)wParam == Win32.WM_KEYDOWN || (uint)wParam == Win32.WM_SYSKEYDOWN)
             {
                 OnKeyboardEvent?.Invoke(KeyboardAction.KeyDown, key);
             }
-            else if ((uint)wParam == NativeMethods.WM_KEYUP || (uint)wParam == NativeMethods.WM_SYSKEYUP)
+            else if ((uint)wParam == Win32.WM_KEYUP || (uint)wParam == Win32.WM_SYSKEYUP)
             {
                 OnKeyboardEvent?.Invoke(KeyboardAction.KeyUp, key);
             }

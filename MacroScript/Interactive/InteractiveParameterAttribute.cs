@@ -6,5 +6,4 @@ public delegate object? ParamterDeserializer(string parameterExpr);
 public class InteractiveParameterAttribute : Attribute
 {
     public string? Description { get; set; }
-    public ParamterDeserializer? Converter { get; set; }
 }

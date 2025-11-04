@@ -13,15 +13,15 @@ public class KeyboardEventPlayer : IEventPlayer
     {
         var ke = (KeyboardEvent)context.CurrentEvent;
         ushort vk = (ushort)ke.Key;
-        ushort scanCode = (ushort)NativeMethods.MapVirtualKeyA(vk, 0);
-        uint flags = ke.Action == KeyboardAction.KeyDown ? 0 : NativeMethods.KEYEVENTF_KEYUP;
+        ushort scanCode = (ushort)Win32.MapVirtualKeyA(vk, 0);
+        uint flags = ke.Action == KeyboardAction.KeyDown ? 0 : Win32.KEYEVENTF_KEYUP;
 
-        var input = new NativeMethods.INPUT
+        var input = new Win32.INPUT
         {
-            type = NativeMethods.INPUT_KEYBOARD,
-            u = new NativeMethods.InputUnion
+            type = Win32.INPUT_KEYBOARD,
+            u = new Win32.InputUnion
             {
-                ki = new NativeMethods.KEYBDINPUT
+                ki = new Win32  .KEYBDINPUT
                 {
                     wVk = vk,
                     wScan = scanCode,
@@ -32,7 +32,7 @@ public class KeyboardEventPlayer : IEventPlayer
             }
         };
 
-        NativeMethods.SendInput(1, [input], Marshal.SizeOf<NativeMethods.INPUT>());
+        Win32.SendInput(1, [input], Marshal.SizeOf<Win32.INPUT>());
         return Task.FromResult(PlaybackResult.Continue());
     }
 }

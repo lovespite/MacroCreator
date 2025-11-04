@@ -89,9 +89,9 @@ public class InteractiveInterpreter : IDisposable
             }
             try
             {
-                var paramterAttr = p.GetCustomAttribute<InteractiveParameterAttribute>();
-                var converter = paramterAttr?.Converter ?? ParameterDeserializer.FromTypeOf(p.ParameterType);
-                return converter?.Invoke(parameters[i]) ?? Convert.ChangeType(parameters[i], p.ParameterType);
+                var converter = ParameterDeserializer.FromTypeOf(p.ParameterType);
+                var parameter = converter?.Invoke(parameters[i]) ?? Convert.ChangeType(parameters[i], p.ParameterType);
+                return parameter;
             }
             catch (Exception ex)
             {

@@ -145,7 +145,7 @@ public class Ch9329Simulator : SimulatorBase
 
     #region 键盘操作 (Keyboard Operations)
 
-    public override async Task KeyDown(Keys key)
+    public override async Task KeyDown(params Keys[] key)
     {
         // 提取修饰键和普通键
         var (modifiers, normalKey) = ExtractKeyComponents(key);
@@ -161,7 +161,7 @@ public class Ch9329Simulator : SimulatorBase
         await _ch9329Controller.SendKeyboardDataAsync(modifiers, keyCodes);
     }
 
-    public override async Task KeyUp(Keys key)
+    public override async Task KeyUp(params Keys[] key)
     {
         // 提取修饰键和普通键
         var (modifiers, normalKey) = ExtractKeyComponents(key);
@@ -182,6 +182,21 @@ public class Ch9329Simulator : SimulatorBase
         {
             await ReleaseAllKeys();
         }
+    }
+
+    [Obsolete("Use KeyCombination(KeyModifier modifier, Keys key) instead.")]
+    public override async Task KeyCombination(params Keys[] keys)
+    {
+        await KeyDown(keys);
+        await Task.Delay(50);
+        await ReleaseAllKeys();
+    }
+
+    public override async Task KeyCombination(KeyModifier modifier, Keys key)
+    {
+        await _ch9329Controller.SendKeyboardDataAsync(modifier, [HidKeys.Map(key)]);
+        await Task.Delay(50);
+        await ReleaseAllKeys();
     }
 
     public override async Task ReleaseAllKeys()
@@ -227,71 +242,41 @@ public class Ch9329Simulator : SimulatorBase
     /// <summary>
     /// 从 Keys 枚举中提取修饰键和普通键。
     /// </summary>
-    private static (KeyModifier modifiers, Keys normalKey) ExtractKeyComponents(Keys key)
+    private static (KeyModifier modifiers, Keys normalKey) ExtractKeyComponents(Keys[] keys)
     {
         KeyModifier modifiers = KeyModifier.None;
-        Keys normalKey = key;
+        Keys normalKey = Keys.None;
 
-        // 检查并移除修饰键标志
-        if (key.HasFlag(Keys.Control))
+        foreach (var k in keys)
         {
-            modifiers |= KeyModifier.LeftCtrl;
-            normalKey &= ~Keys.Control;
-        }
-        if (key.HasFlag(Keys.Shift))
-        {
-            modifiers |= KeyModifier.LeftShift;
-            normalKey &= ~Keys.Shift;
-        }
-        if (key.HasFlag(Keys.Alt))
-        {
-            modifiers |= KeyModifier.LeftAlt;
-            normalKey &= ~Keys.Alt;
-        }
-
-        // 检查特定的修饰键
-        if (normalKey == Keys.LControlKey || normalKey == Keys.ControlKey)
-        {
-            modifiers |= KeyModifier.LeftCtrl;
-            normalKey = Keys.None;
-        }
-        else if (normalKey == Keys.RControlKey)
-        {
-            modifiers |= KeyModifier.RightCtrl;
-            normalKey = Keys.None;
-        }
-        else if (normalKey == Keys.LShiftKey || normalKey == Keys.ShiftKey)
-        {
-            modifiers |= KeyModifier.LeftShift;
-            normalKey = Keys.None;
-        }
-        else if (normalKey == Keys.RShiftKey)
-        {
-            modifiers |= KeyModifier.RightShift;
-            normalKey = Keys.None;
-        }
-        else if (normalKey == Keys.LMenu || normalKey == Keys.Menu)
-        {
-            modifiers |= KeyModifier.LeftAlt;
-            normalKey = Keys.None;
-        }
-        else if (normalKey == Keys.RMenu)
-        {
-            modifiers |= KeyModifier.RightAlt;
-            normalKey = Keys.None;
-        }
-        else if (normalKey == Keys.LWin)
-        {
-            modifiers |= KeyModifier.LeftWindows;
-            normalKey = Keys.None;
-        }
-        else if (normalKey == Keys.RWin)
-        {
-            modifiers |= KeyModifier.RightWindows;
-            normalKey = Keys.None;
+            var mod = MapModifierKey(k);
+            if (mod != KeyModifier.None)
+            {
+                modifiers |= mod;
+            }
+            else
+            {
+                normalKey = k;
+            }
         }
 
         return (modifiers, normalKey);
+    }
+
+    private static KeyModifier MapModifierKey(Keys k)
+    {
+        return k switch
+        {
+            Keys.LControlKey => KeyModifier.LeftCtrl,
+            Keys.RControlKey => KeyModifier.RightCtrl,
+            Keys.LShiftKey => KeyModifier.LeftShift,
+            Keys.RShiftKey => KeyModifier.RightShift,
+            Keys.LWin => KeyModifier.LeftWindows,
+            Keys.RWin => KeyModifier.RightWindows,
+            Keys.LMenu => KeyModifier.LeftAlt,
+            Keys.RMenu => KeyModifier.RightAlt,
+            _ => KeyModifier.None
+        };
     }
 
     #endregion

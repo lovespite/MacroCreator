@@ -1,3 +1,4 @@
+using MacroCreator.Models;
 using MacroCreator.Native;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -8,6 +9,8 @@ namespace MacroCreator.Services;
 public class Win32LocalMachineSimulator : SimulatorBase
 {
     public static readonly int INPUT_SIZE = Marshal.SizeOf<Win32.INPUT>();
+
+    private readonly HashSet<Keys> _pressedKeys = [];
     public override string Name => "Win32本机模拟器";
     public override Task MouseMove(int dx, int dy)
     {
@@ -125,57 +128,115 @@ public class Win32LocalMachineSimulator : SimulatorBase
         return Task.CompletedTask;
     }
 
-    public override Task KeyDown(MacroCreator.Models.Keys key)
+    public override Task KeyDown(params Keys[] keys)
     {
-        ushort vk = (ushort)key;
-        ushort scanCode = (ushort)Win32.MapVirtualKeyA(vk, 0);
+        foreach (var k in keys)
+            _pressedKeys.Add(k);
 
-        var input = new Win32.INPUT
+        Keys[] pressedKeys = [.. _pressedKeys];
+        var inputs = new Win32.INPUT[pressedKeys.Length];
+
+        for (var i = 0; i < inputs.Length; i++)
         {
-            type = Win32.INPUT_KEYBOARD,
-            u = new Win32.InputUnion
-            {
-                ki = new Win32.KEYBDINPUT
-                {
-                    wVk = vk,
-                    wScan = scanCode,
-                    dwFlags = 0,
-                    time = 0,
-                    dwExtraInfo = nint.Zero
-                }
-            }
-        };
+            var key = pressedKeys[i];
+            ushort vk = (ushort)key;
+            ushort scanCode = (ushort)Win32.MapVirtualKeyA(vk, 0);
 
-        Win32.SendInput(1, [input], INPUT_SIZE);
+            inputs[i] = new Win32.INPUT
+            {
+                type = Win32.INPUT_KEYBOARD,
+                u = new Win32.InputUnion
+                {
+                    ki = new Win32.KEYBDINPUT
+                    {
+                        wVk = vk,
+                        wScan = scanCode,
+                        dwFlags = 0,
+                        time = 0,
+                        dwExtraInfo = nint.Zero
+                    }
+                }
+            };
+        }
+
+        Win32.SendInput((uint)inputs.Length, inputs, INPUT_SIZE);
+
         return Task.CompletedTask;
     }
 
-    public override Task KeyUp(MacroCreator.Models.Keys key)
+    public override Task KeyUp(params Keys[] keys)
     {
-        ushort vk = (ushort)key;
-        ushort scanCode = (ushort)Win32.MapVirtualKeyA(vk, 0);
-
-        var input = new Win32.INPUT
+        var releasedKeys = new HashSet<Keys>();
+        foreach (var k in keys)
         {
-            type = Win32.INPUT_KEYBOARD,
-            u = new Win32.InputUnion
-            {
-                ki = new Win32.KEYBDINPUT
-                {
-                    wVk = vk,
-                    wScan = scanCode,
-                    dwFlags = Win32.KEYEVENTF_KEYUP,
-                    time = 0,
-                    dwExtraInfo = nint.Zero
-                }
-            }
-        };
+            releasedKeys.Add(k);
+            _pressedKeys.Remove(k);
+        }
 
-        Win32.SendInput(1, [input], INPUT_SIZE);
+        Keys[] releasedKeysArr = [.. releasedKeys];
+        var inputs = new Win32.INPUT[releasedKeysArr.Length];
+
+        for (var i = 0; i < inputs.Length; i++)
+        {
+            var key = releasedKeysArr[i];
+            ushort vk = (ushort)key;
+            ushort scanCode = (ushort)Win32.MapVirtualKeyA(vk, 0);
+
+            inputs[i] = new Win32.INPUT
+            {
+                type = Win32.INPUT_KEYBOARD,
+                u = new Win32.InputUnion
+                {
+                    ki = new Win32.KEYBDINPUT
+                    {
+                        wVk = vk,
+                        wScan = scanCode,
+                        dwFlags = Win32.KEYEVENTF_KEYUP,
+                        time = 0,
+                        dwExtraInfo = nint.Zero
+                    }
+                }
+            };
+        }
+
+        Win32.SendInput((uint)inputs.Length, inputs, INPUT_SIZE);
+
         return Task.CompletedTask;
     }
 
-    public override Task ReleaseAllKeys() => throw new NotSupportedException();
+    public override Task ReleaseAllKeys()
+    {
+        if (_pressedKeys.Count == 0)
+            return Task.CompletedTask;
+
+        Keys[] keys = [.. _pressedKeys];
+        _pressedKeys.Clear();
+
+        var inputs = new Win32.INPUT[keys.Length];
+        for (int i = 0; i < keys.Length; i++)
+        {
+            ushort vk = (ushort)keys[i];
+            ushort scanCode = (ushort)Win32.MapVirtualKeyA(vk, 0);
+            inputs[i] = new Win32.INPUT
+            {
+                type = Win32.INPUT_KEYBOARD,
+                u = new Win32.InputUnion
+                {
+                    ki = new Win32.KEYBDINPUT
+                    {
+                        wVk = vk,
+                        wScan = scanCode,
+                        dwFlags = Win32.KEYEVENTF_KEYUP,
+                        time = 0,
+                        dwExtraInfo = nint.Zero
+                    }
+                }
+            };
+        }
+
+        Win32.SendInput((uint)inputs.Length, inputs, INPUT_SIZE);
+        return Task.CompletedTask;
+    }
 
     public override Task ReleaseAllMouse() => throw new NotSupportedException();
 

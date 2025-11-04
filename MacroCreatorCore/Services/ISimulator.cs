@@ -56,29 +56,35 @@ public interface ISimulator : IDisposable
     /// 按下键盘按键（不释放）。
     /// </summary>
     /// <param name="key">要按下的按键。</param>
-    Task KeyDown(Keys key);
+    Task KeyDown(params Keys[] key);
     /// <summary>
     /// 释放键盘按键。
     /// </summary>
     /// <param name="key">要释放的按键。</param>
-    Task KeyUp(Keys key);
+    Task KeyUp(params Keys[] key);
     /// <summary>
     /// 按下并释放键盘按键。
     /// </summary>
     /// <param name="key">要按下的按键。</param>
     /// <param name="delayMs">按下和释放之间的延迟（毫秒），默认 50ms。</param>
-    Task KeyPress(Keys key, int delayMs = 50);
+    Task KeyPress(Keys key, int delayMs);
     /// <summary>
     /// 输入文本（连续按键）,仅支持英文（包含大小写）、数字以及基础字符
     /// </summary>
     /// <param name="text">要输入的文本。</param>
     /// <param name="delayMs">每个按键之间的延迟（毫秒），默认 50ms。</param>
-    Task TypeText(string text, int delayMs = 50);
+    Task TypeText(string text, int delayMs);
     /// <summary>
     /// 按下组合键（例如 Ctrl+C）。
     /// </summary>
     /// <param name="keys">要按下的按键组合。</param>
+    [Obsolete("请使用 KeyCombination(KeyModifier modifier, Keys key) 方法代替")]
     Task KeyCombination(params Keys[] keys);
+    /// <summary>
+    /// 按下组合键（例如 Ctrl+C）。
+    /// </summary>
+    /// <param name="keys">要按下的按键组合。</param>
+    Task KeyCombination(KeyModifier modifier, Keys key);
     /// <summary>
     /// 释放所有键盘按键。
     /// </summary>

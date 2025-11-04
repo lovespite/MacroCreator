@@ -4,8 +4,8 @@
  * 提供简化的鼠标和键盘操作接口，基于 Ch9329Controller 实现。
  */
 
-using MacroCreator.Utils;
 using MacroCreator.Models;
+using MacroCreator.Utils;
 
 namespace MacroCreator.Services;
 
@@ -16,35 +16,37 @@ public abstract class SimulatorBase : ISimulator
     public abstract Task MouseMoveTo(int x, int y);
     public abstract Task MouseDown(MouseButton button);
     public abstract Task MouseUp(MouseButton button);
-    public virtual async Task MouseClick(MouseButton button, int delayMs = 50)
+    public virtual async Task MouseClick(MouseButton button, int delayMs = 25)
     {
         await MouseDown(button);
         if (delayMs > 0) await Task.Delay(delayMs);
         await MouseUp(button);
     }
-    public virtual async Task MouseDoubleClick(MouseButton button, int delayMs = 100)
+    public virtual async Task MouseDoubleClick(MouseButton button, int delayMs = 50)
     {
         await MouseClick(button, delayMs);
         if (delayMs > 0) await Task.Delay(delayMs);
         await MouseClick(button, delayMs);
     }
     public abstract Task MouseWheel(int amount);
-    public abstract Task KeyDown(Keys key);
-    public abstract Task KeyUp(Keys key);
-    public virtual async Task KeyPress(Keys key, int delayMs = 50)
+    public abstract Task KeyDown(params Keys[] key);
+    public abstract Task KeyUp(params Keys[] key);
+
+    public virtual async Task KeyPress(Keys key, int delayMs = 20)
     {
         await KeyDown(key);
         if (delayMs > 0) await Task.Delay(delayMs);
         await KeyUp(key);
     }
-    public virtual async Task TypeText(string text, int delayMs = 50)
+
+    public virtual async Task TypeText(string text, int delayMs = 20)
     {
         if (string.IsNullOrEmpty(text)) return;
 
         foreach (char c in text)
         {
-            Keys key = c.ToKey();
-            if (key != Keys.None)
+            (KeyModifier mod, Keys key) = c.ToModifierAndKey();
+            if (mod == KeyModifier.None)
             {
                 await KeyPress(key, delayMs / 2);
                 if (delayMs > 0)
@@ -52,9 +54,14 @@ public abstract class SimulatorBase : ISimulator
                     await Task.Delay(delayMs);
                 }
             }
+            else
+            {
+                await KeyCombination(mod, key);
+            }
         }
     }
 
+    [Obsolete("Use KeyCombination(KeyModifier modifier, Keys key) instead.")]
     public virtual async Task KeyCombination(params Keys[] keys)
     {
         if (keys == null || keys.Length == 0) return;
@@ -75,6 +82,17 @@ public abstract class SimulatorBase : ISimulator
             await KeyUp(key);
             await Task.Delay(10);
         }
+    }
+
+    public virtual async Task KeyCombination(KeyModifier modifier, Keys key)
+    {
+        var mKeys = modifier.ToKeysArray();
+        await KeyDown(mKeys);
+        await Task.Delay(10);
+        await KeyDown(key);
+
+        await Task.Delay(25);
+        await ReleaseAllKeys();
     }
 
     public abstract Task ReleaseAllKeys();
