@@ -145,43 +145,36 @@ public class Ch9329Simulator : SimulatorBase
 
     #region 键盘操作 (Keyboard Operations)
 
-    public override async Task KeyDown(params Keys[] key)
+    public override async Task KeyDown(params Keys[] keys)
     {
-        // 提取修饰键和普通键
-        var (modifiers, normalKey) = ExtractKeyComponents(key);
-
         // 添加到已按下的键集合
-        if (normalKey != Keys.None)
-        {
-            _pressedKeys.Add(normalKey);
-        }
+        foreach (var k in keys) _pressedKeys.Add(k);
+
+        // 提取修饰键和普通键
+        var (modifiers, normalKey) = ExtractKeyComponents(_pressedKeys);
 
         // 构建当前按键数组（最多 6 个）
         byte[] keyCodes = [.. _pressedKeys.Select(HidKeys.Map).Where(k => k != 0x00).Take(6)];
         await _ch9329Controller.SendKeyboardDataAsync(modifiers, keyCodes);
     }
 
-    public override async Task KeyUp(params Keys[] key)
+    public override async Task KeyUp(params Keys[] keys)
     {
-        // 提取修饰键和普通键
-        var (modifiers, normalKey) = ExtractKeyComponents(key);
-
         // 从已按下的键集合中移除
-        if (normalKey != Keys.None)
-        {
-            _pressedKeys.Remove(normalKey);
-        }
+        foreach (var k in keys) _pressedKeys.Remove(k);
 
-        // 如果还有其他按键按下，发送更新状态；否则发送全释放
-        if (_pressedKeys.Count > 0)
-        {
-            byte[] keyCodes = [.. _pressedKeys.Select(HidKeys.Map).Where(k => k != 0x00).Take(6)];
-            await _ch9329Controller.SendKeyboardDataAsync(KeyModifier.None, keyCodes);
-        }
-        else
+        if (_pressedKeys.Count == 0)
         {
             await ReleaseAllKeys();
+            return;
         }
+
+        // 提取修饰键和普通键
+        var (modifiers, normalKey) = ExtractKeyComponents(_pressedKeys);
+
+        // 如果还有其他按键按下，发送更新状态；否则发送全释放 
+        byte[] keyCodes = [.. _pressedKeys.Select(HidKeys.Map).Where(k => k != 0x00).Take(6)];
+        await _ch9329Controller.SendKeyboardDataAsync(KeyModifier.None, keyCodes);
     }
 
     [Obsolete("Use KeyCombination(KeyModifier modifier, Keys key) instead.")]
@@ -242,7 +235,7 @@ public class Ch9329Simulator : SimulatorBase
     /// <summary>
     /// 从 Keys 枚举中提取修饰键和普通键。
     /// </summary>
-    private static (KeyModifier modifiers, Keys normalKey) ExtractKeyComponents(Keys[] keys)
+    private static (KeyModifier modifiers, Keys normalKey) ExtractKeyComponents(IEnumerable<Keys> keys)
     {
         KeyModifier modifiers = KeyModifier.None;
         Keys normalKey = Keys.None;
