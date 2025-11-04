@@ -37,7 +37,7 @@ public partial class MainForm : Form
             .SetupRecordingService(new Win32RecordingService())
             .SetupDeviceScreenService(new Win32Screen());
 
-        _controller.PlaybackService.SetInterpreterVariable("clipboard", new ClipboardService());
+        _controller.PlaybackService.SetInterpreterVariable("clipboard", new Win32.Win32Clipboard());
 
         ActiveEvent = null;
 

@@ -4,6 +4,7 @@ using MacroCreator.Services;
 using MacroCreator.Services.CH9329;
 using MacroScript.Dsl;
 using MacroScript.Utils;
+using MacroCreator.Native;
 using System.Diagnostics;
 
 namespace MacroScript.Interactive;
@@ -210,15 +211,35 @@ internal partial class InteractiveInterface : IDisposable
 
 partial class InteractiveInterface
 {
+    public static ISimulator ConnectSimulator(string? comPortName)
+    {
+        if (comPortName is not null)
+        {
+            var simulator = Ch9329Simulator.Open(comPortName);
+            simulator.Controller.Open();
+            simulator.Controller.WarmupCache();
+            return simulator;
+        }
+
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            return new Win32LocalMachineSimulator();
+        }
+        else
+        {
+            ConsoleHelper.Instance.PrintWarning("当前操作系统不支持本地模拟器");
+            return NopSimulator.Instance;
+        }
+    }
+
     public static async Task<MacroController> GetMacroController(string? comPort)
     {
-        var simulator = comPort is null ? null : Ch9329Simulator.Open(comPort);
-        simulator?.Controller.Open();
-        simulator?.Controller.WarmupCache();
-        if (simulator is not null)
+        var simulator = ConnectSimulator(comPort);
+
+        if (simulator is Ch9329Simulator ch9329)
         {
             ConsoleHelper.Instance.PrintLine($"正在连接设备 {comPort} ...");
-            var info = await simulator.Controller.GetInfoAsync();
+            var info = await ch9329.Controller.GetInfoAsync();
 
             if (info.UsbStatus == UsbStatus.NotConnected)
             {
@@ -228,6 +249,10 @@ partial class InteractiveInterface
         }
 
         var controller = new MacroController(new SystemTimer(), simulator);
+
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            controller.PlaybackService.SetInterpreterVariable("clipboard", new Win32.Win32Clipboard());
+
         controller.OnPrint += ConsoleHelper.Instance.Print;
         controller.OnPrintLine += ConsoleHelper.Instance.PrintLine;
 

@@ -1,4 +1,5 @@
 ﻿using MacroCreator.Models.Events;
+using MacroCreator.Native;
 using MacroCreator.Services;
 using MacroCreator.Utils;
 
@@ -68,7 +69,7 @@ namespace MacroCreator.Forms
         {
             InitializeComponent();
             _interpreter = new PlaybackContext().CreateInterpreter();
-            _interpreter.SetVariable("clipboard", new ClipboardService());
+            _interpreter.SetVariable("clipboard", new Win32.Win32Clipboard());
             textBoxEventName.Text = defaultName ?? ("Script_" + Rnd.GetString(5));
         }
 

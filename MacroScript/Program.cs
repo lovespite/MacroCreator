@@ -1,9 +1,9 @@
 ﻿using MacroCreator.Services.CH9329;
 using MacroCreator.Utils;
+using MacroCreator.Native;
 using MacroScript.Dsl;
 using MacroScript.Interactive;
 using MacroScript.Utils;
-using System.Runtime.Versioning;
 
 namespace MacroScript;
 
@@ -142,13 +142,12 @@ internal static class Program
         return null;
     }
 
-    // [SupportedOSPlatform("windows")]
     public static nint HideConsoleWindow()
     {
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
         {
-            var handle = Win32Native.GetMainWindow();
-            Win32Native.ShowWindow(handle, Win32Native.SW_HIDE);
+            var handle = Win32.FindWindow(ConsoleTitle);
+            Win32.ShowWindow(handle, Win32.SW_HIDE);
             return handle;
         }
         return 0;
@@ -156,9 +155,10 @@ internal static class Program
 
     public static void ShowConsoleWindow(nint handle)
     {
+        if (handle == 0) return;
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
         {
-            Win32Native.ShowWindow(handle, Win32Native.SW_SHOW);
+            Win32.ShowWindow(handle, Win32.SW_SHOW);
         }
     }
 
@@ -186,9 +186,7 @@ internal static class Program
 
     private static async Task RunMacroScript(string inputFile, string? ch9329ComPort, bool hideConsole)
     {
-        var handle = hideConsole
-            ? Environment.OSVersion.Platform == PlatformID.Win32NT ? HideConsoleWindow() : 0
-            : 0;
+        var handle = hideConsole ? HideConsoleWindow() : 0;
         try
         {
             using var interf = new InteractiveInterface();
@@ -197,7 +195,7 @@ internal static class Program
         }
         finally
         {
-            if (handle != 0) ShowConsoleWindow(handle);
+            ShowConsoleWindow(handle);
         }
     }
 }

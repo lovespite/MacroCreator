@@ -1,8 +1,10 @@
+using MacroCreator.Native;
 using System.Runtime.InteropServices;
-using Win32 = MacroCreator.Native.NativeMethods;
+using System.Runtime.Versioning;
 
 namespace MacroCreator.Services;
 
+[SupportedOSPlatform("windows")]
 public class Win32LocalMachineSimulator : SimulatorBase
 {
     public static readonly int INPUT_SIZE = Marshal.SizeOf<Win32.INPUT>();
@@ -123,7 +125,7 @@ public class Win32LocalMachineSimulator : SimulatorBase
         return Task.CompletedTask;
     }
 
-    public override Task KeyDown(Models.Keys key)
+    public override Task KeyDown(MacroCreator.Models.Keys key)
     {
         ushort vk = (ushort)key;
         ushort scanCode = (ushort)Win32.MapVirtualKeyA(vk, 0);
@@ -139,7 +141,7 @@ public class Win32LocalMachineSimulator : SimulatorBase
                     wScan = scanCode,
                     dwFlags = 0,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
+                    dwExtraInfo = nint.Zero
                 }
             }
         };
@@ -148,7 +150,7 @@ public class Win32LocalMachineSimulator : SimulatorBase
         return Task.CompletedTask;
     }
 
-    public override Task KeyUp(Models.Keys key)
+    public override Task KeyUp(MacroCreator.Models.Keys key)
     {
         ushort vk = (ushort)key;
         ushort scanCode = (ushort)Win32.MapVirtualKeyA(vk, 0);
@@ -164,7 +166,7 @@ public class Win32LocalMachineSimulator : SimulatorBase
                     wScan = scanCode,
                     dwFlags = Win32.KEYEVENTF_KEYUP,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
+                    dwExtraInfo = nint.Zero
                 }
             }
         };
