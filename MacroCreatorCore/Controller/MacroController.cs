@@ -12,15 +12,18 @@ namespace MacroCreator.Controller;
 public class MacroController : IPrintService, IDisposable // 实现 IDisposable
 {
     private List<MacroEvent> _events = [];
-    private readonly RecordingService _recordingService;
-    private string? _currentFilePath = null;
+    private readonly ISystemTimer _timer;
+    private readonly PlaybackService _playbackService;
 
-    private PlaybackService _playbackService;
+    private string? _currentFilePath = null;
+    private IRecordingService? _recordingService;
+
     private ISimulator _simulator;
     public IReadOnlyList<MacroEvent> EventSequence => _events.AsReadOnly();
+    public ISimulator Simulator => _simulator;
+    public PlaybackService PlaybackService => _playbackService;
     public AppState CurrentState { get; private set; } = AppState.Idle;
     public string? CurrentFilePath => _currentFilePath;
-    public ISimulator Simulator => _simulator;
 
     public event Action<AppState>? StateChanged;
     public event Action<EventSequenceChangeArgs>? EventSequenceChanged;
@@ -28,23 +31,47 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     public event Action<object?>? OnPrint;
     public event Action<object?>? OnPrintLine;
 
-    /// <summary>
-    /// 基础构造函数，用于 MacroCreator (WinForms)
-    /// </summary>
-    public MacroController() : this(simulator: null)
+    public MacroController() : this(new SystemTimer(), simulator: null)
     {
     }
 
     /// <summary>
     /// 核心构造函数
     /// </summary> 
-    public MacroController(ISimulator? simulator)
+    public MacroController(ISystemTimer timer, ISimulator? simulator = null)
     {
-        _simulator = simulator ?? new Win32LocalMachineSimulator();
-        _recordingService = new RecordingService();
+        _timer = timer;
+        _simulator = simulator ?? NopSimulator.Instance;
+
+        _playbackService = new PlaybackService(_timer)
+            .SetPrinter(this)
+            .SetPlayers(CreatePlayers(_simulator));
+    }
+
+    private void ThrowIfNotIdle()
+    {
+        if (CurrentState != AppState.Idle)
+            throw new InvalidOperationException("当前状态无法进行此操作");
+    }
+
+    #region Setup Methods
+    /// <summary>
+    /// 设置录制服务 
+    /// </summary>
+    /// <param name="recordingService"></param>
+    /// <exception cref="InvalidOperationException"></exception>
+    public MacroController SetupRecordingService(IRecordingService recordingService)
+    {
+        ThrowIfNotIdle();
+
+        if (_recordingService is not null) _recordingService.OnEventRecorded -= _events.Add;
+
+        _recordingService = recordingService;
         _recordingService.OnEventRecorded += _events.Add;
 
-        _playbackService = new PlaybackService(CreatePlayers(_simulator), new HighPrecisionTimer(), this);
+        StatusMessageChanged?.Invoke($"已设置录制服务: {recordingService.GetType().Name}");
+
+        return this;
     }
 
     /// <summary>
@@ -52,18 +79,48 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     /// </summary>
     /// <param name="newSimulator"></param>
     /// <exception cref="InvalidOperationException"></exception>
-    public void UseSimulator(ISimulator newSimulator)
+    public MacroController SetupSimulator(ISimulator newSimulator)
     {
-        if (CurrentState != AppState.Idle) throw new InvalidOperationException("当前状态无法切换模拟器");
+        ThrowIfNotIdle();
+        if (ReferenceEquals(newSimulator, _simulator)) return this; // 相同实例，跳过
 
         _simulator.Dispose();
-        _playbackService.Dispose();
-
         _simulator = newSimulator;
-        _playbackService = new PlaybackService(CreatePlayers(_simulator), new HighPrecisionTimer(), this);
+        _playbackService.SetPlayers(CreatePlayers(newSimulator));
 
         StatusMessageChanged?.Invoke($"已切换到: {newSimulator.Name}");
+        return this;
     }
+
+    /// <summary>
+    /// 设置打印服务
+    /// </summary>
+    /// <param name="printer"></param>
+    /// <returns></returns>
+    public MacroController SetupPrinter(IPrintService printer)
+    {
+        ThrowIfNotIdle();
+
+        _playbackService.SetPrinter(printer);
+        StatusMessageChanged?.Invoke($"已设置打印服务: {printer.GetType().Name}");
+        return this;
+    }
+
+    /// <summary>
+    /// 设置设备屏幕服务， 可用于获取屏幕像素颜色等功能
+    /// </summary>
+    /// <param name="deviceScreenService"></param>
+    public MacroController SetupDeviceScreenService(IDeviceScreenService deviceScreenService)
+    {
+        ThrowIfNotIdle();
+
+        _playbackService.SetDeviceScreen(deviceScreenService);
+        StatusMessageChanged?.Invoke($"已设置设备屏幕服务: {deviceScreenService.GetType().Name}");
+
+        return this;
+    }
+
+    #endregion
 
     /// 创建播放器策略
     /// </summary>
@@ -217,6 +274,8 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     public void StartRecording()
     {
         if (CurrentState != AppState.Idle) return;
+        if (_recordingService is null)
+            throw new InvalidOperationException("录制服务未初始化。");
         _recordingService.Start();
         SetState(AppState.Recording);
         StatusMessageChanged?.Invoke("录制中... 按 F11 停止");
@@ -297,7 +356,7 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     {
         if (CurrentState == AppState.Recording)
         {
-            _recordingService.Stop();
+            _recordingService!.Stop();
             EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.FullRefresh, 0, null));
             StatusMessageChanged?.Invoke("录制结束");
         }

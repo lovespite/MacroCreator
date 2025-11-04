@@ -9,8 +9,8 @@ using System.Buffers;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
+using MacroCreator.Models;
 
 namespace MacroCreator.Services.CH9329;
 

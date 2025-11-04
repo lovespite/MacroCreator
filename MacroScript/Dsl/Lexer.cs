@@ -457,7 +457,7 @@ public class Lexer : IDisposable
                 // Check if it's a known enum value or just a generic identifier
                 if (System.Enum.TryParse<MouseAction>(value, true, out _) ||
                     System.Enum.TryParse<KeyboardAction>(value, true, out _) ||
-                    System.Enum.TryParse<System.Windows.Forms.Keys>(value, true, out _))
+                    System.Enum.TryParse<Keys>(value, true, out _))
                 {
                     return new Token(TokenType.Identifier, value, startLine, startColumn);
                 }

@@ -1,6 +1,6 @@
 ﻿using MacroCreator.Services;
 
-namespace MacroScript;
+namespace MacroScript.Utils;
 
 internal class ConsoleHelper : IPrintService
 {

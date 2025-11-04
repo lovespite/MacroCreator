@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 
 namespace MacroCreator.Services;
 
+[Obsolete("使用 SimulatorKeyboardEventPlayer 替代此类，以获得更好的兼容性和可维护性。")]
 public class KeyboardEventPlayer : IEventPlayer
 {
     public Task<PlaybackResult> ExecuteAsync(PlaybackContext context)

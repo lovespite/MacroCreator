@@ -1,21 +1,10 @@
 ﻿using MacroCreator.Models;
 using MacroCreator.Models.Events;
-using MacroCreator.Services.CH9329;
 
 namespace MacroCreator.Services;
 
-/// <summary>
-/// 使用 CH9329 InputSimulator 回放键盘事件的播放器
-/// </summary>
-public class Ch9329KeyboardEventPlayer : IEventPlayer
+public class SimulatorKeyboardEventPlayer(ISimulator _simulator) : IEventPlayer
 {
-    private readonly InputSimulator _simulator;
-
-    public Ch9329KeyboardEventPlayer(InputSimulator simulator)
-    {
-        _simulator = simulator;
-    }
-
     public async Task<PlaybackResult> ExecuteAsync(PlaybackContext context)
     {
         if (context.CurrentEvent is not KeyboardEvent ke)

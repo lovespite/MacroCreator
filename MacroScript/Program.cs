@@ -2,6 +2,8 @@
 using MacroCreator.Utils;
 using MacroScript.Dsl;
 using MacroScript.Interactive;
+using MacroScript.Utils;
+using System.Runtime.Versioning;
 
 namespace MacroScript;
 
@@ -53,7 +55,7 @@ internal static class Program
 
     private static void PrintAllKeyNames(int columns = 10)
     {
-        var names = Enum.GetNames<Keys>();
+        var names = Enum.GetNames<MacroCreator.Models.Keys>();
         Console.WriteLine("[");
 
         int colIndex = 0;
@@ -140,16 +142,24 @@ internal static class Program
         return null;
     }
 
+    // [SupportedOSPlatform("windows")]
     public static nint HideConsoleWindow()
     {
-        var handle = Utils.GetMainWindow();
-        Utils.ShowWindow(handle, Utils.SW_HIDE);
-        return handle;
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            var handle = Win32Native.GetMainWindow();
+            Win32Native.ShowWindow(handle, Win32Native.SW_HIDE);
+            return handle;
+        }
+        return 0;
     }
 
     public static void ShowConsoleWindow(nint handle)
     {
-        Utils.ShowWindow(handle, Utils.SW_SHOW);
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            Win32Native.ShowWindow(handle, Win32Native.SW_SHOW);
+        }
     }
 
     private static async Task InteractiveMode(string? ch9329ComPort)
@@ -176,7 +186,9 @@ internal static class Program
 
     private static async Task RunMacroScript(string inputFile, string? ch9329ComPort, bool hideConsole)
     {
-        var handle = hideConsole ? HideConsoleWindow() : 0;
+        var handle = hideConsole
+            ? Environment.OSVersion.Platform == PlatformID.Win32NT ? HideConsoleWindow() : 0
+            : 0;
         try
         {
             using var interf = new InteractiveInterface();

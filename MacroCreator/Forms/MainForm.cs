@@ -2,8 +2,10 @@
 using MacroCreator.Models;
 using MacroCreator.Models.Events;
 using MacroCreator.Native;
+using MacroCreator.Services;
 using MacroCreator.Utils;
 
+using Keys = MacroCreator.Models.Keys;
 namespace MacroCreator.Forms;
 
 public partial class MainForm : Form
@@ -28,8 +30,14 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        _controller = new MacroController();
         InitializeComponent();
+
+        _controller = new MacroController(new HighPrecisionTimer())
+            .SetupSimulator(new Win32LocalMachineSimulator())
+            .SetupRecordingService(new Win32RecordingService())
+            .SetupDeviceScreenService(new Win32Screen());
+
+        _controller.PlaybackService.SetInterpreterVariable("clipboard", new ClipboardService());
 
         ActiveEvent = null;
 
@@ -323,13 +331,13 @@ public partial class MainForm : Form
         var handle = this.Handle;
         Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_RECORD,
             Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
-            Keys.F9);
+            System.Windows.Forms.Keys.F9);
         Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_PLAYBACK,
             Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
-            Keys.F10);
+            System.Windows.Forms.Keys.F10);
         Native.NativeMethods.InstallHotKey(handle, Native.NativeMethods.HOTKEY_ID_STOP,
             Native.NativeMethods.ModifierKeys.Control | Native.NativeMethods.ModifierKeys.Shift,
-            Keys.F11);
+            System.Windows.Forms.Keys.F11);
     }
 
     private void UninstallGlobalHotkeys()

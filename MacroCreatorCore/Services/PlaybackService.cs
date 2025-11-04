@@ -7,14 +7,68 @@ namespace MacroCreator.Services;
 /// <summary>
 /// 负责回放事件序列，使用高精度计时器确保准确的延迟
 /// </summary>
-public class PlaybackService(Dictionary<Type, IEventPlayer> players, IPrintService? printer = null) : IDisposable
+public class PlaybackService(Dictionary<Type, IEventPlayer> players, ISystemTimer timer) : IDisposable
 {
-    private readonly Dictionary<Type, IEventPlayer> _players = players;
-    private readonly HighPrecisionTimer _timer = new();
-    private readonly IPrintService? _printer = printer;
-    //private readonly PlaybackPerformanceMonitor _performanceMonitor = new();
+    private Dictionary<Type, IEventPlayer> _players = players;
+    private readonly ISystemTimer _timer = timer;
 
-    private PlaybackContext? _context = null; 
+    private IPrintService? _printer;
+    private IDeviceScreenService? _deviceScreen;
+
+    private PlaybackContext? _context = null;
+
+    private readonly Dictionary<string, object> _interpreterVariables = new(StringComparer.OrdinalIgnoreCase);
+
+    public PlaybackService(ISystemTimer timer) : this([], timer)
+    {
+    }
+
+    public PlaybackService() : this(new SystemTimer())
+    {
+    }
+
+    public PlaybackService SetPrinter(IPrintService printer)
+    {
+        ArgumentNullException.ThrowIfNull(printer);
+        _printer = printer;
+        return this;
+    }
+
+    public PlaybackService SetDeviceScreen(IDeviceScreenService deviceScreen)
+    {
+        ArgumentNullException.ThrowIfNull(deviceScreen);
+        _deviceScreen = deviceScreen;
+        return this;
+    }
+
+    public PlaybackService SetPlayers(Dictionary<Type, IEventPlayer> players)
+    {
+        ArgumentNullException.ThrowIfNull(players);
+        _players = players;
+        return this;
+    }
+
+    public PlaybackService SetInterpreterVariable(string name, object value)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(value);
+
+        _interpreterVariables[name] = value;
+        return this;
+    }
+
+    public PlaybackService RemoveInterpreterVariable(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        _interpreterVariables.Remove(name);
+        return this;
+    }
+
+    public PlaybackService ClearInterpreterVariables()
+    {
+        _interpreterVariables.Clear();
+        return this;
+    }
 
     ///// <summary>
     ///// 性能监控器，用于分析延迟精度
@@ -25,6 +79,8 @@ public class PlaybackService(Dictionary<Type, IEventPlayer> players, IPrintServi
     {
         using var context = _context = new PlaybackContext(events, loadAndPlayNewFileCallback, _printer);
 
+        context.DeviceScreen = _deviceScreen;
+        context.SetInterpreterVariables(_interpreterVariables);
 
         var startTime = _timer.GetPreciseMilliseconds();
         var scheduledTime = startTime;

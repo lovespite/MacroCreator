@@ -12,7 +12,7 @@ public partial class EditMouseEventForm : Form
     public MouseAction Action => (MouseAction)comboBoxAction.SelectedIndex;
     public string? EventName => string.IsNullOrWhiteSpace(textBoxEventName.Text) ? null : textBoxEventName.Text.Trim();
 
-    public bool CreatePairedEvent => Action.IsDownAction() && chkPairedEvents.Checked;
+    public bool CreatePairedEvent => _editing is null && Action.IsDownAction() && chkPairedEvents.Checked;
 
     private readonly MouseEvent? _editing = null;
 
@@ -99,7 +99,7 @@ public partial class EditMouseEventForm : Form
         bool isWheelScroll = comboBoxAction.SelectedIndex == (int)MouseAction.Wheel;
         labelWheelDelta.Visible = isWheelScroll;
         numericUpDownWheelDelta.Visible = isWheelScroll;
-        chkPairedEvents.Visible = Action.IsDownAction();
+        chkPairedEvents.Visible = _editing is null && Action.IsDownAction();
         numericUpDownX.Enabled = Action.IsMoveAction();
         numericUpDownY.Enabled = Action.IsMoveAction();
     }

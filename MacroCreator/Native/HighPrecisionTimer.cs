@@ -1,12 +1,12 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
+using MacroCreator.Services;
 
-namespace MacroCreator.Services;
+namespace MacroCreator.Native;
 
 /// <summary>
 /// 高精度计时器服务，提供精确的延迟功能
 /// </summary>
-public partial class HighPrecisionTimer
+public partial class HighPrecisionTimer : ISystemTimer
 {
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -53,7 +53,7 @@ public partial class HighPrecisionTimer
             timeEndPeriod(1);
             _highResolutionEnabled = false;
         }
-    } 
+    }
 
     /// <summary>
     /// 获取当前高精度时间戳（毫秒，带小数）
@@ -89,7 +89,7 @@ public partial class HighPrecisionTimer
         while (GetPreciseMilliseconds() < targetTime)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            
+
             // 短暂让出CPU，避免100%占用
             if (targetTime - GetPreciseMilliseconds() > 0.5)
             {
@@ -105,7 +105,7 @@ public partial class HighPrecisionTimer
     {
         var currentTime = GetPreciseMilliseconds();
         var delay = targetTimeMs - currentTime;
-        
+
         if (delay > 0)
         {
             await DelayAsync(delay, cancellationToken);

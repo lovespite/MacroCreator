@@ -13,7 +13,7 @@ public static class InputHook
     public delegate void MouseEventDelegate(MouseAction action, int x, int y, int delta);
     public static event MouseEventDelegate? OnMouseEvent;
 
-    public delegate void KeyboardEventDelegate(KeyboardAction action, Keys key);
+    public delegate void KeyboardEventDelegate(KeyboardAction action, Models.Keys key);
     public static event KeyboardEventDelegate? OnKeyboardEvent;
 
     private static NativeMethods.HookProc? _mouseHookProc;
@@ -83,7 +83,7 @@ public static class InputHook
         if (nCode >= 0)
         {
             int vkCode = Marshal.ReadInt32(lParam);
-            Keys key = (Keys)vkCode;
+            Models.Keys key = (Models.Keys)vkCode;
 
             if ((uint)wParam == NativeMethods.WM_KEYDOWN || (uint)wParam == NativeMethods.WM_SYSKEYDOWN)
             {

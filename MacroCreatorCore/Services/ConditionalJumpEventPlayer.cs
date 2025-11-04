@@ -1,7 +1,6 @@
 // 命名空间定义了应用程序的入口点
 using MacroCreator.Models;
 using MacroCreator.Models.Events;
-using MacroCreator.Native;
 
 namespace MacroCreator.Services;
 
@@ -71,28 +70,10 @@ public class ConditionalJumpEventPlayer : IEventPlayer
     {
         return conditionalJump.ConditionType switch
         {
-            ConditionType.PixelColor => CheckPixelColor(conditionalJump.X, conditionalJump.Y, conditionalJump.ExpectedColor, conditionalJump.PixelTolerance),
+            ConditionType.PixelColor => context.CheckPixelColor(conditionalJump.X, conditionalJump.Y, conditionalJump.ExpectedColor, conditionalJump.PixelTolerance),
             ConditionType.CustomExpression => Evaluate(context, conditionalJump),
             _ => false
         };
-    }
-
-    private static bool CheckPixelColor(int x, int y, int expectedColorArgb, byte tolerance = 0)
-    {
-        try
-        {
-            var actualColor = NativeMethods.GetPixelColor(x, y);
-            var expectedColor = Color.FromArgb(expectedColorArgb);
-
-            // 允许一定的颜色容差（RGB各通道差值小于等于5） 
-            return Math.Abs(actualColor.R - expectedColor.R) <= tolerance &&
-                   Math.Abs(actualColor.G - expectedColor.G) <= tolerance &&
-                   Math.Abs(actualColor.B - expectedColor.B) <= tolerance;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private static bool Evaluate(PlaybackContext context, ConditionalJumpEvent @event)

@@ -10,8 +10,42 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DynamicExpresso.Core" Version="2.19.3" />
-    <PackageReference Include="System.IO.Ports" Version="9.0.10" />
+    <Compile Remove="Controller\**" />
+    <Compile Remove="Models\**" />
+    <Compile Remove="Services\CH9329\**" />
+    <EmbeddedResource Remove="Controller\**" />
+    <EmbeddedResource Remove="Models\**" />
+    <EmbeddedResource Remove="Services\CH9329\**" />
+    <None Remove="Controller\**" />
+    <None Remove="Models\**" />
+    <None Remove="Services\CH9329\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Services\BreakEventPlayer.cs" />
+    <Compile Remove="Services\ConditionalJumpEventPlayer.cs" />
+    <Compile Remove="Services\DelayEventPlayer.cs" />
+    <Compile Remove="Services\FileService.cs" />
+    <Compile Remove="Services\IEventPlayer.cs" />
+    <Compile Remove="Services\IPrintService.cs" />
+    <Compile Remove="Services\ISimulator.cs" />
+    <Compile Remove="Services\JumpEventPlayer.cs" />
+    <Compile Remove="Services\MouseButton.cs" />
+    <Compile Remove="Services\NopPlayer.cs" />
+    <Compile Remove="Services\PlaybackContext.cs" />
+    <Compile Remove="Services\PlaybackPerformanceMonitor.cs" />
+    <Compile Remove="Services\PlaybackService.cs" />
+    <Compile Remove="Services\ScriptEventPlayer.cs" />
+    <Compile Remove="Services\SimulatorBase.cs" />
+    <Compile Remove="Services\SimulatorKeyboardEventPlayer.cs" />
+    <Compile Remove="Services\SimulatorMouseEventPlayer.cs" />
+    <Compile Remove="Utils\PathHelper.cs" />
+    <Compile Remove="Utils\Rnd.cs" />
+    <Compile Remove="Utils\StringExtensions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MacroCreatorCore\MacroCreatorCore.csproj" />
   </ItemGroup>
 
 </Project>

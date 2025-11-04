@@ -1,9 +1,9 @@
 ﻿using MacroCreator.Models;
 using MacroCreator.Models.Events;
 using System.Globalization;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
+
+using Keys = MacroCreator.Models.Keys;
+using Color = System.Drawing.Color;
 
 namespace MacroScript.Dsl;
 

@@ -1,8 +1,10 @@
 ﻿using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
-namespace MacroScript;
+namespace MacroScript.Utils;
 
-internal static partial class Utils
+[SupportedOSPlatform("windows")]
+internal static partial class Win32Native
 {
     public static nint GetMainWindow()
     {

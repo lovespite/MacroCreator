@@ -2,6 +2,7 @@
 using MacroCreator.Models.Events;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Drawing;
 
 namespace MacroScript.Dsl;
 
@@ -395,7 +396,7 @@ public partial class DslParser
         if (!Enum.TryParse(args[0], true, out KeyboardAction action))
             throw new DslParserException($"行 {lineNumber}: 未知的 KeyboardAction '{args[0]}'", lineNumber);
 
-        if (!Enum.TryParse(args[1], true, out Keys key))
+        if (!Enum.TryParse(args[1], true, out MacroCreator.Models.Keys key))
             throw new DslParserException($"行 {lineNumber}: 未知的 Keys 枚举值 '{args[1]}'", lineNumber);
 
         double delayMs = 0;

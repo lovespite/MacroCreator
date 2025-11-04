@@ -1,6 +1,6 @@
 ﻿// 命名空间定义了应用程序的入口点
 using MacroCreator.Models.Events;
-using System.Diagnostics;
+using System.Drawing;
 
 namespace MacroCreator.Services;
 
@@ -16,6 +16,8 @@ public class PlaybackContext : IDisposable
     private readonly CancellationTokenSource _cts = new();
 
     private readonly IPrintService? _printer;
+
+    public IDeviceScreenService? DeviceScreen { get; set; }
 
     public int CurrentEventIndex { get; private set; } = 0;
 
@@ -62,7 +64,6 @@ public class PlaybackContext : IDisposable
         var interpreter = new DynamicExpresso.Interpreter();
 
         interpreter.SetVariable("runtime", context);
-        interpreter.SetVariable("clipboard", new ClipboardService());
 
         interpreter.SetFunction("set", context.Set);
         interpreter.SetFunction("get", context.Get);
@@ -179,51 +180,36 @@ public class PlaybackContext : IDisposable
         _variables.TryGetValue(name, out var value);
         return value;
     }
+
+    internal void SetInterpreterVariables(Dictionary<string, object> interpreterVariables)
+    {
+        foreach (var kvp in interpreterVariables)
+        {
+            _interpreter.SetVariable(kvp.Key, kvp.Value);
+        }
+    }
+
+    internal bool CheckPixelColor(int x, int y, int expectedColorArgb, byte tolerance)
+    {
+        if (DeviceScreen is null) return false;
+
+        try
+        {
+            var actualColor = Color.FromArgb(DeviceScreen.GetPixelColor(x, y));
+            var expectedColor = Color.FromArgb(expectedColorArgb);
+
+            // 允许一定的颜色容差（RGB各通道差值小于等于5） 
+            return Math.Abs(actualColor.R - expectedColor.R) <= tolerance &&
+                   Math.Abs(actualColor.G - expectedColor.G) <= tolerance &&
+                   Math.Abs(actualColor.B - expectedColor.B) <= tolerance;
+        }
+        catch
+        {
+            return false;
+        }
+
+    }
 }
 
 public delegate Task CallExternalFileDelegate(string filePath);
 public delegate bool ConditionEvaluator();
-
-internal class ClipboardService
-{
-    public bool Write(string text)
-    {
-        try
-        {
-            Clipboard.SetText(text);
-            return true;
-        }
-        catch (Exception ex)
-        {
-#if DEBUG
-            Debug.WriteLine("Clipboard Write Error: " + ex.Message);
-#endif
-            return false;
-        }
-    }
-
-    public string Read()
-    {
-        try
-        {
-            return Clipboard.GetText();
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    public bool WriteImage(Image image)
-    {
-        try
-        {
-            Clipboard.SetImage(image);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-}

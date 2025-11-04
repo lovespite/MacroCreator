@@ -4,7 +4,7 @@
  * 本类根据 "CH9329芯片串口通信协议V1.0.pdf" 文档实现。
  * 它提供了一个通过 .NET SerialPort 与 CH9329 芯片进行通信的接口。
  */
-
+using MacroCreator.Models;
 namespace MacroCreator.Services.CH9329;
 
 internal static class HidKeys

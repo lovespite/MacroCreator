@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 
 namespace MacroCreator.Services;
 
+[Obsolete("使用SimulatorMouseEventPlayer替代")]
 public class MouseEventPlayer : IEventPlayer
 {
     public Task<PlaybackResult> ExecuteAsync(PlaybackContext context)

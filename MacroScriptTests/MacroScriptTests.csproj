@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MacroCreatorCore\MacroCreatorCore.csproj" />
     <ProjectReference Include="..\MacroScript\MacroScript.csproj" />
   </ItemGroup>
 

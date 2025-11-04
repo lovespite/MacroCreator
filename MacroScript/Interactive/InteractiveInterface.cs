@@ -3,6 +3,7 @@ using MacroCreator.Models.Events;
 using MacroCreator.Services;
 using MacroCreator.Services.CH9329;
 using MacroScript.Dsl;
+using MacroScript.Utils;
 using System.Diagnostics;
 
 namespace MacroScript.Interactive;
@@ -170,14 +171,28 @@ internal partial class InteractiveInterface : IDisposable
         await _controller!.Simulator!.MouseMove(dx, dy);
     }
 
-    [InteractiveFunction(Name = "click", Alias = "tap", Description = "点击鼠标")]
+    [InteractiveFunction(Name = "mv2", Description = "移动鼠标（绝对量）")]
+    public async Task MouseMoveTo(int x, int y)
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator!.MouseMoveTo(x, y);
+    }
+
+    [InteractiveFunction(Name = "click", Description = "点击鼠标")]
     public async Task MouseClick(
-        [InteractiveParameter(Description = "按下的键\nLeft(l): 左键\nRight(r): 右键\nMiddle(m): 中键\n单个或组合, 例如: click lr // 同时按下左右键")] MouseButton button,
+        [InteractiveParameter(Description = "左键: Left(l)，右键: Right(r)，中键: Middle(m)，允许多个组合, eg. 同时按下左右键: click lr")] MouseButton button,
         [InteractiveParameter(Description = "按下释放按钮之间的延迟（毫秒）")] int delay = 50
     )
     {
         ThrowIfControllerNotConnected();
         await _controller!.Simulator!.MouseClick(button, delay);
+    }
+
+    [InteractiveFunction(Name = "wheel", Description = "滚动滚轮")]
+    public async Task MouseWheel(int amount)
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator!.MouseWheel(amount);
     }
 
 #if DEBUG
@@ -197,24 +212,24 @@ partial class InteractiveInterface
 {
     public static async Task<MacroController> GetMacroController(string? comPort)
     {
-        var simulator = comPort is null ? null : InputSimulator.Open(comPort);
+        var simulator = comPort is null ? null : Ch9329Simulator.Open(comPort);
         simulator?.Controller.Open();
         simulator?.Controller.WarmupCache();
-        var controller = new MacroController(simulator);
-
-        controller.OnPrint += ConsoleHelper.Instance.Print;
-        controller.OnPrintLine += ConsoleHelper.Instance.PrintLine;
-
-        if (controller.Redirected)
+        if (simulator is not null)
         {
             ConsoleHelper.Instance.PrintLine($"正在连接设备 {comPort} ...");
-            var info = await controller.Simulator!.Controller.GetInfoAsync();
-            ConsoleHelper.Instance.PrintInfo($"已重定向到设备 {comPort}, 状态:\n{info}");
+            var info = await simulator.Controller.GetInfoAsync();
+
             if (info.UsbStatus == UsbStatus.NotConnected)
             {
-                throw new InvalidOperationException("HID设备未连接到目标主机，或未被正确识别，请检查连接后重试。");
+                throw new InvalidOperationException("HID设备未连接到目标主机，或未被正确识别，请检查连接后重试");
             }
+            ConsoleHelper.Instance.PrintInfo($"已重定向到设备 {comPort}, 状态:\n{info}");
         }
+
+        var controller = new MacroController(new SystemTimer(), simulator);
+        controller.OnPrint += ConsoleHelper.Instance.Print;
+        controller.OnPrintLine += ConsoleHelper.Instance.PrintLine;
 
         return controller;
     }

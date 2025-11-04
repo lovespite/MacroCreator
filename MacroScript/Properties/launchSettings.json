@@ -10,11 +10,15 @@
     },
     "Compile File": {
       "commandName": "Project",
-      "commandLineArgs": "compile DslDemo\\DslDemo3.macroscript --view"
+      "commandLineArgs": "compile DslDemo\\DslDemo3.macroscript"
+    },
+    "Interactive(Redirect)": {
+      "commandName": "Project",
+      "commandLineArgs": "interactive -r COM17"
     },
     "Interactive": {
       "commandName": "Project",
-      "commandLineArgs": "interactive -r COM17"
+      "commandLineArgs": "interactive"
     }
   }
 }

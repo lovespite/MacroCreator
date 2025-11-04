@@ -1,7 +1,7 @@
 using MacroCreator.Models;
 using MacroCreator.Models.Events;
 using MacroCreator.Utils;
-
+using Keys = MacroCreator.Models.Keys;
 namespace MacroCreator.Forms;
 
 public partial class EditKeyboardEventForm : Form
@@ -12,7 +12,7 @@ public partial class EditKeyboardEventForm : Form
 
     private readonly KeyboardEvent? _editing = null;
 
-    public bool CreatePairedEvent => KeyAction == KeyboardAction.KeyDown && chkPairedEvents.Checked;
+    public bool CreatePairedEvent => _editing is null && KeyAction == KeyboardAction.KeyDown && chkPairedEvents.Checked;
 
     public double DelayMilliseconds
     {
@@ -217,7 +217,7 @@ public partial class EditKeyboardEventForm : Form
 
     private void ComboBoxAction_SelectedIndexChanged(object sender, EventArgs e)
     {
-        chkPairedEvents.Visible = comboBoxAction.SelectedIndex switch
+        chkPairedEvents.Visible = _editing is null && comboBoxAction.SelectedIndex switch
         {
             (int)KeyboardAction.KeyDown => true, // 仅按下事件允许配对 
             _ => false,
