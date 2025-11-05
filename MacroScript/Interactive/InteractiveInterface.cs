@@ -1,4 +1,5 @@
 ﻿using MacroCreator.Controller;
+using MacroCreator.Curve;
 using MacroCreator.Models;
 using MacroCreator.Models.Events;
 using MacroCreator.Services;
@@ -168,31 +169,64 @@ internal partial class InteractiveInterface : IDisposable
     public async Task MouseMove(int dx, int dy)
     {
         ThrowIfControllerNotConnected();
-        await _controller!.Simulator!.MouseMove(dx, dy);
+        await _controller!.Simulator.MouseMove(dx, dy);
+    }
+
+    [InteractiveFunction(Name = "drag", Description = "拖动鼠标（相对量，±127）")]
+    public async Task MouseDrag(MouseButton button, int dx, int dy)
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator.MouseDown(button);
+        await _controller!.Simulator.MouseMove(dx, dy);
+        await _controller!.Simulator.MouseUp(button);
+    }
+
+    [InteractiveFunction(Name = "hmv", Description = "模拟人类移动鼠标")]
+    public async Task HumanMouseMove(
+        int dx, int dy,
+        [InteractiveParameter(Description = "总移动时间")] int msDuration)
+    {
+        ThrowIfControllerNotConnected();
+        await foreach (var ms in HumanMouseMover.GenerateHumanMovementAsync(dx, dy, msDuration))
+        {
+            await _controller!.Simulator.MouseMove(ms.DeltaX, ms.DeltaY);
+        }
+    }
+
+    [InteractiveFunction(Name = "hdrag", Description = "模拟人类拖动鼠标")]
+    public async Task HumanMouseDrag(
+    [InteractiveParameter(Description = "按下的按钮: l(Left), r(Right), m(Middle) 之一")] MouseButton button,
+    int dx, int dy,
+    [InteractiveParameter(Description = "总移动时间")] int msDuration)
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator.MouseDown(button);
+        await HumanMouseMove(dx, dy, msDuration);
+        await _controller!.Simulator.MouseUp(button);
     }
 
     [InteractiveFunction(Name = "mv2", Description = "移动鼠标（绝对量）")]
     public async Task MouseMoveTo(int x, int y)
     {
         ThrowIfControllerNotConnected();
-        await _controller!.Simulator!.MouseMoveTo(x, y);
+        await _controller!.Simulator.MouseMoveTo(x, y);
     }
 
     [InteractiveFunction(Name = "click", Description = "点击鼠标")]
     public async Task MouseClick(
-        [InteractiveParameter(Description = "左键: Left(l)，右键: Right(r)，中键: Middle(m)，允许多个组合, eg. 同时按下左右键: click lr")] MouseButton button,
+        [InteractiveParameter(Description = "l(Left), r(Right), m(Middle)，允许多个组合, eg. 同时按下左右键: click lr")] MouseButton button,
         [InteractiveParameter(Description = "按下释放按钮之间的延迟（毫秒）")] int delay = 50
     )
     {
         ThrowIfControllerNotConnected();
-        await _controller!.Simulator!.MouseClick(button, delay);
+        await _controller!.Simulator.MouseClick(button, delay);
     }
 
     [InteractiveFunction(Name = "wheel", Description = "滚动滚轮")]
     public async Task MouseWheel(int amount)
     {
         ThrowIfControllerNotConnected();
-        await _controller!.Simulator!.MouseWheel(amount);
+        await _controller!.Simulator.MouseWheel(amount);
     }
 
     [InteractiveFunction(Name = "delay", Description = "延迟指定的毫秒数")]
@@ -206,7 +240,7 @@ internal partial class InteractiveInterface : IDisposable
     public async Task KeyDown(Keys[] keys)
     {
         ThrowIfControllerNotConnected();
-        await _controller!.Simulator!.KeyDown(keys);
+        await _controller!.Simulator.KeyDown(keys);
     }
 
     [InteractiveFunction(Name = "ku", Description = "释放指定按键, 若未指定参数")]
@@ -215,26 +249,26 @@ internal partial class InteractiveInterface : IDisposable
         ThrowIfControllerNotConnected();
         if (keys.Length == 0)
         {
-            await _controller!.Simulator!.ReleaseAllKeys();
+            await _controller!.Simulator.ReleaseAllKeys();
         }
         else
         {
-            await _controller!.Simulator!.KeyUp(keys);
+            await _controller!.Simulator.KeyUp(keys);
         }
+    }
+
+    [InteractiveFunction(Name = "kua", Description = "释放所有键盘按键")]
+    public async Task ReleaseAllKeys()
+    {
+        ThrowIfControllerNotConnected();
+        await _controller!.Simulator.ReleaseAllKeys();
     }
 
     [InteractiveFunction(Name = "type", Description = "输入文本,仅支持英文（包含大小写）、数字和基本符号")]
     public async Task TypeText(string text, int msDelay = 10)
     {
         ThrowIfControllerNotConnected();
-        await _controller!.Simulator!.TypeText(text, msDelay);
-    }
-
-    [InteractiveFunction(Name = "kua", Description = "释放所有按键")]
-    public async Task ReleaseAllKeys()
-    {
-        ThrowIfControllerNotConnected();
-        await _controller!.Simulator!.ReleaseAllKeys();
+        await _controller!.Simulator.TypeText(text, msDelay);
     }
 
     [InteractiveFunction(Name = "press", Description = "按下并释放指定按键")]
@@ -243,7 +277,7 @@ internal partial class InteractiveInterface : IDisposable
         ThrowIfControllerNotConnected();
         foreach (var key in keys)
         {
-            await _controller!.Simulator!.KeyPress(key, 20);
+            await _controller!.Simulator.KeyPress(key, 20);
             await Task.Delay(delay);
         }
     }
