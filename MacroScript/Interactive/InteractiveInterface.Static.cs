@@ -54,6 +54,7 @@ partial class InteractiveInterface
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
             controller.PlaybackService.SetInterpreterVariable("clipboard", new Win32.Win32Clipboard());
 
+        controller.PlaybackService.SetInterpreterVariable("hid", simulator);
         controller.OnPrint += ConsoleHelper.Instance.Print;
         controller.OnPrintLine += ConsoleHelper.Instance.PrintLine;
 

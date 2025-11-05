@@ -1,0 +1,15 @@
+﻿Script(`
+
+set("a", 1)
+set("a", a + 1)
+set("a", a + 10)
+println("a = " + a)
+
+
+hid.MouseMove(a, a)
+hid.MouseClick(hid.MB_L)
+
+
+`)
+
+Delay(1000)

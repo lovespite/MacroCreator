@@ -64,7 +64,7 @@ public class PlaybackContext : IDisposable
         var interpreter = new DynamicExpresso.Interpreter();
 
         interpreter.SetVariable("runtime", context);
-
+        interpreter.SetFunction("rnd", Random.Shared.NextDouble);
         interpreter.SetFunction("set", context.Set);
         interpreter.SetFunction("get", context.Get);
         interpreter.SetFunction("unset", context.Unset);
@@ -168,11 +168,13 @@ public class PlaybackContext : IDisposable
     public void Set(string name, object? value)
     {
         _variables[name] = value;
+        _interpreter.SetVariable(name, value);
     }
 
     public void Unset(string name)
     {
         _variables.Remove(name);
+        _interpreter.UnsetVariable(name);
     }
 
     public object? Get(string name)

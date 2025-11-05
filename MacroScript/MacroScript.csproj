@@ -14,6 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="DslDemo\DslDemo4.macroscript">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="DslDemo\DslDemo3.macroscript">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
