@@ -11,7 +11,6 @@ using System.IO.Ports;
 using System.Runtime.CompilerServices;
 using System.Text;
 using MacroCreator.Models;
-using MacroCreator.Models;
 
 namespace MacroCreator.Services.CH9329;
 

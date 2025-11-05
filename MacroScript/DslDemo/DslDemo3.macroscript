@@ -7,12 +7,13 @@ println("a = " + get("a"))
 `)
 
 if (Custom(`(int)get("a") <= 10`))
+    MouseMove(2, 2, 5)
     goto sc1
 endif
 
 Script(`
     set("isOk", clipboard.Write("Final value of a: " + get("a")))
-    println("Clipboard write success: " + get("isOk"))
+    println("Clipboard write success: " + clipboard.Read())
 `)
 
 KeyDown(LWin, R, 100) // 延迟100ms, 然后按下左Win + R

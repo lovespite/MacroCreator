@@ -14,11 +14,14 @@
     },
     "Interactive(Redirect)": {
       "commandName": "Project",
-      "commandLineArgs": "interactive -r COM17"
+      "commandLineArgs": "interactive -r COM17",
+      "remoteDebugEnabled": false
     },
     "Interactive": {
       "commandName": "Project",
-      "commandLineArgs": "interactive"
+      "commandLineArgs": "interactive",
+      "remoteDebugEnabled": false,
+      "remoteDebugMachine": "10.75.6.220:22"
     }
   }
 }
