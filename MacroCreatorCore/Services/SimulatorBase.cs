@@ -9,12 +9,8 @@ using MacroCreator.Utils;
 
 namespace MacroCreator.Services;
 
-public abstract class SimulatorBase : ISimulator
+public abstract partial class SimulatorBase : ISimulator
 {
-    public readonly MouseButton MB_L = MouseButton.Left;
-    public readonly MouseButton MB_R = MouseButton.Right;
-    public readonly MouseButton MB_M = MouseButton.Middle;
-
     public abstract string Name { get; }
     public abstract Task MouseMove(int dx, int dy);
     public abstract Task MouseMoveTo(int x, int y);

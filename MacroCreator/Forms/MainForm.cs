@@ -47,6 +47,7 @@ public partial class MainForm : Form
         _controller.StateChanged += OnAppStateChanged;
         _controller.EventSequenceChanged += OnEventSequenceChanged;
         _controller.StatusMessageChanged += Controller_StatusChanged;
+        _controller.PlaybackService.SetInterpreterVariable("hid", _controller.Simulator);
 
         UpdateTitle();
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态

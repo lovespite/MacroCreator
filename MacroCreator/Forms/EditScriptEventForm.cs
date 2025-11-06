@@ -68,8 +68,10 @@ namespace MacroCreator.Forms
         public EditScriptEventForm(string? defaultName = null)
         {
             InitializeComponent();
-            _interpreter = new PlaybackContext().CreateInterpreter();
-            _interpreter.SetVariable("clipboard", new Win32.Win32Clipboard());
+            _interpreter = new PlaybackContext().CreateInterpreter()
+                .SetVariable("clipboard", new Win32.Win32Clipboard())
+                .SetVariable("hid", new NopSimulator());
+
             textBoxEventName.Text = defaultName ?? ("Script_" + Rnd.GetString(5));
         }
 

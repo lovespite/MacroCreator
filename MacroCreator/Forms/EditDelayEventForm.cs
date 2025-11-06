@@ -44,21 +44,9 @@ public partial class EditDelayEventForm : Form
 
         _editing = delayEvent;
         double delayMs = delayEvent.DelayMilliseconds;
-        if (delayMs >= 60000.0 && delayMs % 60000.0 == 0)
-        {
-            comboBox1.SelectedIndex = 2; // 分钟
-            numericUpDown1.Value = (decimal)(delayMs / 60000.0);
-        }
-        else if (delayMs >= 1000.0 && delayMs % 1000.0 == 0)
-        {
-            comboBox1.SelectedIndex = 1; // 秒
-            numericUpDown1.Value = (decimal)(delayMs / 1000.0);
-        }
-        else
-        {
-            comboBox1.SelectedIndex = 0; // 毫秒
-            numericUpDown1.Value = (decimal)delayMs;
-        }
+
+        comboBox1.SelectedIndex = 0; // 毫秒
+        numericUpDown1.Value = (decimal)delayMs;
     }
 
     private void InsertDelayForm_Load(object sender, EventArgs e)

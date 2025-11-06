@@ -1,15 +1,25 @@
 ﻿Script(`
-
-set("a", 1)
-set("a", a + 1)
-set("a", a + 10)
-println("a = " + a)
-
-
-hid.MouseMove(a, a)
-hid.MouseClick(hid.MB_L)
-
-
+set("dx", 0.0d)
+set("dy", 0.0d)
+set("count", 0)
 `)
 
-Delay(1000)
+while(Custom(`count <= 20`))
+  Script(`
+  set("dx", 20 * rnd())
+  set("dy", 20 * rnd()) 
+  println(count + " : Moving mouse (" + dx + ", " + dy + ")")
+  hid.MouseMove((int)dx, (int)dy).Wait()
+  set("count", 1 + count)
+  `)
+  Delay(1000)
+endwhile
+
+Script(` 
+// hid.MouseClick(hid.Mouse.R).Wait()
+
+hid.KeyCombination(hid.Kbd.LWin, hid.Kbd.R).Wait()
+hid.TypeText("notepad\\n").Wait()
+
+`)
+ 

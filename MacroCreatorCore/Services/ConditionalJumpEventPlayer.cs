@@ -71,17 +71,9 @@ public class ConditionalJumpEventPlayer : IEventPlayer
         return conditionalJump.ConditionType switch
         {
             ConditionType.PixelColor => context.CheckPixelColor(conditionalJump.X, conditionalJump.Y, conditionalJump.ExpectedColor, conditionalJump.PixelTolerance),
-            ConditionType.CustomExpression => Evaluate(context, conditionalJump),
+            // ConditionType.CustomExpression => Evaluate(context, conditionalJump),
+            ConditionType.CustomExpression => Convert.ToBoolean(context.Execute(conditionalJump.CustomCondition ?? "false")),
             _ => false
         };
-    }
-
-    private static bool Evaluate(PlaybackContext context, ConditionalJumpEvent @event)
-    {
-        if (string.IsNullOrWhiteSpace(@event.CustomCondition)) return false;
-        var evaluator = context.GetConditionEvaluator(@event);
-
-        if (evaluator == null) return false;
-        return evaluator();
     }
 }

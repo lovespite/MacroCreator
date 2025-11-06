@@ -10,7 +10,7 @@
     },
     "Compile File": {
       "commandName": "Project",
-      "commandLineArgs": "compile DslDemo\\DslDemo3.macroscript"
+      "commandLineArgs": "compile DslDemo\\DslDemo4.macroscript"
     },
     "Interactive(Redirect)": {
       "commandName": "Project",

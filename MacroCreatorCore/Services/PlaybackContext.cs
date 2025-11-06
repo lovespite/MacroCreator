@@ -11,7 +11,6 @@ public class PlaybackContext : IDisposable
 {
     private readonly Dictionary<string, int> _indexCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, object?> _variables = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<MacroEvent, ConditionEvaluator> _exprCache = [];
     private readonly DynamicExpresso.Interpreter _interpreter = new();
     private readonly CancellationTokenSource _cts = new();
 
@@ -40,10 +39,7 @@ public class PlaybackContext : IDisposable
     /// </summary>
     public IReadOnlyList<MacroEvent> Events { get; }
 
-    public PlaybackContext(
-        IReadOnlyList<MacroEvent> events,
-        CallExternalFileDelegate? callback = null,
-        IPrintService? printer = null)
+    public PlaybackContext(IReadOnlyList<MacroEvent> events, CallExternalFileDelegate? callback = null, IPrintService? printer = null)
     {
         Events = events;
         LoadAndPlayNewFileCallback = callback;
@@ -72,6 +68,7 @@ public class PlaybackContext : IDisposable
         interpreter.SetFunction("utcnow", () => DateTime.UtcNow);
         interpreter.SetFunction("print", Print);
         interpreter.SetFunction("println", PrintLine);
+        interpreter.SetFunction("delay", (int ms) => Task.Delay(ms));
 
         return interpreter;
     }
@@ -147,17 +144,6 @@ public class PlaybackContext : IDisposable
         _cts.Dispose();
 
         GC.SuppressFinalize(this);
-    }
-
-    public ConditionEvaluator GetConditionEvaluator(ConditionalJumpEvent @event)
-    {
-        if (_exprCache.TryGetValue(@event, out var func))
-            return func;
-
-        var expr = _interpreter.ParseAsDelegate<ConditionEvaluator>(@event.CustomCondition)
-            ?? throw new InvalidOperationException($"无法编译条件表达式: `{@event.CustomCondition}`");
-
-        return (_exprCache[@event] = expr);
     }
 
     public object Execute(string expression)
