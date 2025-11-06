@@ -707,7 +707,7 @@ public partial class NewDslParser
 
         if (delayMs > 0)
         {
-            foreach (var evt in collection.TakeLast(1))
+            foreach (var evt in collection.Skip(1))
                 evt.TimeSinceLastEvent = delayMs;
         }
 
