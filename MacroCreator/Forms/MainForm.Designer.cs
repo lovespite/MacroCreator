@@ -29,6 +29,7 @@ namespace MacroCreator.Forms
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             menuStrip = new MenuStrip();
             fileToolStripMenuItem = new ToolStripMenuItem();
             newToolStripMenuItem = new ToolStripMenuItem();
@@ -86,6 +87,7 @@ namespace MacroCreator.Forms
             mvEventUpToolStripMenuItem7 = new ToolStripMenuItem();
             toolStripSeparator6 = new ToolStripSeparator();
             删除DToolStripMenuItem = new ToolStripMenuItem();
+            btnClsLog = new Button();
             textBoxLogger = new TextBox();
             buttonPanel = new FlowLayoutPanel();
             btnRecord = new Button();
@@ -418,6 +420,7 @@ namespace MacroCreator.Forms
             // 
             // splitContainer1.Panel2
             // 
+            splitContainer1.Panel2.Controls.Add(btnClsLog);
             splitContainer1.Panel2.Controls.Add(textBoxLogger);
             splitContainer1.Size = new Size(945, 496);
             splitContainer1.SplitterDistance = 639;
@@ -548,15 +551,28 @@ namespace MacroCreator.Forms
             删除DToolStripMenuItem.Text = "删除(&D)";
             删除DToolStripMenuItem.Click += DeleteToolStripMenuItem5_Click;
             // 
+            // btnClsLog
+            // 
+            btnClsLog.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnClsLog.Image = (Image)resources.GetObject("btnClsLog.Image");
+            btnClsLog.Location = new Point(249, 460);
+            btnClsLog.Name = "btnClsLog";
+            btnClsLog.Size = new Size(32, 32);
+            btnClsLog.TabIndex = 1;
+            btnClsLog.UseVisualStyleBackColor = true;
+            btnClsLog.Click += BtnClsLog_Click;
+            // 
             // textBoxLogger
             // 
-            textBoxLogger.BackColor = Color.Gainsboro;
+            textBoxLogger.BackColor = SystemColors.Control;
             textBoxLogger.BorderStyle = BorderStyle.None;
             textBoxLogger.Dock = DockStyle.Fill;
+            textBoxLogger.ForeColor = Color.FromArgb(64, 64, 64);
             textBoxLogger.Location = new Point(0, 0);
             textBoxLogger.Multiline = true;
             textBoxLogger.Name = "textBoxLogger";
             textBoxLogger.ReadOnly = true;
+            textBoxLogger.ScrollBars = ScrollBars.Vertical;
             textBoxLogger.Size = new Size(302, 496);
             textBoxLogger.TabIndex = 0;
             // 
@@ -725,5 +741,6 @@ namespace MacroCreator.Forms
         private ToolStripMenuItem helpToolStripMenuItem;
         private ToolStripMenuItem openConsoleToolStripMenuItem;
         private ToolStripMenuItem insertScriptToolStripMenuItem5;
+        private Button btnClsLog;
     }
 }

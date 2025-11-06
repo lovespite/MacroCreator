@@ -4,8 +4,7 @@ using MacroCreator.Models.Events;
 using MacroCreator.Native;
 using MacroCreator.Services;
 using MacroCreator.Utils;
-
-using Keys = MacroCreator.Models.Keys;
+using System.Diagnostics;
 namespace MacroCreator.Forms;
 
 public partial class MainForm : Form
@@ -37,8 +36,6 @@ public partial class MainForm : Form
             .SetupRecordingService(new Win32RecordingService())
             .SetupDeviceScreenService(new Win32Screen());
 
-        _controller.PlaybackService.SetInterpreterVariable("clipboard", new Win32.Win32Clipboard());
-
         ActiveEvent = null;
 
         // 订阅 Controller 事件
@@ -47,7 +44,9 @@ public partial class MainForm : Form
         _controller.StateChanged += OnAppStateChanged;
         _controller.EventSequenceChanged += OnEventSequenceChanged;
         _controller.StatusMessageChanged += Controller_StatusChanged;
-        _controller.PlaybackService.SetInterpreterVariable("hid", _controller.Simulator);
+        _controller.PlaybackService
+            .SetInterpreterVariable("hid", _controller.Simulator)
+            .SetInterpreterVariable("clipboard", new Win32.Win32Clipboard());
 
         UpdateTitle();
         OnAppStateChanged(AppState.Idle); // 设置初始UI状态
@@ -932,7 +931,16 @@ public partial class MainForm : Form
 
     private void OpenConsoleToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        openConsoleToolStripMenuItem.Enabled = !NativeMethods.AllocConsole();
+        var consoleExeName = nameof(MacroScript) + ".exe";
+
+        try
+        {
+            _ = Process.Start(consoleExeName);
+        }
+        catch (Exception ex)
+        {
+            _ = MessageBox.Show(this, $"无法打开控制台\n{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private void LvEvents_DoubleClick(object sender, EventArgs e)
@@ -940,5 +948,11 @@ public partial class MainForm : Form
         editEventToolStripMenuItem.PerformClick();
     }
 
+    private void BtnClsLog_Click(object sender, EventArgs e)
+    {
+        textBoxLogger.Text = string.Empty;
+    }
+
     #endregion
+
 }
