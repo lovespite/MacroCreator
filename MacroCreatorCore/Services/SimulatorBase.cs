@@ -1,9 +1,3 @@
-/*
- * CH9329 输入模拟器 - 高级封装类
- * 
- * 提供简化的鼠标和键盘操作接口，基于 Ch9329Controller 实现。
- */
-
 using MacroCreator.Models;
 using MacroCreator.Utils;
 
@@ -11,26 +5,23 @@ namespace MacroCreator.Services;
 
 public abstract partial class SimulatorBase : ISimulator
 {
+    #region Abstract Members
+
     public abstract string Name { get; }
     public abstract Task MouseMove(int dx, int dy);
     public abstract Task MouseMoveTo(int x, int y);
     public abstract Task MouseDown(MouseButton button);
     public abstract Task MouseUp(MouseButton button);
-    public virtual async Task MouseClick(MouseButton button, int delayMs = 25)
-    {
-        await MouseDown(button);
-        if (delayMs > 0) await Task.Delay(delayMs);
-        await MouseUp(button);
-    }
-    public virtual async Task MouseDoubleClick(MouseButton button, int delayMs = 50)
-    {
-        await MouseClick(button, delayMs);
-        if (delayMs > 0) await Task.Delay(delayMs);
-        await MouseClick(button, delayMs);
-    }
     public abstract Task MouseWheel(int amount);
     public abstract Task KeyDown(params Keys[] key);
     public abstract Task KeyUp(params Keys[] key);
+    public abstract Task ReleaseAllKeys();
+    public abstract Task ReleaseAllMouse();
+    public abstract void SetScreenResolution(int width, int height);
+
+    #endregion
+
+    #region Virtual Members
 
     public virtual async Task KeyPress(Keys key, int delayMs = 20)
     {
@@ -95,11 +86,24 @@ public abstract partial class SimulatorBase : ISimulator
         await ReleaseAllKeys();
     }
 
-    public abstract Task ReleaseAllKeys();
-    public abstract Task ReleaseAllMouse();
-    public abstract void SetScreenResolution(int width, int height);
+    public virtual async Task MouseClick(MouseButton button, int delayMs = 25)
+    {
+        await MouseDown(button);
+        if (delayMs > 0) await Task.Delay(delayMs);
+        await MouseUp(button);
+    }
+
+    public virtual async Task MouseDoubleClick(MouseButton button, int delayMs = 50)
+    {
+        await MouseClick(button, delayMs);
+        if (delayMs > 0) await Task.Delay(delayMs);
+        await MouseClick(button, delayMs);
+    }
+
     public virtual void Dispose()
     {
         GC.SuppressFinalize(this);
     }
+
+    #endregion
 }

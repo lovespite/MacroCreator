@@ -42,6 +42,7 @@
             imageList1 = new ImageList(components);
             lbCursor = new Label();
             btnCheck = new Button();
+            columnHeader3 = new ColumnHeader();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
@@ -121,7 +122,7 @@
             // 
             // lvErrors
             // 
-            lvErrors.Columns.AddRange(new ColumnHeader[] { columnHeader1, columnHeader2 });
+            lvErrors.Columns.AddRange(new ColumnHeader[] { columnHeader3, columnHeader1, columnHeader2 });
             lvErrors.Cursor = Cursors.Hand;
             lvErrors.Dock = DockStyle.Fill;
             lvErrors.Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Underline, GraphicsUnit.Point, 134);
@@ -138,11 +139,12 @@
             // 
             // columnHeader1
             // 
-            columnHeader1.Text = "行";
+            columnHeader1.Text = "位置";
+            columnHeader1.Width = 80;
             // 
             // columnHeader2
             // 
-            columnHeader2.Text = "错误";
+            columnHeader2.Text = "描述";
             columnHeader2.Width = 320;
             // 
             // imageList1
@@ -151,6 +153,7 @@
             imageList1.ImageStream = (ImageListStreamer)resources.GetObject("imageList1.ImageStream");
             imageList1.TransparentColor = Color.Transparent;
             imageList1.Images.SetKeyName(0, "error.png");
+            imageList1.Images.SetKeyName(1, "warning.png");
             // 
             // lbCursor
             // 
@@ -172,6 +175,11 @@
             btnCheck.Text = "检查(&I)";
             btnCheck.UseVisualStyleBackColor = true;
             btnCheck.Click += BtnCheck_Click;
+            // 
+            // columnHeader3
+            // 
+            columnHeader3.Text = "类型";
+            columnHeader3.Width = 80;
             // 
             // EditScriptEventForm
             // 
@@ -213,5 +221,6 @@
         private Label lbCursor;
         private Button btnCheck;
         private ImageList imageList1;
+        private ColumnHeader columnHeader3;
     }
 }

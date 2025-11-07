@@ -9,6 +9,7 @@ namespace MacroCreator.Forms
     {
         private readonly ScriptEvent? _editing;
         private readonly DynamicExpresso.Interpreter _interpreter;
+        private readonly string[] ERROR_TYPES = ["错误", "警告"];
 
         public string? EventName => string.IsNullOrWhiteSpace(textBoxEventName.Text) ? null : textBoxEventName.Text.Trim();
 
@@ -24,10 +25,11 @@ namespace MacroCreator.Forms
             return ContainsEventName(name, _editing);
         }
 
-        private bool ValidateScriptLines()
+        private bool ValidateScriptLines(out bool hasWarning)
         {
 
             int errorCount = 0;
+            int warnCount = 0;
             int lnIndex;
             lvErrors.Items.Clear();
             lvErrors.BeginUpdate();
@@ -45,16 +47,31 @@ namespace MacroCreator.Forms
                 {
                     _ = _interpreter.Parse(line);
                 }
+                catch (DynamicExpresso.Exceptions.UnknownIdentifierException ex)
+                {
+                    ++warnCount;
+                    AddErrorItem(1, (lnIndex, -1), $"未知标识符: {ex.Identifier}");
+                }
                 catch (Exception ex)
                 {
                     ++errorCount;
-                    var item = lvErrors.Items.Add(new ListViewItem([(lnIndex + 1).ToString(), ex.Message]));
-                    item.ImageIndex = 0;
+                    AddErrorItem(1, (lnIndex, -1), ex.Message);
                 }
             }
 
             lvErrors.EndUpdate();
+            hasWarning = warnCount > 0;
             return errorCount == 0;
+        }
+
+        private ListViewItem AddErrorItem(int type, (int, int) position, string message)
+        {
+            (int line, _) = position;
+            var item = new ListViewItem([ERROR_TYPES[type], $"行: {line + 1}", message]);
+            lvErrors.Items.Add(item);
+            item.ImageIndex = type;
+            item.Tag = position;
+            return item;
         }
 
         private void UpdateTextBoxLineCursor()
@@ -94,7 +111,12 @@ namespace MacroCreator.Forms
                 return;
             }
 
-            if (!ValidateScriptLines()) return;
+            if (!ValidateScriptLines(out var hasWarning)) return;
+            if (hasWarning)
+            {
+                var ret = MessageBox.Show(this, "脚本中存在警告，是否仍然保存？", "存在警告", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (ret != DialogResult.Yes) return;
+            }
 
             DialogResult = DialogResult.OK;
             Close();
@@ -118,7 +140,7 @@ namespace MacroCreator.Forms
 
         private void BtnCheck_Click(object sender, EventArgs e)
         {
-            ValidateScriptLines();
+            ValidateScriptLines(out _);
         }
 
         private void LvErrors_Click(object sender, EventArgs e)
@@ -126,20 +148,18 @@ namespace MacroCreator.Forms
             if (lvErrors.SelectedItems.Count == 0) return;
 
             var item = lvErrors.SelectedItems[0];
+            if (item.Tag is not (int lineNum, int _)) return;
 
-            var lineNumStr = item.SubItems[0].Text;
-            if (!int.TryParse(lineNumStr, out int lineNum)) return;
+            if (lineNum < 0 || lineNum >= textBoxScriptCode.Lines.Length) return;
 
-            if (lineNum - 1 < 0 || lineNum - 1 >= textBoxScriptCode.Lines.Length) return;
+            int charIndex = textBoxScriptCode.GetFirstCharIndexFromLine(lineNum);
 
-            int charIndex = textBoxScriptCode.GetFirstCharIndexFromLine(lineNum - 1);
             textBoxScriptCode.Focus();
             textBoxScriptCode.SelectionStart = charIndex;
             textBoxScriptCode.ScrollToCaret();
-            textBoxScriptCode.SelectionLength = textBoxScriptCode.Lines[lineNum - 1].Length;
+            textBoxScriptCode.SelectionLength = textBoxScriptCode.Lines[lineNum].Length;
 
             UpdateTextBoxLineCursor();
-
         }
     }
 }

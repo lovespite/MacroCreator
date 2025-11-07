@@ -565,7 +565,6 @@ namespace MacroCreator.Forms
             // textBoxLogger
             // 
             textBoxLogger.BackColor = SystemColors.Control;
-            textBoxLogger.BorderStyle = BorderStyle.None;
             textBoxLogger.Dock = DockStyle.Fill;
             textBoxLogger.ForeColor = Color.FromArgb(64, 64, 64);
             textBoxLogger.Location = new Point(0, 0);
