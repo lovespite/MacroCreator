@@ -11,7 +11,7 @@ namespace MacroCreator.Controller;
 /// </summary>
 public class MacroController : IPrintService, IDisposable // 实现 IDisposable
 {
-    private List<MacroEvent> _events = [];
+    private readonly List<MacroEvent> _events = [];
     private readonly ISystemTimer _timer;
     private readonly PlaybackService _playbackService;
 
@@ -170,7 +170,7 @@ public class MacroController : IPrintService, IDisposable // 实现 IDisposable
     public void LoadSequence(string filePath)
     {
         _events.Clear();
-        _events = FileService.Load(filePath);
+        _events.AddRange(FileService.Load(filePath));
         _currentFilePath = filePath;
         EventSequenceChanged?.Invoke(new EventSequenceChangeArgs(EventSequenceChangeType.FullRefresh));
         StatusMessageChanged?.Invoke($"文件已加载: {Path.GetFileName(filePath)}");
