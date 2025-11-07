@@ -1,9 +1,3 @@
-/*
- * CH9329 输入模拟器 - 高级封装类
- * 
- * 提供简化的鼠标和键盘操作接口，基于 Ch9329Controller 实现。
- */
-
 using MacroCreator.Models;
 
 namespace MacroCreator.Services;
