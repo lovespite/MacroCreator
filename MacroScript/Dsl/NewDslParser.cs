@@ -21,22 +21,15 @@ public partial class NewDslParser
     private readonly List<(JumpEvent Event, string TargetName, int LineNumber)> _gotoFixups = [];
 
     // --- Types and Structures ---
-    private class FlowControlBlock
+    private class FlowControlBlock(TokenType type, string? startLabel, string? elseLabel, string endLabel, int lineNumber, string? varName = null, double step = 0)
     {
-        public TokenType Type { get; }
-        public string? StartLabel { get; } // For while loops
-        public string? ElseLabel { get; }  // For if's false branch or while start
-        public string EndLabel { get; }   // Exit point of the block
-        public int LineNumber { get; }
-
-        public FlowControlBlock(TokenType type, string? startLabel, string? elseLabel, string endLabel, int lineNumber)
-        {
-            Type = type;
-            StartLabel = startLabel;
-            ElseLabel = elseLabel;
-            EndLabel = endLabel;
-            LineNumber = lineNumber;
-        }
+        public TokenType Type { get; } = type;
+        public string? StartLabel { get; } = startLabel;
+        public string? ElseLabel { get; } = elseLabel;
+        public string EndLabel { get; } = endLabel;
+        public int LineNumber { get; } = lineNumber;
+        public string? VariableName { get; } = varName;
+        public double StepValue { get; } = step;
     }
 
     // Helper struct for ParseCondition return value
@@ -60,16 +53,16 @@ public partial class NewDslParser
         MoveNextToken(); // Loads the initial _currentToken
 
         // Main parsing loop
-        while (!IsAtEnd())
+        while (!EndOfFile)
         {
             ParseStatement();
             // Expect EndOfLine or EndOfFile after a statement
-            if (!IsAtEnd() && CurrentToken().Type != TokenType.EndOfLine)
+            if (!EndOfFile && CurrentToken.Type != TokenType.EndOfLine)
             {
-                throw CreateException($"Expected end of line or end of file after statement, but got {CurrentToken().Type}");
+                throw CreateException($"Expected end of line or end of file after statement, but got {CurrentToken.Type}");
             }
             // Consume the EndOfLine token after a statement (if present)
-            if (!IsAtEnd() && CurrentToken().Type == TokenType.EndOfLine)
+            if (!EndOfFile && CurrentToken.Type == TokenType.EndOfLine)
             {
                 Consume(); // Consume EOL
             }
@@ -148,12 +141,12 @@ public partial class NewDslParser
     /// <summary>
     /// Gets the current token (the one about to be processed).
     /// </summary>
-    private Token CurrentToken() => _currentToken;
+    private Token CurrentToken => _currentToken;
 
     /// <summary>
     /// Checks if the parser has reached the end of the token stream.
     /// </summary>
-    private bool IsAtEnd() => CurrentToken().Type == TokenType.EndOfFile;
+    private bool EndOfFile => CurrentToken.Type == TokenType.EndOfFile;
 
     /// <summary>
     /// Consumes the current token and advances to the next one. Returns the consumed token.
@@ -174,7 +167,7 @@ public partial class NewDslParser
     /// </summary>
     private Token Consume(TokenType expectedType, string? errorMessage = null)
     {
-        var token = CurrentToken();
+        var token = CurrentToken;
         if (token.Type == expectedType)
         {
             return Consume();
@@ -187,7 +180,7 @@ public partial class NewDslParser
     /// </summary>
     private Token Expect(TokenType expectedType, string errorMessage)
     {
-        var token = CurrentToken();
+        var token = CurrentToken;
         if (token.Type != expectedType)
         {
             throw CreateException(errorMessage + $". Got '{token.Type}' ('{token.Value}') instead.");
@@ -202,30 +195,25 @@ public partial class NewDslParser
     /// </summary>
     private void ParseStatement()
     {
-        var token = CurrentToken();
+        var token = CurrentToken;
 
         switch (token.Type)
         {
             case TokenType.KeywordIf: ParseIfStatement(); break;
+            case TokenType.KeywordElseIf: ParseElseIfStatement(); break; // 新增
             case TokenType.KeywordElse: ParseElseStatement(); break;
             case TokenType.KeywordEndIf: ParseEndIfStatement(); break;
             case TokenType.KeywordWhile: ParseWhileStatement(); break;
             case TokenType.KeywordEndWhile: ParseEndWhileStatement(); break;
+            case TokenType.KeywordFor: ParseForStatement(); break; // 新增
+            case TokenType.KeywordEndFor: ParseEndForStatement(); break; // 新增
             case TokenType.KeywordBreak: ParseBreakStatement(); break;
             case TokenType.KeywordLabel: ParseLabelStatement(); break;
             case TokenType.KeywordGoto: ParseGotoStatement(); break;
             case TokenType.KeywordExit: ParseExitStatement(); break;
-            case TokenType.KeywordDelay: ParseDelayStatement(); break;
-            case TokenType.KeywordMouseMove: ParseMouseMoveStatement(); break;
-            case TokenType.KeywordMouseMoveTo: ParseMouseMoveToStatement(); break;
-            case TokenType.KeywordMouseDown: ParseMouseDownStatement(); break;
-            case TokenType.KeywordMouseUp: ParseMouseUpStatement(); break;
-            case TokenType.KeywordMouseClick: ParseMouseClickStatement(); break;
-            case TokenType.KeywordMouseWheel: ParseMouseWheelStatement(); break;
-            case TokenType.KeywordKeyUp: ParseKeyUpStatement(); break;
-            case TokenType.KeywordKeyDown: ParseKeyDownStatement(); break;
-            case TokenType.KeywordKeyPress: ParseKeyPressStatement(); break;
             case TokenType.KeywordScript: ParseScriptStatement(); break;
+            case TokenType.Identifier: ParseFunctionCallStatement(); break;
+
             // EndOfFile is handled by the main loop
             case TokenType.EndOfFile: break;
             // Ignore leading EOL tokens (should be rare after filtering)
@@ -241,7 +229,7 @@ public partial class NewDslParser
 
     private void ParseIfStatement()
     {
-        int line = CurrentToken().LineNumber;
+        int line = CurrentToken.LineNumber;
         Consume(TokenType.KeywordIf);
         Expect(TokenType.ParenOpen, "'if' requires '(' after it");
         var (conditionEvent, jumpTargets) = ParseCondition();
@@ -260,13 +248,52 @@ public partial class NewDslParser
         _blockStack.Push(new FlowControlBlock(TokenType.KeywordIf, null, elseLabel, endLabel, line));
     }
 
+    private void ParseElseIfStatement()
+    {
+        int line = CurrentToken.LineNumber;
+        Consume(TokenType.KeywordElseIf);
+
+        if (_blockStack.Count == 0 || (CurrentBlockType() != TokenType.KeywordIf && CurrentBlockType() != TokenType.KeywordElseIf))
+            throw CreateException($"Unexpected 'elseif' without a matching 'if' or 'elseif'");
+
+        var ifBlock = _blockStack.Pop();
+
+        // 1. Add jump to the end of the *entire* if/elseif/else/endif chain
+        var jumpToEnd = new JumpEvent { TimeSinceLastEvent = 0 };
+        _gotoFixups.Add((jumpToEnd, ifBlock.EndLabel, line));
+        _events.Add(jumpToEnd);
+
+        // 2. Add the label for the *previous* block's false jump
+        if (string.IsNullOrEmpty(ifBlock.ElseLabel)) throw CreateException($"Internal error: If/ElseIf block missing else label", line);
+        AddLabelEvent(ifBlock.ElseLabel);
+
+        // 3. Parse the new condition
+        Expect(TokenType.ParenOpen, "'elseif' requires '(' after it");
+        var (conditionEvent, jumpTargets) = ParseCondition();
+        Expect(TokenType.ParenClose, "Condition requires ')' after it");
+
+        // 4. Create new labels for this block
+        string trueLabel = NewLabel("elseif_true");
+        string newElseLabel = NewLabel("elseif_else");
+
+        conditionEvent.TrueTargetEventName = jumpTargets.IsNotEquals ? newElseLabel : trueLabel;
+        conditionEvent.FalseTargetEventName = jumpTargets.IsNotEquals ? trueLabel : newElseLabel;
+        _events.Add(conditionEvent);
+
+        // 5. Mark the start of the 'true' block
+        AddLabelEvent(trueLabel);
+
+        // 6. Push a new block for this 'elseif'
+        _blockStack.Push(new FlowControlBlock(TokenType.KeywordElseIf, null, newElseLabel, ifBlock.EndLabel, line));
+    }
+
     private void ParseElseStatement()
     {
-        int line = CurrentToken().LineNumber;
+        int line = CurrentToken.LineNumber;
         Consume(TokenType.KeywordElse);
 
-        if (_blockStack.Count == 0 || CurrentBlockType() != TokenType.KeywordIf)
-            throw CreateException($"Unexpected 'else' without a matching 'if'");
+        if (_blockStack.Count == 0 || (CurrentBlockType() != TokenType.KeywordIf && CurrentBlockType() != TokenType.KeywordElseIf))
+            throw CreateException($"Unexpected 'else' without a matching 'if' or 'elseif'");
 
         var ifBlock = _blockStack.Pop();
 
@@ -274,7 +301,7 @@ public partial class NewDslParser
         _gotoFixups.Add((jumpToEnd, ifBlock.EndLabel, line));
         _events.Add(jumpToEnd);
 
-        if (string.IsNullOrEmpty(ifBlock.ElseLabel)) throw CreateException($"Internal error: If block missing else label", line);
+        if (string.IsNullOrEmpty(ifBlock.ElseLabel)) throw CreateException($"Internal error: If/ElseIf block missing else label", line);
         AddLabelEvent(ifBlock.ElseLabel);
 
         _blockStack.Push(new FlowControlBlock(TokenType.KeywordElse, null, null, ifBlock.EndLabel, line));
@@ -282,17 +309,17 @@ public partial class NewDslParser
 
     private void ParseEndIfStatement()
     {
-        int line = CurrentToken().LineNumber;
+        int line = CurrentToken.LineNumber;
         Consume(TokenType.KeywordEndIf);
 
-        if (_blockStack.Count == 0 || (CurrentBlockType() != TokenType.KeywordIf && CurrentBlockType() != TokenType.KeywordElse))
-            throw CreateException($"Unexpected 'endif' without a matching 'if' or 'else'");
+        if (_blockStack.Count == 0 || (CurrentBlockType() != TokenType.KeywordIf && CurrentBlockType() != TokenType.KeywordElse && CurrentBlockType() != TokenType.KeywordElseIf))
+            throw CreateException($"Unexpected 'endif' without a matching 'if', 'elseif', or 'else'");
 
         var block = _blockStack.Pop();
 
-        if (block.Type == TokenType.KeywordIf) // If block without an else
+        if (block.Type == TokenType.KeywordIf || block.Type == TokenType.KeywordElseIf) // If block without an else
         {
-            if (string.IsNullOrEmpty(block.ElseLabel)) throw CreateException($"Internal error: If block missing else label", line);
+            if (string.IsNullOrEmpty(block.ElseLabel)) throw CreateException($"Internal error: If/ElseIf block missing else label", line);
             AddLabelEvent(block.ElseLabel); // Add the target for the false condition jump
         }
 
@@ -301,7 +328,7 @@ public partial class NewDslParser
 
     private void ParseWhileStatement()
     {
-        int line = CurrentToken().LineNumber;
+        int line = CurrentToken.LineNumber;
         Consume(TokenType.KeywordWhile);
         Expect(TokenType.ParenOpen, "'while' requires '(' after it");
         var (conditionEvent, jumpTargets) = ParseCondition();
@@ -324,7 +351,7 @@ public partial class NewDslParser
 
     private void ParseEndWhileStatement()
     {
-        int line = CurrentToken().LineNumber;
+        int line = CurrentToken.LineNumber;
         Consume(TokenType.KeywordEndWhile);
 
         if (_blockStack.Count == 0 || CurrentBlockType() != TokenType.KeywordWhile)
@@ -340,23 +367,113 @@ public partial class NewDslParser
         AddLabelEvent(block.EndLabel); // Add the exit label
     }
 
+    private void ParseForStatement()
+    {
+        int line = CurrentToken.LineNumber;
+        Consume(TokenType.KeywordFor);
+
+        Token varToken = Consume(TokenType.Identifier, "'for' requires a variable name (Identifier)");
+        Consume(TokenType.OperatorEquals, "'for' loop variable requires '=' assignment");
+        Token startToken = Consume(TokenType.Number, "'for' loop requires a numeric start value");
+        Consume(TokenType.KeywordTo, "'for' loop requires 'to'");
+        Token endToken = Consume(TokenType.Number, "'for' loop requires a numeric end value");
+
+        double stepVal = 1.0;
+        if (CurrentToken.Type == TokenType.KeywordStep)
+        {
+            Consume(); // Consume 'step'
+            Token stepToken = Consume(TokenType.Number, "'step' requires a numeric value");
+            if (!double.TryParse(stepToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out stepVal) || stepVal == 0)
+                throw CreateException($"Invalid 'step' value '{stepToken.Value}'. Must be a non-zero number.", line);
+        }
+
+        if (!double.TryParse(startToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double startVal))
+            throw CreateException($"Invalid 'for' loop start value '{startToken.Value}'", line);
+        if (!double.TryParse(endToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double endVal))
+            throw CreateException($"Invalid 'for' loop end value '{endToken.Value}'", line);
+
+        // 1. Initialization Script
+        _events.Add(new ScriptEvent
+        {
+            ScriptLines = [$"set(\"{varToken.Value}\", {startVal.ToString(CultureInfo.InvariantCulture)}l)"],
+            TimeSinceLastEvent = 0
+        });
+
+        // 2. Labels
+        string startLabel = NewLabel("for_start");
+        string bodyLabel = NewLabel("for_body");
+        string endLabel = NewLabel("for_end");
+
+        // 3. Condition Check (at startLabel)
+        AddLabelEvent(startLabel);
+        string condition = stepVal > 0
+            ? $"{varToken.Value} <= {endVal.ToString(CultureInfo.InvariantCulture)}"
+            : $"{varToken.Value} >= {endVal.ToString(CultureInfo.InvariantCulture)}";
+
+        var condEvent = new ConditionalJumpEvent
+        {
+            ConditionType = ConditionType.CustomExpression,
+            CustomCondition = condition,
+            TrueTargetEventName = bodyLabel,
+            FalseTargetEventName = endLabel,
+            TimeSinceLastEvent = 0
+        };
+        _events.Add(condEvent);
+
+        // 4. Body Label
+        AddLabelEvent(bodyLabel);
+
+        // 5. Push block to stack
+        _blockStack.Push(new FlowControlBlock(TokenType.KeywordFor, startLabel, null, endLabel, line, varToken.Value, stepVal));
+    }
+
+    private void ParseEndForStatement()
+    {
+        int line = CurrentToken.LineNumber;
+        Consume(TokenType.KeywordEndFor);
+
+        if (_blockStack.Count == 0 || CurrentBlockType() != TokenType.KeywordFor)
+            throw CreateException($"Unexpected 'endfor' without a matching 'for'");
+
+        var block = _blockStack.Pop();
+        if (string.IsNullOrEmpty(block.StartLabel) || string.IsNullOrEmpty(block.VariableName))
+            throw CreateException($"Internal error: 'for' block is missing metadata", line);
+
+        // 1. Increment Script
+        _events.Add(new ScriptEvent
+        {
+            ScriptLines = [$"set(\"{block.VariableName}\", {block.VariableName} + {block.StepValue.ToString(CultureInfo.InvariantCulture)})"],
+            TimeSinceLastEvent = 0
+        });
+
+        // 2. Jump back to start (condition check)
+        var jumpToStart = new JumpEvent { TimeSinceLastEvent = 0 };
+        _gotoFixups.Add((jumpToStart, block.StartLabel, line));
+        _events.Add(jumpToStart);
+
+        // 3. End Label
+        AddLabelEvent(block.EndLabel);
+    }
+
+
     private void ParseBreakStatement()
     {
-        int line = CurrentToken().LineNumber;
+        int line = CurrentToken.LineNumber;
         Consume(TokenType.KeywordBreak);
 
-        var whileBlock = _blockStack.FirstOrDefault(b => b.Type == TokenType.KeywordWhile);
-        if (whileBlock == null)
-            throw CreateException($"'break' can only be used inside a 'while' loop");
+        // Find the nearest enclosing loop (while or for)
+        var loopBlock = _blockStack.FirstOrDefault(b => b.Type == TokenType.KeywordWhile || b.Type == TokenType.KeywordFor);
+        if (loopBlock == null)
+            throw CreateException($"'break' can only be used inside a 'while' or 'for' loop");
 
         var jumpToEnd = new JumpEvent { TimeSinceLastEvent = 0 };
-        _gotoFixups.Add((jumpToEnd, whileBlock.EndLabel, line));
+        _gotoFixups.Add((jumpToEnd, loopBlock.EndLabel, line));
         _events.Add(jumpToEnd);
     }
 
     private void ParseLabelStatement()
     {
-        int line = CurrentToken().LineNumber;
+        int line = CurrentToken.LineNumber;
         Consume(TokenType.KeywordLabel);
         // Arguments are no longer wrapped in parentheses for label/goto
         var labelToken = Expect(TokenType.Identifier, "'label' requires a label name after it");
@@ -373,7 +490,7 @@ public partial class NewDslParser
 
     private void ParseGotoStatement()
     {
-        int line = CurrentToken().LineNumber;
+        int line = CurrentToken.LineNumber;
         Consume(TokenType.KeywordGoto);
         // Arguments are no longer wrapped in parentheses for label/goto
         var labelToken = Expect(TokenType.Identifier, "'goto' requires a target label name after it");
@@ -393,23 +510,10 @@ public partial class NewDslParser
 
     #region Functional Statement Parsers
 
-    private void ParseDelayStatement()
-    {
-        Consume(TokenType.KeywordDelay);
-        Expect(TokenType.ParenOpen, "'Delay' requires '(' after it");
-        var numberToken = Expect(TokenType.Number, "Requires delay milliseconds");
-        Expect(TokenType.ParenClose, "Milliseconds requires ')' after it");
-
-        if (!double.TryParse(numberToken.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double delay))
-            throw CreateException($"Invalid delay milliseconds '{numberToken.Value}'");
-
-        _events.Add(new DelayEvent { DelayMilliseconds = (int)Math.Round(delay), TimeSinceLastEvent = 0 }); // Use Math.Round for double -> int
-    }
-
     // script(string content, string? name)
     private void ParseScriptStatement()
     {
-        int startLine = CurrentToken().LineNumber;
+        int startLine = CurrentToken.LineNumber;
         Consume(TokenType.KeywordScript);
         string? scriptName = null;
         Expect(TokenType.ParenOpen, "'script' requires '(' after it");
@@ -419,7 +523,7 @@ public partial class NewDslParser
         var scriptContent = contentToken.Value.Trim(); // Raw content with quotes/backticks
 
         // Optional name parameter
-        if (CurrentToken().Type == TokenType.Comma)
+        if (CurrentToken.Type == TokenType.Comma)
         {
             Consume(); // Consume ','
             var nameToken = Expect(TokenType.StringLiteral, "Requires script name string (in quotes or backticks)");
@@ -443,313 +547,274 @@ public partial class NewDslParser
 
     #endregion
 
-    #region Mouse Events Parsers 
+    #region Function Call Parsing (New)
 
-    private void ParseMouseDownStatement()
+    /// <summary>
+    /// 解析标识符开头的语句作为函数调用
+    /// e.g., Delay(100)
+    /// </summary>
+    private void ParseFunctionCallStatement()
     {
-        Consume(TokenType.KeywordMouseDown);
+        Token funcNameToken = Consume(TokenType.Identifier);
+        Expect(TokenType.ParenOpen, $"'{funcNameToken.Value}' function call requires '(' after it");
 
-        Expect(TokenType.ParenOpen, "'MouseDown' requires '(' after it");
-        var buttonToken = Expect(TokenType.Identifier, "Requires mouse button (Left, Right, Middle)");
+        List<Token> args = ParseArguments();
 
-        int delayMs = 0;
+        Expect(TokenType.ParenClose, $"Function call '{funcNameToken.Value}' requires ')' after parameters");
 
-        // Check if there's an optional delay parameter
-        if (CurrentToken().Type == TokenType.Comma)
-        {
-            Consume(); // Consume ','
-            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
-            if (!int.TryParse(delayToken.Value, out delayMs))
-                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
-        }
-
-        Expect(TokenType.ParenClose, "Mouse button requires ')' after it");
-
-        _events.Add(new MouseEvent
-        {
-            Action = buttonToken.Value.ToLowerInvariant() switch
-            {
-                "left" => MouseAction.LeftDown,
-                "right" => MouseAction.RightDown,
-                "middle" => MouseAction.MiddleDown,
-                _ => throw CreateException($"Invalid mouse button '{buttonToken.Value}'. Expected 'Left', 'Right', or 'Middle'."),
-            },
-            TimeSinceLastEvent = delayMs,
-        });
+        MacroEvent[] ev = CreateEventsFromFunctionCall(funcNameToken, args);
+        _events.AddRange(ev);
     }
 
-    private void ParseMouseUpStatement()
+    /// <summary>
+    /// 解析括号内的参数列表
+    /// </summary>
+    private List<Token> ParseArguments()
     {
-        Consume(TokenType.KeywordMouseUp);
-        Expect(TokenType.ParenOpen, "'MouseUp' requires '(' after it");
-        var buttonToken = Expect(TokenType.Identifier, "Requires mouse button (Left, Right, Middle)");
-        int delayMs = 0;
-        // Check if there's an optional delay parameter
-        if (CurrentToken().Type == TokenType.Comma)
+        var args = new List<Token>();
+        if (CurrentToken.Type == TokenType.ParenClose)
         {
-            Consume(); // Consume ','
-            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
-            if (!int.TryParse(delayToken.Value, out delayMs))
-                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
-        }
-        Expect(TokenType.ParenClose, "Mouse button requires ')' after it");
-
-        _events.Add(new MouseEvent
-        {
-            Action = buttonToken.Value.ToLowerInvariant() switch
-            {
-                "left" => MouseAction.LeftUp,
-                "right" => MouseAction.RightUp,
-                "middle" => MouseAction.MiddleUp,
-                _ => throw CreateException($"Invalid mouse button '{buttonToken.Value}'. Expected 'Left', 'Right', or 'Middle'."),
-            },
-            TimeSinceLastEvent = delayMs,
-        });
-    }
-
-    private void ParseMouseClickStatement()
-    {
-        Consume(TokenType.KeywordMouseClick);
-        Expect(TokenType.ParenOpen, "'MouseClick' requires '(' after it");
-        var buttonToken = Expect(TokenType.Identifier, "Requires mouse button (Left, Right, Middle)");
-        int delayMs = 0;
-        // Check if there's an optional delay parameter
-        if (CurrentToken().Type == TokenType.Comma)
-        {
-            Consume(); // Consume ','
-            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
-            if (!int.TryParse(delayToken.Value, out delayMs))
-                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
-        }
-        Expect(TokenType.ParenClose, "Mouse button requires ')' after it");
-
-        (MouseAction, MouseAction) actionPair = buttonToken.Value.ToLowerInvariant() switch
-        {
-            "left" => (MouseAction.LeftDown, MouseAction.LeftUp),
-            "right" => (MouseAction.RightDown, MouseAction.RightUp),
-            "middle" => (MouseAction.MiddleDown, MouseAction.MiddleUp),
-            _ => throw CreateException($"Invalid mouse button '{buttonToken.Value}'. Expected 'Left', 'Right', or 'Middle'."),
-        };
-
-        _events.Add(new MouseEvent
-        {
-            Action = actionPair.Item1,
-            TimeSinceLastEvent = 0,
-        });
-
-        _events.Add(new MouseEvent
-        {
-            Action = actionPair.Item2,
-            TimeSinceLastEvent = delayMs,
-        });
-    }
-
-    private void ParseMouseMoveStatement()
-    {
-        Consume(TokenType.KeywordMouseMove);
-        Expect(TokenType.ParenOpen, "'MouseMove' requires '(' after it");
-        var xToken = Expect(TokenType.Number, "Requires X coordinate");
-        Expect(TokenType.Comma, "X coordinate requires ',' after it");
-        var yToken = Expect(TokenType.Number, "Requires Y coordinate");
-        if (!int.TryParse(xToken.Value, out int x))
-            throw CreateException($"Invalid X coordinate '{xToken.Value}'");
-        if (!int.TryParse(yToken.Value, out int y))
-            throw CreateException($"Invalid Y coordinate '{yToken.Value}'");
-
-        int delayMs = 0;
-
-        if (CurrentToken().Type == TokenType.Comma)
-        {
-            Consume(); // Consume ','
-            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
-            if (!int.TryParse(delayToken.Value, out delayMs))
-                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
+            return args; // 空参数列表
         }
 
-        Expect(TokenType.ParenClose, "Y coordinate requires ')' after it");
-        _events.Add(new MouseEvent
-        {
-            Action = MouseAction.Move,
-            X = x,
-            Y = y,
-            TimeSinceLastEvent = delayMs,
-        });
-    }
-
-    private void ParseMouseMoveToStatement()
-    {
-        Consume(TokenType.KeywordMouseMoveTo);
-        Expect(TokenType.ParenOpen, "'MouseMoveTo' requires '(' after it");
-        var xToken = Expect(TokenType.Number, "Requires X coordinate");
-        Expect(TokenType.Comma, "X coordinate requires ',' after it");
-        var yToken = Expect(TokenType.Number, "Requires Y coordinate");
-        if (!int.TryParse(xToken.Value, out int x))
-            throw CreateException($"Invalid X coordinate '{xToken.Value}'");
-        if (!int.TryParse(yToken.Value, out int y))
-            throw CreateException($"Invalid Y coordinate '{yToken.Value}'");
-        int delayMs = 0;
-        if (CurrentToken().Type == TokenType.Comma)
-        {
-            Consume(); // Consume ','
-            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
-            if (!int.TryParse(delayToken.Value, out delayMs))
-                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
-        }
-        Expect(TokenType.ParenClose, "Y coordinate requires ')' after it");
-        _events.Add(new MouseEvent
-        {
-            Action = MouseAction.MoveTo,
-            X = x,
-            Y = y,
-            TimeSinceLastEvent = delayMs,
-        });
-    }
-
-    private void ParseMouseWheelStatement()
-    {
-        Consume(TokenType.KeywordMouseWheel);
-        Expect(TokenType.ParenOpen, "'MouseWheel' requires '(' after it");
-
-        var deltaToken = Expect(TokenType.Number, "Requires wheel delta");
-        if (!int.TryParse(deltaToken.Value, out int delta))
-            throw CreateException($"Invalid wheel delta '{deltaToken.Value}'");
-
-        int delayMs = 0;
-
-        if (CurrentToken().Type == TokenType.Comma)
-        {
-            Consume(); // Consume ','
-            var delayToken = Expect(TokenType.Number, "Requires delay milliseconds");
-            if (!int.TryParse(delayToken.Value, out delayMs))
-                throw CreateException($"Invalid delay milliseconds '{delayToken.Value}'");
-        }
-
-        Expect(TokenType.ParenClose, "Wheel delta requires ')' after it");
-
-        _events.Add(new MouseEvent
-        {
-            Action = MouseAction.Wheel,
-            WheelDelta = delta,
-            TimeSinceLastEvent = delayMs,
-        });
-    }
-
-    #endregion
-
-    #region Keyboard Events Parsers
-
-    private List<KeyboardEvent> ReadKeyEvents(KeyboardAction action)
-    {
-        var collection = new List<KeyboardEvent>();
-
-        int delayMs = 0;
         while (true)
         {
-            var token = CurrentToken();
-            if (token.Type == TokenType.Identifier)
+            var token = CurrentToken;
+            if (token.Type == TokenType.Identifier || token.Type == TokenType.Number || token.Type == TokenType.StringLiteral)
             {
-                if (!Enum.TryParse<Keys>(token.Value, true, out Keys key))
-                    throw CreateException($"Invalid key name '{token.Value}'");
-
-                if (action != KeyboardAction.KeyPress)
-                {
-                    collection.Add(new KeyboardEvent
-                    {
-                        Action = action,
-                        Key = key,
-                        TimeSinceLastEvent = 0,
-                    });
-                }
-                else
-                {
-                    // For KeyPress, add both KeyDown and KeyUp events
-                    collection.Add(new KeyboardEvent
-                    {
-                        Action = KeyboardAction.KeyDown,
-                        Key = key,
-                        TimeSinceLastEvent = 0,
-                    });
-                    collection.Add(new KeyboardEvent
-                    {
-                        Action = KeyboardAction.KeyUp,
-                        Key = key,
-                        TimeSinceLastEvent = 0,
-                    });
-                }
-                Consume(); // Consume key name 
-            }
-            else if (token.Type == TokenType.Number)
-            {
-                // Delay parameter
-                if (!int.TryParse(token.Value, out delayMs))
-                    throw CreateException($"Invalid delay milliseconds '{token.Value}'");
-                if (collection.Count == 0)
-                    throw CreateException("At least one key name must be specified before delay milliseconds");
-
-                Consume(); // Consume delay
-                break; // Delay must be the last parameter
+                args.Add(Consume());
             }
             else
             {
-                break; // No more parameters
+                throw CreateException($"Unexpected token in argument list: '{token.Value}' ({token.Type}). Expected Identifier, Number, or String.");
             }
 
-            // Check for comma separator
-            if (CurrentToken().Type == TokenType.Comma)
+            if (CurrentToken.Type == TokenType.Comma)
             {
                 Consume(); // Consume ','
             }
+            else if (CurrentToken.Type == TokenType.ParenClose)
+            {
+                break; // End of argument list
+            }
             else
             {
-                break; // No more parameters
+                throw CreateException($"Unexpected token '{CurrentToken.Value}' after argument. Expected ',' or ')'.");
+            }
+        }
+        return args;
+    }
+
+    /// <summary>
+    /// 根据函数名和参数创建 MacroEvent
+    /// </summary>
+    private MacroEvent[] CreateEventsFromFunctionCall(Token funcName, List<Token> args)
+    {
+        string name = funcName.Value.ToLowerInvariant();
+        int line = funcName.LineNumber;
+
+        try
+        {
+            return name switch
+            {
+                "delay" => CreateDelayEvent(args, line),
+                "mousemove" => CreateMouseMoveEvent(args, line),
+                "mousemoveto" => CreateMouseMoveToEvent(args, line),
+                "mousedown" => CreateMouseDownEvent(args, line),
+                "mouseup" => CreateMouseUpEvent(args, line),
+                "mouseclick" => CreateMouseClickEvent(args, line),
+                "mousewheel" => CreateMouseWheelEvent(args, line),
+                "keydown" => CreateKeyEvent(KeyboardAction.KeyDown, args, line),
+                "keyup" => CreateKeyEvent(KeyboardAction.KeyUp, args, line),
+                "keypress" => CreateKeyEvent(KeyboardAction.KeyPress, args, line),
+                _ => throw CreateException($"Unknown function name '{funcName.Value}'", line),
+            };
+        }
+        catch (Exception ex) when (ex is not DslParserException)
+        {
+            throw CreateException($"Error parsing arguments for '{funcName.Value}': {ex.Message}", line);
+        }
+    }
+
+    // --- Event Creation Helpers ---
+
+    private int ParseOptionalDelay(List<Token> args, int startIndex)
+    {
+        if (args.Count > startIndex && args[startIndex].Type == TokenType.Number)
+        {
+            if (int.TryParse(args[startIndex].Value, out int delay))
+            {
+                args.RemoveAt(startIndex); // Consume the delay argument
+                return delay;
+            }
+        }
+        return 0; // 默认延迟
+    }
+
+    private List<Keys> ParseKeyArguments(List<Token> args, out int delayMs)
+    {
+        var keys = new List<Keys>();
+        delayMs = 0;
+        int line = args.Count > 0 ? args[0].LineNumber : CurrentToken.LineNumber;
+
+        if (args.Count == 0)
+        {
+            throw CreateException("Key function requires at least one key argument", line);
+        }
+
+        // 最后一个参数可能是延迟
+        if (args.Count > 1 && args[^1].Type == TokenType.Number)
+        {
+            if (!int.TryParse(args[^1].Value, out delayMs))
+                throw CreateException($"Invalid delay milliseconds '{args[^1].Value}'", line);
+            args.RemoveAt(args.Count - 1); // 移除延迟参数
+        }
+
+        // 剩余的都应该是按键
+        foreach (var arg in args)
+        {
+            if (arg.Type != TokenType.Identifier)
+                throw CreateException($"Expected key name (Identifier) but got '{arg.Value}' ({arg.Type})", arg.LineNumber);
+            if (!Enum.TryParse<Keys>(arg.Value, true, out Keys key))
+                throw CreateException($"Invalid key name '{arg.Value}'", arg.LineNumber);
+            keys.Add(key);
+        }
+
+        return keys;
+    }
+
+    private MacroEvent[] CreateDelayEvent(List<Token> args, int line)
+    {
+        if (args.Count != 1 || args[0].Type != TokenType.Number)
+            throw CreateException("'Delay' requires exactly one numeric argument (milliseconds)", line);
+
+        if (!double.TryParse(args[0].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double delay))
+            throw CreateException($"Invalid delay milliseconds '{args[0].Value}'", line);
+
+        return [new DelayEvent { DelayMilliseconds = (int)Math.Round(delay), TimeSinceLastEvent = 0 }];
+    }
+
+    private MacroEvent[] CreateMouseMoveEvent(List<Token> args, int line)
+    {
+        int delayMs = ParseOptionalDelay(args, 2); // 检查第三个参数 (index 2)
+        if (args.Count != 2 || args[0].Type != TokenType.Number || args[1].Type != TokenType.Number)
+            throw CreateException("'MouseMove' requires two numeric arguments (X, Y) and an optional delay", line);
+
+        if (!int.TryParse(args[0].Value, out int x)) throw CreateException($"Invalid X coordinate '{args[0].Value}'", line);
+        if (!int.TryParse(args[1].Value, out int y)) throw CreateException($"Invalid Y coordinate '{args[1].Value}'", line);
+
+        return [new MouseEvent { Action = MouseAction.Move, X = x, Y = y, TimeSinceLastEvent = delayMs }];
+    }
+
+    private MacroEvent[] CreateMouseMoveToEvent(List<Token> args, int line)
+    {
+        int delayMs = ParseOptionalDelay(args, 2); // 检查第三个参数 (index 2)
+        if (args.Count != 2 || args[0].Type != TokenType.Number || args[1].Type != TokenType.Number)
+            throw CreateException("'MouseMoveTo' requires two numeric arguments (X, Y) and an optional delay", line);
+
+        if (!int.TryParse(args[0].Value, out int x)) throw CreateException($"Invalid X coordinate '{args[0].Value}'", line);
+        if (!int.TryParse(args[1].Value, out int y)) throw CreateException($"Invalid Y coordinate '{args[1].Value}'", line);
+
+        return [new MouseEvent { Action = MouseAction.MoveTo, X = x, Y = y, TimeSinceLastEvent = delayMs }];
+    }
+
+    private MouseAction ParseMouseButton(Token arg, int line)
+    {
+        if (arg.Type != TokenType.Identifier)
+            throw CreateException("Expected mouse button (Left, Right, Middle)", line);
+
+        return arg.Value.ToLowerInvariant() switch
+        {
+            "left" => MouseAction.LeftDown, // Base action, will be adjusted
+            "right" => MouseAction.RightDown,
+            "middle" => MouseAction.MiddleDown,
+            _ => throw CreateException($"Invalid mouse button '{arg.Value}'. Expected 'Left', 'Right', or 'Middle'.", line),
+        };
+    }
+
+    private MacroEvent[] CreateMouseDownEvent(List<Token> args, int line)
+    {
+        int delayMs = ParseOptionalDelay(args, 1);
+        if (args.Count != 1) throw CreateException("'MouseDown' requires one button argument (Left, Right, Middle) and an optional delay", line);
+
+        var action = ParseMouseButton(args[0], line); // Gets LeftDown, RightDown, or MiddleDown
+        return [new MouseEvent { Action = action, TimeSinceLastEvent = delayMs }];
+    }
+
+    private MacroEvent[] CreateMouseUpEvent(List<Token> args, int line)
+    {
+        int delayMs = ParseOptionalDelay(args, 1);
+        if (args.Count != 1) throw CreateException("'MouseUp' requires one button argument (Left, Right, Middle) and an optional delay", line);
+
+        var action = ParseMouseButton(args[0], line); // Gets LeftDown, RightDown, or MiddleDown
+        return [new MouseEvent { Action = action.GetPairedAction(), TimeSinceLastEvent = delayMs }]; // Converts to Up action
+    }
+
+    private MacroEvent[] CreateMouseClickEvent(List<Token> args, int line)
+    {
+        // MouseClick is special, it creates two events.
+        // This parser structure only allows returning one.
+        // We'll return the Down event and add the Up event directly.
+
+        int delayMs = ParseOptionalDelay(args, 1);
+        if (args.Count != 1) throw CreateException("'MouseClick' requires one button argument (Left, Right, Middle) and an optional delay", line);
+
+        var downAction = ParseMouseButton(args[0], line);
+        var upAction = downAction.GetPairedAction();
+
+        // Add the Up event directly
+        _events.Add(new MouseEvent { Action = upAction, TimeSinceLastEvent = delayMs });
+
+        // Return the Down event
+        return [new MouseEvent { Action = downAction, TimeSinceLastEvent = 0 }];
+    }
+
+    private MacroEvent[] CreateMouseWheelEvent(List<Token> args, int line)
+    {
+        int delayMs = ParseOptionalDelay(args, 1);
+        if (args.Count != 1 || args[0].Type != TokenType.Number)
+            throw CreateException("'MouseWheel' requires one numeric argument (delta) and an optional delay", line);
+
+        if (!int.TryParse(args[0].Value, out int delta)) throw CreateException($"Invalid wheel delta '{args[0].Value}'", line);
+
+        return [new MouseEvent { Action = MouseAction.Wheel, WheelDelta = delta, TimeSinceLastEvent = delayMs }];
+    }
+
+    private MacroEvent[] CreateKeyEvent(KeyboardAction action, List<Token> args, int line)
+    {
+        // Key functions are also special, they can take multiple keys and create multiple events.
+        // We will add all but the first event directly, and return the first.
+
+        List<Keys> keys = ParseKeyArguments(args, out int delayMs);
+
+        if (keys.Count == 0)
+            throw CreateException("Key function requires at least one key name argument", line);
+
+        List<MacroEvent> keyEvents = [];
+
+        foreach (var key in keys)
+        {
+            if (action == KeyboardAction.KeyPress)
+            {
+                keyEvents.Add(new KeyboardEvent { Action = KeyboardAction.KeyDown, Key = key, TimeSinceLastEvent = 0 });
+                keyEvents.Add(new KeyboardEvent { Action = KeyboardAction.KeyUp, Key = key, TimeSinceLastEvent = 0 });
+            }
+            else
+            {
+                keyEvents.Add(new KeyboardEvent { Action = action, Key = key, TimeSinceLastEvent = 0 });
             }
         }
 
-        if (delayMs > 0)
+        // Apply delay to the *last* event in the sequence generated by this call
+        if (keyEvents.Count > 0)
         {
-            foreach (var evt in collection.Skip(1))
-                evt.TimeSinceLastEvent = delayMs;
+            keyEvents[^1].TimeSinceLastEvent = delayMs;
         }
 
-        return collection;
+        // Return the first event
+        return [.. keyEvents];
     }
 
-    // KeyDown(keyName1, keyName2, ..., delayMs)
-    private void ParseKeyDownStatement()
-    {
-        Consume(TokenType.KeywordKeyDown);
-
-        Expect(TokenType.ParenOpen, "'KeyDown' requires '(' after it");
-        List<KeyboardEvent> collection = ReadKeyEvents(KeyboardAction.KeyDown);
-        Expect(TokenType.ParenClose, "'KeyDown' parameters require ')' after them");
-
-        _events.AddRange(collection);
-    }
-
-
-    // KeyUp(keyName1, keyName2, ...)
-    private void ParseKeyUpStatement()
-    {
-        Consume(TokenType.KeywordKeyUp);
-
-        Expect(TokenType.ParenOpen, "'KeyUp' requires '(' after it");
-        List<KeyboardEvent> collection = ReadKeyEvents(KeyboardAction.KeyUp);
-        Expect(TokenType.ParenClose, "'KeyUp' parameters require ')' after them");
-
-        _events.AddRange(collection);
-    }
-
-    // KeyPress(keyName1, keyName2, ...)
-    private void ParseKeyPressStatement()
-    {
-        Consume(TokenType.KeywordKeyPress);
-
-        Expect(TokenType.ParenOpen, "'KeyPress' requires '(' after it");
-        List<KeyboardEvent> collection = ReadKeyEvents(KeyboardAction.KeyPress);
-        Expect(TokenType.ParenClose, "'KeyPress' parameters require ')' after them");
-
-        _events.AddRange(collection);
-    }
 
     #endregion
 
@@ -761,18 +826,18 @@ public partial class NewDslParser
         var conditionEvent = new ConditionalJumpEvent { TimeSinceLastEvent = 0 };
         bool isNotEquals = false;
 
-        if (CurrentToken().Type == TokenType.KeywordPixelColor)
+        if (CurrentToken.Type == TokenType.KeywordPixelColor)
         {
             ParsePixelColorCondition(conditionEvent, out isNotEquals);
         }
-        else if (CurrentToken().Type == TokenType.KeywordCustom)
+        else if (CurrentToken.Type == TokenType.KeywordCustom)
         {
             ParseCustomCondition(conditionEvent);
             isNotEquals = false; // Custom condition implies '== true' by default
         }
         else
         {
-            throw CreateException($"Expected condition (PixelColor or Custom), but got '{CurrentToken().Value}'");
+            throw CreateException($"Expected condition (PixelColor or Custom), but got '{CurrentToken.Value}'");
         }
 
         return (conditionEvent, new JumpTargets(isNotEquals));
@@ -791,7 +856,7 @@ public partial class NewDslParser
         Expect(TokenType.ParenClose, "Y coordinate requires ')' after it");
 
         var operatorToken = Consume();
-        if (operatorToken.Type == TokenType.OperatorEquals) isNotEquals = false;
+        if (operatorToken.Type == TokenType.OperatorCompareEquals) isNotEquals = false;
         else if (operatorToken.Type == TokenType.OperatorNotEquals) isNotEquals = true;
         else throw CreateException($"PixelColor condition requires '==' or '!=' operator");
 
@@ -800,9 +865,9 @@ public partial class NewDslParser
         bool isArgb = false;
         int a = 255; // Default alpha
 
-        if (CurrentToken().Type == TokenType.KeywordRGB || CurrentToken().Type == TokenType.KeywordARGB)
+        if (CurrentToken.Type == TokenType.KeywordRGB || CurrentToken.Type == TokenType.KeywordARGB)
         {
-            isArgb = CurrentToken().Type == TokenType.KeywordARGB;
+            isArgb = CurrentToken.Type == TokenType.KeywordARGB;
             Consume(); // RGB or ARGB
             Expect(TokenType.ParenOpen, $"'{(isArgb ? "ARGB" : "RGB")}' requires '(' after it");
 
@@ -821,7 +886,7 @@ public partial class NewDslParser
             var bToken = Expect(TokenType.Number, "Requires B value");
 
             // Optional tolerance
-            if (CurrentToken().Type == TokenType.Comma)
+            if (CurrentToken.Type == TokenType.Comma)
             {
                 Consume(); // Consume ','
                 var toleranceToken = Expect(TokenType.Number, "Requires tolerance value (0-255)");
@@ -896,7 +961,7 @@ public partial class NewDslParser
     private DslParserException CreateException(string message, int? lineNumber = null)
     {
         // Use provided line number or the current token's line number
-        int line = lineNumber ?? CurrentToken()?.LineNumber ?? 0; // Default to 0 if currentToken is somehow null
+        int line = lineNumber ?? CurrentToken?.LineNumber ?? 0; // Default to 0 if currentToken is somehow null
         return new DslParserException(message, line);
     }
 }

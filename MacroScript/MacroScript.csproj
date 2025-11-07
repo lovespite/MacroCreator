@@ -26,6 +26,9 @@
     <None Update="DslDemo\DslDemo.macroscript">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="DslDemo\DslDemo5.macroscript">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

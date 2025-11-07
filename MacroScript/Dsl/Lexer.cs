@@ -19,28 +19,26 @@ public class Lexer : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    // 关键字映射 (无变化)
+    // 关键字映射 (已移除动作关键字)
     private static readonly Dictionary<string, TokenType> Keywords = new(StringComparer.OrdinalIgnoreCase)
     {
         { "if", TokenType.KeywordIf },
         { "else", TokenType.KeywordElse },
+        { "elseif", TokenType.KeywordElseIf }, // 新增
         { "endif", TokenType.KeywordEndIf },
         { "while", TokenType.KeywordWhile },
         { "endwhile", TokenType.KeywordEndWhile },
         { "break", TokenType.KeywordBreak },
+        { "for", TokenType.KeywordFor }, // 新增
+        { "to", TokenType.KeywordTo }, // 新增
+        { "endfor", TokenType.KeywordEndFor }, // 新增
+        { "step", TokenType.KeywordStep }, // 新增
         { "label", TokenType.KeywordLabel },
         { "goto", TokenType.KeywordGoto },
         { "exit", TokenType.KeywordExit },
-        { "delay", TokenType.KeywordDelay },
-        { "mousedown", TokenType.KeywordMouseDown },
-        { "mouseup", TokenType.KeywordMouseUp },
-        { "mouseclick", TokenType.KeywordMouseClick },
-        { "mousemove", TokenType.KeywordMouseMove },
-        { "mousemoveto", TokenType.KeywordMouseMoveTo },
-        { "mousewheel", TokenType.KeywordMouseWheel },
-        { "keydown", TokenType.KeywordKeyDown },
-        { "keyup", TokenType.KeywordKeyUp },
-        { "keypress", TokenType.KeywordKeyPress },
+        // { "delay", TokenType.KeywordDelay }, // 已移除
+        // { "mousedown", TokenType.KeywordMouseDown }, // 已移除
+        // ... (其他动作关键字已移除)
         { "pixelcolor", TokenType.KeywordPixelColor },
         { "rgb", TokenType.KeywordRGB },
         { "argb", TokenType.KeywordARGB },
@@ -297,12 +295,12 @@ public class Lexer : IDisposable
             {
                 _reader.Read(); // 消耗第二个 '='
                 _column++;
-                return new Token(TokenType.OperatorEquals, "==", startLine, startColumn);
+                return new Token(TokenType.OperatorCompareEquals, "==", startLine, startColumn);
             }
             else // Single '=' is assignment
             {
-                throw new DslParserException($"行 {startLine}: Unexpected character '='", startLine);
-                // return new Token(TokenType.OperatorAssign, "=", startLine, startColumn);
+                // throw new DslParserException($"行 {startLine}: Unexpected character '='", startLine);
+                return new Token(TokenType.OperatorEquals, "=", startLine, startColumn); // 改为 OperatorEquals
             }
         }
         if (currentChar == '!')
@@ -420,6 +418,12 @@ public class Lexer : IDisposable
                 // If single '.', treat as unknown, maybe it's part of something else
                 return new Token(TokenType.Unknown, ".", startLine, startColumn);
             }
+            // 检查是否只有一个 '-'
+            if (sb.Length == 1 && sb[0] == '-')
+            {
+                // 如果是，则将其视为未知（可能是减号运算符，但当前 DSL 不支持）
+                return new Token(TokenType.Unknown, "-", startLine, startColumn);
+            }
             return new Token(TokenType.Number, sb.ToString(), startLine, startColumn);
         }
 
@@ -454,23 +458,26 @@ public class Lexer : IDisposable
             }
             else
             {
-                // Check if it's a known enum value or just a generic identifier
-                if (System.Enum.TryParse<MouseAction>(value, true, out _) ||
-                    System.Enum.TryParse<KeyboardAction>(value, true, out _) ||
-                    System.Enum.TryParse<Keys>(value, true, out _))
-                {
-                    return new Token(TokenType.Identifier, value, startLine, startColumn);
-                }
-                // Assume it's a user-defined identifier if it follows the rules
-                else if (Regexes.Identifier().IsMatch(value)) // Optional: stricter check if needed
-                {
-                    return new Token(TokenType.Identifier, value, startLine, startColumn);
-                }
-                else
-                {
-                    // Should not happen if IsValidIdentifierStart/Part are correct
-                    throw new DslParserException($"行 {startLine}: Invalid identifier '{value}'", startLine);
-                }
+                // 所有未在 Keywords 字典中定义的 "单词" 都被视为标识符
+                return new Token(TokenType.Identifier, value, startLine, startColumn);
+
+                // // Check if it's a known enum value or just a generic identifier
+                // if (System.Enum.TryParse<MouseAction>(value, true, out _) ||
+                //     System.Enum.TryParse<KeyboardAction>(value, true, out _) ||
+                //     System.Enum.TryParse<Keys>(value, true, out _))
+                // {
+                //     return new Token(TokenType.Identifier, value, startLine, startColumn);
+                // }
+                // // Assume it's a user-defined identifier if it follows the rules
+                // else if (Regexes.Identifier().IsMatch(value)) // Optional: stricter check if needed
+                // {
+                //     return new Token(TokenType.Identifier, value, startLine, startColumn);
+                // }
+                // else
+                // {
+                //     // Should not happen if IsValidIdentifierStart/Part are correct
+                //     throw new DslParserException($"行 {startLine}: Invalid identifier '{value}'", startLine);
+                // }
             }
         }
 

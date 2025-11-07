@@ -1,0 +1,20 @@
+ for count = 1 to 20 step 1
+  MouseMove(10, 10, 10)
+
+  if (Custom(`count > 7`))
+    Script(`println("Count is greater than 7: " + count)`)
+  elseif (Custom(`count > 5`))
+    Script(`println("Count is greater than 5: " + count)`)
+  elseif (Custom(`count > 3`))
+    Script(`println("Count is greater than 3: " + count)`)
+  else
+    Script(`
+    println("Current count: " + count)
+    `)
+  endif 
+
+  if (Custom(`count == 12`))
+    Script(`println("Count is exactly 12: " + count)`)
+    break
+  endif
+endfor

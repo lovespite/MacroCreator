@@ -1,4 +1,4 @@
-﻿Script(`
+﻿script(`
 set("dx", 0.0d)
 set("dy", 0.0d)
 set("count", 0)
@@ -12,10 +12,10 @@ while(Custom(`count <= 20`))
   hid.MouseMove((int)dx, (int)dy).Wait()
   set("count", 1 + count)
   `)
-  Delay(1000)
+  Delay(333)
 endwhile
 
-Script(` 
+script(` 
 // hid.MouseClick(hid.Mouse.R).Wait()
 
 hid.KeyCombination(hid.Kbd.LWin, hid.Kbd.R).Wait()
