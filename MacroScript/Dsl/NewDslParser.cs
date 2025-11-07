@@ -395,7 +395,7 @@ public partial class NewDslParser
         // 1. Initialization Script
         _events.Add(new ScriptEvent
         {
-            ScriptLines = [$"set(\"{varToken.Value}\", {startVal.ToString(CultureInfo.InvariantCulture)}l)"],
+            ScriptLines = [$"set(\"{varToken.Value}\", {startVal.ToString(CultureInfo.InvariantCulture)})"],
             TimeSinceLastEvent = 0
         });
 

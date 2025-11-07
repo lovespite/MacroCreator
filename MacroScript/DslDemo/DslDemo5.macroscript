@@ -18,3 +18,7 @@ for count = 1 to 20 step 1
     break
   endif
 endfor
+
+for count = 1 to 2 step 0.1
+  MouseMove(10, 10, 10) 
+endfor
