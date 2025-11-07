@@ -1,4 +1,4 @@
- for count = 1 to 20 step 1
+for count = 1 to 20 step 1
   MouseMove(10, 10, 10)
 
   if (Custom(`count > 7`))
